@@ -58,6 +58,10 @@ func trim(v float64) string {
 func Times(r float64) string { return trim(r) + " times" }
 
 func headline(c *Constraint, line ClassStats) string {
+	if c == nil && line.Merged > 0 {
+		return fmt.Sprintf("Only %s merged in this window. That is too few to name a constraint: it takes %d. Try a longer window with --since.",
+			plural(line.Merged, "agent or human pull request", "agent or human pull requests"), MinSample)
+	}
 	if c == nil {
 		return "No agent or human pull request merged in this window, so there is no constraint to name."
 	}

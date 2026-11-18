@@ -60,8 +60,11 @@ func TestReportFromRaw(t *testing.T) {
 	if err := json.Unmarshal(js, &rep); err != nil {
 		t.Fatal(err)
 	}
-	if rep.Target != "o/r" || rep.Agent.Merged != 1 || rep.Human.Merged != 0 || len(rep.PRs) != 1 || !rep.Until.Equal(until) || rep.Constraint == nil {
+	if rep.Target != "o/r" || rep.Agent.Merged != 1 || rep.Human.Merged != 0 || len(rep.PRs) != 1 || !rep.Until.Equal(until) {
 		t.Errorf("report: target=%q agent=%d human=%d rows=%d", rep.Target, rep.Agent.Merged, rep.Human.Merged, len(rep.PRs))
+	}
+	if rep.Constraint != nil || !strings.HasPrefix(rep.Headline, "Only 1 agent or human pull request merged in this window.") {
+		t.Errorf("one merged pull request must not name a constraint: %+v %q", rep.Constraint, rep.Headline)
 	}
 	page, _ := os.ReadFile(htmlPath)
 	if !strings.Contains(string(page), "<h1>"+rep.Headline+"</h1>") {

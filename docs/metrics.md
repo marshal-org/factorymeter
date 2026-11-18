@@ -85,6 +85,10 @@ constraint on its own.
 
 The **share** of a stage is its capped total divided by the capped total of all stages.
 
+The report names a constraint only when at least **5** agent and human pull requests merged
+in the window. With fewer, one slow pull request would decide it. The headline then says
+how many merged and asks for a longer window. The stage shares are still shown.
+
 ### The headline
 
 The headline compares agent and human pull requests at the constraint.
