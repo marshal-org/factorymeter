@@ -729,7 +729,13 @@ func prRow(f prFacts) PRRow {
 // the line. By Little's law, hours spent in a stage are in proportion to the
 // work standing in it on an average day, so the largest total is the longest
 // queue. Totals are capped at each stage's 90th percentile first.
+//
+// Fewer than MinSample merged pull requests name no constraint. One slow pull
+// request would decide it.
 func findConstraint(line, agent, human ClassStats) *Constraint {
+	if line.Merged < MinSample {
+		return nil
+	}
 	best, bestTotal, all := "", 0.0, 0.0
 	for _, s := range Stages {
 		d := line.Exclusive[s.ID]

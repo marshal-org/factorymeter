@@ -249,6 +249,29 @@ func TestConstraintAndHeadline(t *testing.T) {
 	}
 }
 
+func TestTooFewPullRequestsNameNoConstraint(t *testing.T) {
+	r := line(t, 2, 30, 5) // 2 agent and 2 human: 4 merged, one short of MinSample
+	if r.Line.Merged != 4 || r.Constraint != nil {
+		t.Fatalf("4 merged pull requests must name no constraint: merged=%d %+v", r.Line.Merged, r.Constraint)
+	}
+	want := "Only 4 agent or human pull requests merged in this window. That is too few to name a constraint: it takes 5. Try a longer window with --since."
+	if r.Headline != want {
+		t.Errorf("headline\n got: %s\nwant: %s", r.Headline, want)
+	}
+	for _, f := range r.Findings {
+		if strings.Contains(f, "The constraint is") {
+			t.Errorf("a finding names a constraint: %s", f)
+		}
+	}
+	if StageShare(r.Line, StageReviewWait) == 0 {
+		t.Error("the stage shares must still be reported")
+	}
+	// 5 merged is enough to name it, even when neither class has 5.
+	if r = line(t, 3, 30, 5); r.Constraint == nil || r.Constraint.Comparable {
+		t.Errorf("6 merged pull requests name a constraint with no comparison: %+v", r.Constraint)
+	}
+}
+
 func TestOneStuckPullRequestDoesNotNameTheConstraint(t *testing.T) {
 	var prs []model.PR
 	for i := 0; i < 20; i++ {

@@ -220,7 +220,8 @@ jobs:
 | `artifact-name` | `factorymeter-report` | name of the artifact |
 
 Outputs: `headline`, `constraint`, `constraint-share`, `disclosed-agent-share`, `lights-out-url`,
-and the paths `html`, `json` and `markdown`.
+and the paths `html`, `json` and `markdown`. `constraint` and `constraint-share` are empty when fewer
+than 5 pull requests merged in the window.
 
 The Action builds the binary from the commit you pinned, so the code that runs is the code you
 can read.
