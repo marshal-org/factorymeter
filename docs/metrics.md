@@ -166,6 +166,50 @@ to a server, so opening the link shares nothing. The simulator reads the numbers
 its form and removes them from the address bar. The only thing in the query string is
 `utm_source=factorymeter`, which tells the site where the visit came from.
 
+## The trend
+
+`factorymeter trend` collects one long window and cuts it into periods of the same length. The
+default is 12 weeks in periods of one week. `--every` takes a number of days or weeks, such as
+`14d` or `4w`.
+
+**Periods.** The periods are counted back from the end of the window, so every period is whole
+and the last one ends where the collection ended. Days left over at the start are dropped. A
+trend needs at least two whole periods.
+
+**One period is one small report.** Each period is measured by the same code as the report,
+with the same rules: a pull request counts in the period it merged in, with all of its stages
+and CI runs, and a deploy counts in the period it happened in.
+
+**The two ends.** The change is measured between the first third and the last third of the
+periods, each measured as one window. With 12 weeks that is the first 4 weeks against the last
+4. Medians and shares are computed over all pull requests of an end. They are not averages of
+the weekly values, so a week with two pull requests does not weigh as much as a week with fifty.
+
+**What counts as a change.** A share has to move by 5 points or more. Any other number has to
+move by 20% or more. Both ends need at least 5 pull requests, or 5 CI runs for the CI numbers,
+behind them. Counts such as pull requests merged per week need 5 at one end only. Times also
+need to be long enough to matter at one end. The tables show every number whether it changed
+or not. The list above the tables holds the changes that pass these rules, at most 12 of them.
+
+**The constraint over time.** The headline compares the constraint of the first third with the
+constraint of the last third. It says whether it moved to another stage, and if not, whether
+its share of the time from open to merge grew or shrank. Each period also names its own
+constraint when it has at least 5 merged agent and human pull requests.
+
+**Thin periods.** One period can hold few pull requests. A value drawn from fewer than 5 is
+marked with a star in the tables and a hollow dot in the charts. If many periods are thin, use
+a longer `--every`.
+
+**The review queue of a past period.** "Waiting for a first review" is a state, not an event,
+so it is rebuilt from timestamps: a pull request waits at the end of a period if it was open and
+ready by then and no other person had reviewed it yet. Two limits follow. GitHub does not say
+when a pull request that is a draft today became one, so it counts as a draft all along. And a
+pull request that nobody touched since before the window started is not read at all.
+
+**Numbers a repository never had.** A series with no value in any period is left out. A series
+that starts later, such as CI on a repository that added pull request workflows halfway, shows
+`n/a` for the early periods and for the change.
+
 ## What factorymeter cannot see
 
 - **Agents that leave no trace.** A local agent that writes no trailer, footer or badge

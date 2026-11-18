@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/marshal-org/factorymeter/pkg/collector"
 	"github.com/marshal-org/factorymeter/pkg/metrics"
@@ -60,10 +61,109 @@ func writeFile(path string, write func(io.Writer) error) error {
 	return f.Close()
 }
 
+// source is where the pull requests come from: GitHub, or a --save-raw file.
+// The report and the trend share it.
+type source struct {
+	since, until, saveRaw, fromRaw          string
+	quiet, noCI, noDeploys, forks, archived bool
+	maxRuns                                 int
+}
+
+func (s *source) flags(f *pflag.FlagSet, since string) {
+	f.StringVar(&s.since, "since", since, "start of the window: days (30d), weeks (12w) or a date")
+	f.StringVar(&s.until, "until", "", "end of the window, same forms as --since (default now)")
+	f.StringVar(&s.saveRaw, "save-raw", "", "write everything collected from GitHub to this file")
+	f.StringVar(&s.fromRaw, "from-raw", "", "read a --save-raw file instead of calling GitHub. --since and --until then pick a part of it")
+	f.BoolVar(&s.noCI, "no-ci", false, "do not read GitHub Actions runs")
+	f.BoolVar(&s.noDeploys, "no-deploys", false, "do not read deployments and releases")
+	f.IntVar(&s.maxRuns, "max-runs", 0, "most workflow runs to read per repository (default 30000)")
+	f.BoolVar(&s.forks, "forks", false, "include forks when the target is an owner")
+	f.BoolVar(&s.archived, "archived", false, "include archived repositories when the target is an owner")
+	f.BoolVarP(&s.quiet, "quiet", "q", false, "do not print progress")
+}
+
+// args wants a target, unless a raw file supplies one.
+func (s *source) args(cmd *cobra.Command, args []string) error {
+	if s.fromRaw != "" && len(args) == 0 {
+		return nil
+	}
+	return cobra.ExactArgs(1)(cmd, args)
+}
+
+// load collects from GitHub or reads the raw file. from and to are the window
+// asked for. With a raw file they are zero unless the flag was given.
+func (s *source) load(cmd *cobra.Command, args []string) (raw rawFile, now, from, to time.Time, err error) {
+	now = time.Now().UTC()
+	if s.fromRaw != "" {
+		data, err := os.ReadFile(s.fromRaw)
+		if err != nil {
+			return raw, now, from, to, err
+		}
+		if err := json.Unmarshal(data, &raw); err != nil {
+			return raw, now, from, to, fmt.Errorf("%s: %w", s.fromRaw, err)
+		}
+		if len(raw.Repos) == 0 {
+			return raw, now, from, to, errors.New(s.fromRaw + " holds no repositories")
+		}
+		now = raw.Repos[0].Until
+		if cmd.Flags().Changed("until") {
+			if to, err = parseWhen(s.until, now); err != nil {
+				return raw, now, from, to, err
+			}
+		}
+		if cmd.Flags().Changed("since") {
+			end := now
+			if !to.IsZero() {
+				end = to
+			}
+			if from, err = parseWhen(s.since, end); err != nil {
+				return raw, now, from, to, err
+			}
+		}
+	} else {
+		if from, err = parseWhen(s.since, now); err != nil {
+			return raw, now, from, to, err
+		}
+		to = now
+		if s.until != "" {
+			if to, err = parseWhen(s.until, now); err != nil {
+				return raw, now, from, to, err
+			}
+		}
+		if !from.Before(to) {
+			return raw, now, from, to, errors.New("the window is empty: --since must be before --until")
+		}
+		c, err := newClient(s.quiet)
+		if err != nil {
+			return raw, now, from, to, err
+		}
+		k := &collector.Collector{C: c, Opt: collector.Options{Since: from, Until: to, MaxRuns: s.maxRuns, SkipCI: s.noCI, SkipDeploys: s.noDeploys,
+			IncludeForks: s.forks, IncludeArchived: s.archived}}
+		if !s.quiet {
+			k.Opt.Logf = progress
+		}
+		raw.Target = strings.TrimSuffix(strings.TrimPrefix(args[0], "https://github.com/"), "/")
+		if raw.Repos, err = k.Target(cmd.Context(), raw.Target); err != nil {
+			return raw, now, from, to, err
+		}
+		if !s.quiet {
+			progress("%d GitHub API calls", c.Calls)
+		}
+	}
+	if s.saveRaw != "" {
+		err = writeFile(s.saveRaw, func(w io.Writer) error {
+			enc := json.NewEncoder(w)
+			enc.SetEscapeHTML(false)
+			return enc.Encode(raw)
+		})
+	}
+	return raw, now, from, to, err
+}
+
 func reportCmd() *cobra.Command {
-	var since, until, format, htmlPath, jsonPath, saveRaw, fromRaw, registryPath string
-	var quiet, detail, noCI, noDeploys, forks, archived bool
-	var maxRuns int
+	var format, htmlPath, jsonPath, registryPath string
+	var detail bool
+	var src source
 	cmd := &cobra.Command{
 		Use:   "report <owner/repo | owner>",
 		Short: "Measure a repository or every repository of an owner",
@@ -76,12 +176,7 @@ error.`,
 		Example: `  factorymeter report marshal-org/runlease
   factorymeter report my-org --since 90d --html report.html --json report.json
   factorymeter report owner/repo --format markdown >> "$GITHUB_STEP_SUMMARY"`,
-		Args: func(cmd *cobra.Command, args []string) error {
-			if fromRaw != "" && len(args) == 0 {
-				return nil
-			}
-			return cobra.ExactArgs(1)(cmd, args)
-		},
+		Args: src.args,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if format != "text" && format != "markdown" && format != "json" && format != "none" {
 				return fmt.Errorf("unknown format %q. Use text, markdown, json or none", format)
@@ -90,61 +185,11 @@ error.`,
 			if err != nil {
 				return err
 			}
-			now := time.Now().UTC()
-			var raw rawFile
-			if fromRaw != "" {
-				data, err := os.ReadFile(fromRaw)
-				if err != nil {
-					return err
-				}
-				if err := json.Unmarshal(data, &raw); err != nil {
-					return fmt.Errorf("%s: %w", fromRaw, err)
-				}
-				if len(raw.Repos) == 0 {
-					return errors.New(fromRaw + " holds no repositories")
-				}
-				now = raw.Repos[0].Until
-			} else {
-				from, err := parseWhen(since, now)
-				if err != nil {
-					return err
-				}
-				to := now
-				if until != "" {
-					if to, err = parseWhen(until, now); err != nil {
-						return err
-					}
-				}
-				if !from.Before(to) {
-					return errors.New("the window is empty: --since must be before --until")
-				}
-				c, err := newClient(quiet)
-				if err != nil {
-					return err
-				}
-				k := &collector.Collector{C: c, Opt: collector.Options{Since: from, Until: to, MaxRuns: maxRuns, SkipCI: noCI, SkipDeploys: noDeploys,
-					IncludeForks: forks, IncludeArchived: archived}}
-				if !quiet {
-					k.Opt.Logf = progress
-				}
-				raw.Target = strings.TrimSuffix(strings.TrimPrefix(args[0], "https://github.com/"), "/")
-				if raw.Repos, err = k.Target(cmd.Context(), raw.Target); err != nil {
-					return err
-				}
-				if !quiet {
-					progress("%d GitHub API calls", c.Calls)
-				}
+			raw, now, from, to, err := src.load(cmd, args)
+			if err != nil {
+				return err
 			}
-			if saveRaw != "" {
-				if err := writeFile(saveRaw, func(w io.Writer) error {
-					enc := json.NewEncoder(w)
-					enc.SetEscapeHTML(false)
-					return enc.Encode(raw)
-				}); err != nil {
-					return err
-				}
-			}
-			rep := metrics.Compute(raw.Repos, reg, metrics.Options{Target: raw.Target, Version: version, Now: now, Detail: detail})
+			rep := metrics.Compute(raw.Repos, reg, metrics.Options{Target: raw.Target, Version: version, Now: now, Detail: detail, Since: from, Until: to})
 			if htmlPath != "" {
 				if err := writeFile(htmlPath, func(w io.Writer) error { return report.HTML(w, &rep) }); err != nil {
 					return err
@@ -167,20 +212,11 @@ error.`,
 		},
 	}
 	f := cmd.Flags()
-	f.StringVar(&since, "since", "30d", "start of the window: days (30d), weeks (12w) or a date")
-	f.StringVar(&until, "until", "", "end of the window, same forms as --since (default now)")
+	src.flags(f, "30d")
 	f.StringVar(&format, "format", "text", "what to print: text, markdown, json or none")
 	f.StringVar(&htmlPath, "html", "", "also write the one-page HTML report to this file")
 	f.StringVar(&jsonPath, "json", "", "also write the JSON export to this file")
 	f.BoolVar(&detail, "detail", false, "add one row per pull request to the JSON export")
-	f.StringVar(&saveRaw, "save-raw", "", "write everything collected from GitHub to this file")
-	f.StringVar(&fromRaw, "from-raw", "", "build the report from a --save-raw file instead of calling GitHub")
 	f.StringVar(&registryPath, "registry", "", "use this signature registry file instead of the built-in one")
-	f.BoolVar(&noCI, "no-ci", false, "do not read GitHub Actions runs")
-	f.BoolVar(&noDeploys, "no-deploys", false, "do not read deployments and releases")
-	f.IntVar(&maxRuns, "max-runs", 0, "most workflow runs to read per repository (default 30000)")
-	f.BoolVar(&forks, "forks", false, "include forks when the target is an owner")
-	f.BoolVar(&archived, "archived", false, "include archived repositories when the target is an owner")
-	f.BoolVarP(&quiet, "quiet", "q", false, "do not print progress")
 	return cmd
 }

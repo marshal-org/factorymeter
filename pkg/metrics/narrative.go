@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/marshal-org/factorymeter/pkg/signature"
 )
@@ -227,7 +228,7 @@ func limits(r *Report) []string {
 	}
 	if r.CISource == "actions" {
 		out = append(out, "CI numbers cover GitHub Actions only. One CI run is everything Actions did for one pushed commit, timed by its longest workflow. Runs that a review or a comment set off are left out.")
-		out = append(out, fmt.Sprintf("CI runs are read back to %s, one window before the start. A pull request that was open before then is missing its earliest runs.", r.Since.Add(-r.Until.Sub(r.Since)).Format("2006-01-02")))
+		out = append(out, fmt.Sprintf("CI runs are read back to %s, one window before the start. A pull request that was open before then is missing its earliest runs.", ciReadBack(r).Format("2006-01-02")))
 	} else {
 		out = append(out, "No GitHub Actions runs were found for these pull requests, so there are no CI numbers. Other CI systems are not read.")
 	}
@@ -238,6 +239,12 @@ func limits(r *Report) []string {
 	}
 	out = append(out, "The simulator inputs for test environments and product managers cannot be read from GitHub. Fill them in yourself.")
 	return out
+}
+
+// ciReadBack is the earliest CI run the collector asked for: one collected
+// window before the collected start.
+func ciReadBack(r *Report) time.Time {
+	return r.CollectedSince.Add(-r.Until.Sub(r.CollectedSince))
 }
 
 // deploySourceWords turns the collector's source labels into words. A report
