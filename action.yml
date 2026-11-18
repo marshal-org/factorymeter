@@ -1,0 +1,137 @@
+name: factorymeter
+description: Measure your delivery line, split by agent and human pull requests, and name the stage where work waits.
+author: Marshal
+branding:
+  icon: activity
+  color: gray-dark
+
+# This action only reads. It needs these permissions on the calling job, and
+# nothing else:
+#
+#   permissions:
+#     contents: read
+#     pull-requests: read
+#     actions: read
+#     deployments: read
+#
+# The report goes to the job summary and to a build artifact. Nothing is sent
+# anywhere except to the GitHub API.
+
+inputs:
+  target:
+    description: owner/repo for one repository, or an owner for all of its active repositories. An owner needs a token that can read those repositories.
+    required: false
+    default: ${{ github.repository }}
+  since:
+    description: "Start of the window: days (30d), weeks (12w) or a date (2026-01-31)."
+    required: false
+    default: 30d
+  token:
+    description: A token that can read the target. The job's own token is enough for the repository the workflow runs in.
+    required: false
+    default: ${{ github.token }}
+  summary:
+    description: Write the report to the job summary.
+    required: false
+    default: "true"
+  artifact:
+    description: Upload the HTML report and the JSON export as a build artifact.
+    required: false
+    default: "true"
+  artifact-name:
+    description: Name of the build artifact.
+    required: false
+    default: factorymeter-report
+
+outputs:
+  headline:
+    description: The one-sentence result.
+    value: ${{ steps.report.outputs.headline }}
+  constraint:
+    description: The stage where work waits the longest, or empty when the window has too little to name one.
+    value: ${{ steps.report.outputs.constraint }}
+  constraint-share:
+    description: The share of open-to-merge time the constraint holds, from 0 to 1.
+    value: ${{ steps.report.outputs.constraint-share }}
+  disclosed-agent-share:
+    description: The share of merged pull requests that disclosed an agent, from 0 to 1. Empty when nothing merged.
+    value: ${{ steps.report.outputs.disclosed-agent-share }}
+  lights-out-url:
+    description: A link that opens the Lights Out simulator with the measured numbers.
+    value: ${{ steps.report.outputs.lights-out-url }}
+  html:
+    description: Path of the one-page HTML report on the runner.
+    value: ${{ steps.report.outputs.html }}
+  json:
+    description: Path of the JSON export on the runner.
+    value: ${{ steps.report.outputs.json }}
+  markdown:
+    description: Path of the Markdown report on the runner.
+    value: ${{ steps.report.outputs.markdown }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+      with:
+        go-version-file: ${{ github.action_path }}/go.mod
+        cache-dependency-path: ${{ github.action_path }}/go.sum
+
+    # The binary is built from the exact commit the workflow pinned, so the
+    # code that runs is the code you can read.
+    - name: Build factorymeter
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        FM_REF: ${{ github.action_ref }}
+      run: |
+        set -euo pipefail
+        version="$(printf '%s' "${FM_REF#v}" | tr -cd 'A-Za-z0-9._-')"
+        CGO_ENABLED=0 go build -trimpath \
+          -ldflags "-s -w -X main.version=${version:-dev}" \
+          -o "$RUNNER_TEMP/factorymeter" ./cmd/factorymeter
+
+    # Inputs reach the script through the environment, never through the
+    # script text, so an input cannot run as shell.
+    - name: Measure
+      id: report
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+        FM_TARGET: ${{ inputs.target }}
+        FM_SINCE: ${{ inputs.since }}
+        FM_SUMMARY: ${{ inputs.summary }}
+      run: |
+        set -euo pipefail
+        out="$RUNNER_TEMP/factorymeter-report"
+        mkdir -p "$out"
+        "$RUNNER_TEMP/factorymeter" report "$FM_TARGET" --since "$FM_SINCE" \
+          --format markdown --html "$out/factorymeter.html" --json "$out/factorymeter.json" \
+          > "$out/factorymeter.md"
+        if [ "$FM_SUMMARY" = "true" ]; then
+          cat "$out/factorymeter.md" >> "$GITHUB_STEP_SUMMARY"
+        fi
+        # One line per output. Line breaks are removed so a value cannot add
+        # an output of its own.
+        one() { jq -r "$1 // \"\" | tostring | gsub(\"[\\r\\n]\"; \" \")" "$out/factorymeter.json"; }
+        {
+          echo "headline=$(one .headline)"
+          echo "constraint=$(one .constraint.stage)"
+          echo "constraint-share=$(one .constraint.share_of_open_to_merge)"
+          echo "disclosed-agent-share=$(one .disclosed_agent_share)"
+          echo "lights-out-url=$(one .lights_out.url)"
+          echo "html=$out/factorymeter.html"
+          echo "json=$out/factorymeter.json"
+          echo "markdown=$out/factorymeter.md"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Upload the report
+      if: inputs.artifact == 'true'
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: |
+          ${{ runner.temp }}/factorymeter-report/factorymeter.html
+          ${{ runner.temp }}/factorymeter-report/factorymeter.json
+          ${{ runner.temp }}/factorymeter-report/factorymeter.md
+        if-no-files-found: error
