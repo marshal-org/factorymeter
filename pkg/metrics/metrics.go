@@ -233,11 +233,14 @@ type PRRow struct {
 
 // Report is everything the output formats print.
 type Report struct {
-	Target          string    `json:"target"`
-	Repos           []string  `json:"repos"`
-	Since           time.Time `json:"since"`
-	Until           time.Time `json:"until"`
-	Days            float64   `json:"days"`
+	Target string    `json:"target"`
+	Repos  []string  `json:"repos"`
+	Since  time.Time `json:"since"`
+	Until  time.Time `json:"until"`
+	Days   float64   `json:"days"`
+	// CollectedSince is where the collected history starts. It is earlier
+	// than Since when the report covers only a part of it.
+	CollectedSince  time.Time `json:"collected_since"`
 	GeneratedAt     time.Time `json:"generated_at"`
 	Version         string    `json:"factorymeter_version"`
 	RegistryVersion int       `json:"registry_version"`
@@ -512,7 +515,7 @@ func aggregate(class string, fs []prFacts, weeks float64, since, until time.Time
 			cs.Merged++
 		case f.pr.State == "CLOSED" && f.pr.ClosedAt != nil && !f.pr.ClosedAt.Before(since) && !f.pr.ClosedAt.After(until):
 			cs.ClosedUnmerged++
-		case f.pr.State == "OPEN":
+		case !f.pr.CreatedAt.After(until) && (f.pr.MergedAt == nil || f.pr.MergedAt.After(until)) && (f.pr.ClosedAt == nil || f.pr.ClosedAt.After(until)):
 			cs.Open++
 		}
 		if !f.merged {
@@ -568,6 +571,51 @@ type Options struct {
 	Now     time.Time
 	// Detail adds one row per pull request to the report.
 	Detail bool
+	// Since and Until narrow the report to a part of what was collected. A
+	// zero value keeps the edge of the collected window.
+	Since, Until time.Time
+}
+
+// window is the collected window, narrowed by the options.
+func window(repos []model.RepoData, opt Options) (since, until time.Time) {
+	since, until = repos[0].Since, repos[0].Until
+	if opt.Since.After(since) {
+		since = opt.Since
+	}
+	if !opt.Until.IsZero() && opt.Until.Before(until) {
+		until = opt.Until
+	}
+	return since, until
+}
+
+// waitingAt reports whether a pull request stood in the review queue at t:
+// open, ready for review, and not yet reviewed by another person. It also
+// gives the hours it had waited by then.
+func waitingAt(pr *model.PR, class signature.Class, t time.Time) (bool, float64) {
+	if class == signature.ClassAutomation || pr.CreatedAt.After(t) {
+		return false, 0
+	}
+	if pr.MergedAt != nil && !pr.MergedAt.After(t) || pr.ClosedAt != nil && !pr.ClosedAt.After(t) {
+		return false, 0
+	}
+	// A pull request that is a draft today is treated as a draft all along.
+	// GitHub does not say when it went back to draft.
+	if pr.IsDraft && pr.State == "OPEN" {
+		return false, 0
+	}
+	ready := pr.CreatedAt
+	if pr.ReadyAt != nil {
+		ready = *pr.ReadyAt
+	}
+	if ready.After(t) {
+		return false, 0
+	}
+	for _, r := range pr.Reviews {
+		if !r.SubmittedAt.After(t) && isHumanReview(r, pr.Author.Login) {
+			return false, 0
+		}
+	}
+	return true, hours(t.Sub(ready))
 }
 
 // Compute builds the report from collected repositories.
@@ -576,7 +624,8 @@ func Compute(repos []model.RepoData, reg *signature.Registry, opt Options) Repor
 	if len(repos) == 0 {
 		return rep
 	}
-	rep.Since, rep.Until = repos[0].Since, repos[0].Until
+	rep.Since, rep.Until = window(repos, opt)
+	rep.CollectedSince = repos[0].Since
 	rep.Days = rep.Until.Sub(rep.Since).Hours() / 24
 	weeks := rep.Days / 7
 
@@ -590,7 +639,11 @@ func Compute(repos []model.RepoData, reg *signature.Registry, opt Options) Repor
 			rep.Notes = append(rep.Notes, rd.Repo+": "+n)
 		}
 		if rd.DeploySource != "none" && rd.DeploySource != "" {
-			deploys += len(rd.Deploys)
+			for _, d := range rd.Deploys {
+				if !d.At.Before(rep.Since) && !d.At.After(rep.Until) {
+					deploys++
+				}
+			}
 			deploySources[rd.DeploySource] = true
 		}
 		if rd.CISource == "actions" {
@@ -601,6 +654,18 @@ func Compute(repos []model.RepoData, reg *signature.Registry, opt Options) Repor
 		for pi := range rd.PRs {
 			pr := &rd.PRs[pi]
 			res := reg.Classify(*pr)
+			// A pull request that is open, ready, and has no human review is
+			// standing in the review queue at the end of the window.
+			if ok, h := waitingAt(pr, res.Class, rep.Until); ok {
+				rep.WaitingForReview++
+				if h > rep.OldestWaitingH {
+					rep.OldestWaitingH = h
+				}
+			}
+			// The rest counts only pull requests with activity in the window.
+			if pr.UpdatedAt.Before(rep.Since) || pr.CreatedAt.After(rep.Until) {
+				continue
+			}
 			f := facts(pr, res, rep.Since, rep.Until)
 			all = append(all, f)
 			switch res.Class {
@@ -637,18 +702,6 @@ func Compute(repos []model.RepoData, reg *signature.Registry, opt Options) Repor
 					} else {
 						ac.Medium++
 					}
-				}
-			}
-			// A pull request that is open, ready, and has no human review is
-			// standing in the review queue right now.
-			if pr.State == "OPEN" && !pr.IsDraft && f.firstReview == nil && res.Class != signature.ClassAutomation {
-				rep.WaitingForReview++
-				ready := pr.CreatedAt
-				if pr.ReadyAt != nil {
-					ready = *pr.ReadyAt
-				}
-				if h := hours(rep.Until.Sub(ready)); h > rep.OldestWaitingH {
-					rep.OldestWaitingH = h
 				}
 			}
 			if opt.Detail {

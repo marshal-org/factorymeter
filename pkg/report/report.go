@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/marshal-org/factorymeter/pkg/metrics"
 )
@@ -200,12 +201,12 @@ func JSON(w io.Writer, r *metrics.Report) error {
 func textTable(b *strings.Builder, t Table) {
 	width := make([]int, len(t.Header))
 	for i, h := range t.Header {
-		width[i] = len(h)
+		width[i] = utf8.RuneCountInString(h)
 	}
 	for _, r := range t.Rows {
 		for i, c := range r {
-			if len(c) > width[i] {
-				width[i] = len(c)
+			if n := utf8.RuneCountInString(c); n > width[i] {
+				width[i] = n
 			}
 		}
 	}

@@ -8,21 +8,8 @@ import (
 	"github.com/marshal-org/factorymeter/pkg/metrics"
 )
 
-// The page is one file with no outside assets, so it can be mailed, attached
-// to a ticket or opened from disk.
-var page = template.Must(template.New("page").Funcs(template.FuncMap{
-	"pct":   func(f float64) string { return fmt.Sprintf("%.0f%%", f*100) },
-	"width": func(f float64) template.CSS { return template.CSS(fmt.Sprintf("width:%.1f%%", min(f, 1)*100)) },
-	"first": func(i int) bool { return i == 0 },
-}).Parse(`<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="factorymeter {{.R.Version}}">
-<title>factorymeter: {{.Title}}</title>
-<style>
-:root{--bg:#f7f6f2;--card:#fff;--ink:#17181a;--mute:#5d6168;--line:#dedcd4;--accent:#b4410e;--bar:#c9c6bb;--soft:#f0eee7}
+// baseCSS is the style both pages share.
+const baseCSS = `:root{--bg:#f7f6f2;--card:#fff;--ink:#17181a;--mute:#5d6168;--line:#dedcd4;--accent:#b4410e;--bar:#c9c6bb;--soft:#f0eee7}
 @media (prefers-color-scheme:dark){:root{--bg:#131416;--card:#1b1d20;--ink:#ecebe6;--mute:#a0a4ab;--line:#2f3237;--accent:#ff8a4c;--bar:#4a4e55;--soft:#22252a}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -50,7 +37,24 @@ tbody tr:last-child td{border-bottom:0}
 a.cta{display:inline-block;background:var(--accent);color:var(--bg);font-weight:600;text-decoration:none;padding:10px 16px;border-radius:8px;margin-top:14px}
 a{color:var(--accent)}
 footer{color:var(--mute);font-size:13px;margin-top:24px}
-@media (max-width:560px){.bar{grid-template-columns:1fr 48px}.bar .track{grid-column:1/-1;grid-row:2}}
+@media (max-width:560px){.bar{grid-template-columns:1fr 48px}.bar .track{grid-column:1/-1;grid-row:2}}`
+
+// The page is one file with no outside assets, so it can be mailed, attached
+// to a ticket or opened from disk.
+var page = template.Must(template.New("page").Funcs(template.FuncMap{
+	"pct":   func(f float64) string { return fmt.Sprintf("%.0f%%", f*100) },
+	"width": func(f float64) template.CSS { return template.CSS(fmt.Sprintf("width:%.1f%%", min(f, 1)*100)) },
+	"first": func(i int) bool { return i == 0 },
+	"css":   func() template.CSS { return template.CSS(baseCSS) },
+}).Parse(`<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="factorymeter {{.R.Version}}">
+<title>factorymeter: {{.Title}}</title>
+<style>
+{{css}}
 </style>
 </head>
 <body>

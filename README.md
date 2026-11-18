@@ -143,6 +143,29 @@ factorymeter classify owner/repo#123                                   # why one
 factorymeter signatures list                                           # every signature in use
 ```
 
+## The trend
+
+One report is one snapshot. `trend` cuts a longer window into equal periods, measures each one
+the way the report does, and shows what changed.
+
+```bash
+factorymeter trend owner/repo                               # the last 12 weeks, week by week
+factorymeter trend owner/repo --since 26w --every 2w        # half a year in two-week periods
+factorymeter trend owner/repo --html trend.html --json trend.json
+factorymeter trend --from-raw raw.json --every 4w           # another cut of the same data, offline
+```
+
+It follows every number of the report: pull requests merged per week, the disclosed agent share,
+merge rate, deploys, the time from open to merge, each stage's share of that time, review, CI,
+size, and each disclosed agent. It says whether the constraint moved.
+
+The terminal and Markdown outputs give both ends, the change and a small bar line per number.
+The HTML page draws one chart per number, agent against human, with the full table under each
+group. Like the report, it is one file with no scripts and no outside assets.
+
+The change is measured between the first third and the last third of the periods, so one odd
+week does not decide it. [docs/metrics.md](docs/metrics.md#the-trend) has the rules.
+
 ## How agents are detected
 
 Every rule is in one open file: [`signatures/registry.yaml`](signatures/registry.yaml). Version 1
