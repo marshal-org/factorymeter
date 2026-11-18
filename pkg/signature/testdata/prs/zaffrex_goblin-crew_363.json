@@ -1,0 +1,52 @@
+{
+  "note": "The Claude GitHub App opened it. Commits also carry the trailer.",
+  "recorded": "2026-11-18",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "claude-code"
+    ],
+    "signatures": [
+      "claude-pr-author",
+      "claude-commit-author",
+      "claude-trailer",
+      "claude-body-footer"
+    ]
+  },
+  "pr": {
+    "repo": "zaffrex/goblin-crew",
+    "number": 363,
+    "url": "https://github.com/zaffrex/goblin-crew/pull/363",
+    "author": {
+      "login": "claude[bot]",
+      "type": "Bot"
+    },
+    "head_ref": "designer/359-ja-failure-lines",
+    "body": "[...] 리만 처음으로 | 今日はもう／帰れそうにない… | もうヘトヘト…／いったん仕切り直し！ | - (`仕切り直し` = 씨름 맞붙기 다시. 자리 리셋과 정확히 맞고 씨름부 ズッシー와 어울림) |\n\n**그대로 둔 실패 줄**: `bump` `使用中でーす！！`(한 줄에 리액션+츳코미), `let_go_ppik` `うわわわ／落ちますーっ！`, `launch`. PM 판단과 같아요.\n\n**5 줄 길이·금칙**: `npm test` 통과(43 파일 602개, `ja-text-rules`·`textFits` 포함). 새 줄 최장 12자(`向こうに誰か乗せないと。`), 나머지 11자 이하.\n\n## 우려 / 리스크\n- 저도 원어민이 아니에요. \"더 자연스러운 쪽\"을 골랐을 뿐이고, 진마씨가 걸리는 줄을 짚으면 이유를 따지지 않고 고쳐요.\n- `wrong_way_again`의 `ももひきしかないのに！`는 방향 단서가 전보다 조금 또렷해요(전: `またこのももひき…`). \"어느 쪽이 아닌지\"까지만 말하고 \"어떻게\"는 안 말해서 힌트 수위는 ADR-0018 범위 안이라고 봐요. 리뷰에서 과하다고 보면 되돌릴게요.\n- `仕切り直し`는 일상어지만 씨름 말이라 아주 어린 플레이어에겐 낯설 수 있어요. 대안은 `一からやり直し！`인데, 실제로는 자리만 리셋이라 덜 정확해요.\n\n## 테스트 방법\n1. `npm test` (`tests/content/ja-text-rules.test.ts`, `textFits`)\n2. 배포본에서: ノビー로 고리에 올라 둥지에 のばす → `いてっ！/まずはカササギか…`, 한 번 더 → `またかよっ！`. ズッシー로 빈 시소 밟기 → `…効いた。/反対側、空いてる。`. 게이지 0까지 실패 → 컷 `もうヘトヘト…/いったん仕切り直し！`\n3. 휴대폰 가로 말풍선 줄바꿈 확인은 #330 체크리스트 다음 점검에 넣어요(새 줄 전부 기존 최장 줄 이하 길이라 넘칠 위험은 낮아요).\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+    "state": "MERGED",
+    "created_at": "2026-11-18T00:00:00Z",
+    "updated_at": "2026-11-18T00:00:00Z",
+    "commit_count": 1,
+    "commits": [
+      {
+        "sha": "eb4730b158a185e9d33e463abc9bce822816516f",
+        "authored_at": "2026-11-18T00:00:00Z",
+        "committed_at": "2026-11-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "claude[bot]",
+            "email": "209825114+claude[bot]@users.noreply.github.com"
+          },
+          {
+            "login": "claude",
+            "email": "noreply@anthropic.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+        ]
+      }
+    ]
+  }
+}

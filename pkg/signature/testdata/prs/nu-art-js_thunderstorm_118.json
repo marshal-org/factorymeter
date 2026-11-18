@@ -1,0 +1,49 @@
+{
+  "note": "Cursor cloud agent opened it. The badge uses the agents/bc- link form.",
+  "recorded": "2026-11-18",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "cursor"
+    ],
+    "signatures": [
+      "cursor-pr-author",
+      "cursor-commit-author",
+      "cursor-commit-email",
+      "cursor-body-badge"
+    ]
+  },
+  "pr": {
+    "repo": "nu-art-js/thunderstorm",
+    "number": 118,
+    "url": "https://github.com/nu-art-js/thunderstorm/pull/118",
+    "author": {
+      "login": "cursor[bot]",
+      "type": "Bot"
+    },
+    "head_ref": "task-group/2026-11-12_15-55_1",
+    "body": "The consent message wraps inside the card. The host nowrap rule no longer clips the sentence or the privacy link.\n\nBeamz-Task-Id: 1c43ca570a2391c61d0cced1f9441db1\n\n<div><a href=\"https://cursor.com/agents/bc-431fd643-6afc-4d58-8e27-62311caed7e5?cursor_ref=pr_footer&cursor_cta=open_in_web\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/open-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/open-in-web-light.png\"><img alt=\"Open in Web\" width=\"114\" height=\"28\" src=\"https://cursor.com/assets/images/open-in-web-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/automations/f73782d7-be3e-11f1-bb68-864e54d14197\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/view-automation-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/view-automation-light.png\"><img alt=\"View Automation\" width=\"141\" height=\"28\" src=\"https://cursor.com/assets/images/view-automation-dark.png\"></picture></a>&nbsp;</div>\n\n",
+    "state": "MERGED",
+    "created_at": "2026-11-12T00:00:00Z",
+    "updated_at": "2026-11-12T00:00:00Z",
+    "commit_count": 1,
+    "commits": [
+      {
+        "sha": "72a728069656f4cc11d779c7b6b8d35345a747d6",
+        "authored_at": "2026-11-12T00:00:00Z",
+        "committed_at": "2026-11-12T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Beamz-Task-Id: 1c43ca570a2391c61d0cced1f9441db1",
+          "Beamz-Task-Number: #453"
+        ]
+      }
+    ]
+  }
+}

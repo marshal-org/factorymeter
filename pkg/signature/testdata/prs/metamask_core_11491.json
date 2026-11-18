@@ -1,0 +1,96 @@
+{
+  "note": "Cursor cloud agent opened it. The description carries the background-agent badge.",
+  "recorded": "2026-11-18",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "cursor"
+    ],
+    "signatures": [
+      "cursor-pr-author",
+      "cursor-commit-author",
+      "cursor-commit-email",
+      "cursor-body-badge",
+      "cursor-branch"
+    ]
+  },
+  "pr": {
+    "repo": "MetaMask/core",
+    "number": 11491,
+    "url": "https://github.com/MetaMask/core/pull/11491",
+    "author": {
+      "login": "cursor[bot]",
+      "type": "Bot"
+    },
+    "head_ref": "cursor/jira-ticket-processing-96de",
+    "body": "[...] pected `'loaded'`, received `'loading'`. The same break with `waitFor(() => expect(...).toBe('loaded'))` passed, because the status is already `'loaded'` before `finally`. |\n| `#getSlowPipelineChainIds` returned every requested chain | `does not write a background status when the fast fetch covers every chain` failed with the flush removed: expected `undefined`, received `'loading'`. |\n\n## Checklist\n\n- [x] I've updated the test suite for new or updated code as appropriate\n- [ ] I've updated documentation (JSDoc, Markdown, etc.) for new or updated code as appropriate\n- [ ] I've communicated my changes to consumers by [updating changelogs for packages I've changed](https://github.com/MetaMask/core/tree/main/docs/processes/updating-changelogs.md)\n- [ ] I've introduced [breaking changes](https://github.com/MetaMask/core/tree/main/docs/processes/breaking-changes.md) in this PR and have prepared draft pull requests for clients and consumer packages to resolve them\n\n<!-- CURSOR_AGENT_PR_BODY_END -->\n\n<div><a href=\"https://cursor.com/agents/bc-4f0b7d06-9596-4b70-a410-113533edd631?cursor_ref=pr_footer&cursor_cta=open_in_web\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/open-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/open-in-web-light.png\"><img alt=\"Open in Web\" width=\"114\" height=\"28\" src=\"https://cursor.com/assets/images/open-in-web-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/background-agent?bcId=bc-4f0b7d06-9596-4b70-a410-113533edd631&cursor_ref=pr_footer&cursor_cta=open_in_cursor\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/open-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/open-in-cursor-light.png\"><img alt=\"Open in Cursor\" width=\"131\" height=\"28\" src=\"https://cursor.com/assets/images/open-in-cursor-dark.png\"></picture></a>&nbsp;</div>\n\n",
+    "state": "MERGED",
+    "created_at": "2026-11-13T00:00:00Z",
+    "updated_at": "2026-11-13T00:00:00Z",
+    "commit_count": 3,
+    "commits": [
+      {
+        "sha": "33ad49dd332bd858d01afb5a7e73528177c1b9b9",
+        "authored_at": "2026-11-13T00:00:00Z",
+        "committed_at": "2026-11-13T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "Prithpal-Sooriya",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "0d06de0d8d8b225517ac33a32dfd8a4f63a8cd68",
+        "authored_at": "2026-11-13T00:00:00Z",
+        "committed_at": "2026-11-13T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "Prithpal-Sooriya",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "378b9c25314f19f2abb17fa6b27c419058469888",
+        "authored_at": "2026-11-13T00:00:00Z",
+        "committed_at": "2026-11-13T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "Prithpal-Sooriya",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "Prithpal-Sooriya",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      }
+    ]
+  }
+}

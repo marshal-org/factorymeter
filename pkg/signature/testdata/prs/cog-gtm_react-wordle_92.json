@@ -1,0 +1,63 @@
+{
+  "note": "Devin opened it: account, commit author and branch.",
+  "recorded": "2026-11-18",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "devin"
+    ],
+    "signatures": [
+      "devin-pr-author",
+      "devin-commit-author",
+      "devin-branch"
+    ]
+  },
+  "pr": {
+    "repo": "COG-GTM/react-wordle",
+    "number": 92,
+    "url": "https://github.com/COG-GTM/react-wordle/pull/92",
+    "author": {
+      "login": "devin-ai-integration[bot]",
+      "type": "Bot"
+    },
+    "head_ref": "devin/AD-83-aurora-keyboard",
+    "body": "[...] WNrZXRfa2V5IjoiYXR0YWNobWVudHNfcHJpdmF0ZS9vcmdfNjlJWEpGTHJsang4elNBdy9kODcyN2JmZi0wYjkwLTRjODEtYTcwNy02OGJjZmJjNGE4NDQiLCJpYXQiOjE3OTQ5OTkyMzQsIm9yZ19pZCI6Im9yZ182OUlYSkZMcmxqeDh6U0F3IiwiZmlsZW5hbWUiOiJhZnRlci1tb2JpbGUzNzUtZGFyay5wbmcifQ.5WiWCTn6PAjyyZ6Q2XLo_iIyybyrQm9zPtKGXd-mXfA) |\n\n## Browser verification (`npm start`)\n- Clicking keys at 375px: typed `CRANX`, then Backspace, then `E`, then Enter. The row submitted as CRANE and the keys changed to absent/present.\n\n  ![375 clicks submitted](https://devin-gtm.devinenterprise.com/api/presigned_proxy?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjpudWxsLCJidWNrZXRfbmFtZSI6ImRldmluYXR0YWNobWVudHMiLCJidWNrZXRfa2V5IjoiYXR0YWNobWVudHNfcHJpdmF0ZS9vcmdfNjlJWEpGTHJsang4elNBdy9iMGU3OGNiMC1kYTE0LTQxMzAtODMyMS0zZDMxNWUwZmExNDEiLCJpYXQiOjE3OTQ5OTkyMzQsIm9yZ19pZCI6Im9yZ182OUlYSkZMcmxqeDh6U0F3IiwiZmlsZW5hbWUiOiJhZnRlci1tb2JpbGUzNzUtY2xpY2tzLXN1Ym1pdHRlZC5wbmcifQ.KcJYoSwiaiEHXhxF8N5sWNYJckCntfgGtjI48EkGhic)\n- Typing on a physical keyboard (CRANE, SLOTH, Enter) submitted both guesses. Key colours updated after each guess (screenshots above).\n- At 375px, `document.documentElement.scrollWidth` is 375, so there is no horizontal overflow.\n\nDevin-Org: engineering\n\nLink to Devin session: https://devin-gtm.devinenterprise.com/sessions/81857e3ce5984551a8bcfc8b985696d5\nOpen in Devin Desktop: https://devin-gtm.devinenterprise.com/desktop/session/81857e3ce5984551a8bcfc8b985696d5?variant=devin\nRequested by: @bryce-h-t\n\n---\n\n> [!NOTE]\n> Devin errored when opening this Pull Request as bryce-h-t.\n> As a fallback, Devin opened this PR as itself.\n<!-- devin-review-badge-begin -->\n\n---\n\n<a href=\"https://devin-gtm.devinenterprise.com/review/cog-gtm/react-wordle/pull/92\" target=\"_blank\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://static.devin.ai/assets/gh-devin-review-dark.svg?v=4\"><img src=\"https://static.devin.ai/assets/gh-devin-review-light.svg?v=4\" alt=\"Devin Review\"></picture></a>\n<!-- devin-review-badge-end -->",
+    "state": "MERGED",
+    "created_at": "2026-11-18T00:00:00Z",
+    "updated_at": "2026-11-18T00:00:00Z",
+    "commit_count": 2,
+    "commits": [
+      {
+        "sha": "90c22b0bc2074f2c455623f9ee7d14d318042a62",
+        "authored_at": "2026-11-18T00:00:00Z",
+        "committed_at": "2026-11-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          },
+          {
+            "login": "bryce-h-t",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "059c27a4ceb6edfb427b9ab63fa462b5fa19fb09",
+        "authored_at": "2026-11-18T00:00:00Z",
+        "committed_at": "2026-11-18T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ]
+      }
+    ]
+  }
+}

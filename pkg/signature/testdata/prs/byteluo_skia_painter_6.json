@@ -1,0 +1,1127 @@
+{
+  "note": "A person opened it. Only the Devin co-author trailer says an agent wrote it.",
+  "recorded": "2026-11-18",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "devin"
+    ],
+    "signatures": [
+      "devin-trailer",
+      "devin-branch"
+    ]
+  },
+  "pr": {
+    "repo": "byteluo/skia_painter",
+    "number": 6,
+    "url": "https://github.com/byteluo/skia_painter/pull/6",
+    "author": {
+      "login": "byteluo",
+      "type": "User"
+    },
+    "head_ref": "devin/1794715649-split-script-engine",
+    "body": "#2-#5 were merged into their stacked base branches after #1 had already landed, so `main` currently only contains #1. This PR brings the rest to `main`.\n\nHead `devin/1794715649-split-script-engine` (892d8f7) has a tree identical to #5's final head `919111c`, i.e. #1 + #2 + #3 + #4 + #5. Merges cleanly into `main`; no new code.\n\n<!-- devin-review-badge-begin -->\n\n---\n\n<a href=\"https://app.devin.ai/review/byteluo/skia_painter/pull/6\" target=\"_blank\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://static.devin.ai/assets/gh-devin-review-dark.svg?v=4\"><img src=\"https://static.devin.ai/assets/gh-devin-review-light.svg?v=4\" alt=\"Devin Review\"></picture></a>\n<!-- devin-review-badge-end -->",
+    "state": "MERGED",
+    "created_at": "2026-11-15T00:00:00Z",
+    "updated_at": "2026-11-15T00:00:00Z",
+    "commit_count": 64,
+    "commits": [
+      {
+        "sha": "b7d848dbb4055f0cc54686e3892c618a235cfeba",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "6867dec6ea740a4ad805aa8125b6c1d16a543174",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "e444191e8a0a27da35bd9f015c1f262eadc9ce4b",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "a11b5864f9347647a3f187742b2f1dda4313c1d3",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "39aad8fd48c2efc198091b11e6bc5abfbfe4f6f5",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "5aeddc1869904c9d961f755522993f18414ca99b",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "867f7a99cd4176beda4b7aa0e8922d3db1c1788d",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "1d3a08811ee6c3bc31d692d5bac0ea1341a3135c",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "54702b309d7743e291c7e0ac9feab7e6b7a602e3",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "5421a038e011410d701135aefc585f62f2218a3e",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "6e2090d6fd7930fcc62bbef61a117164e113c2bd",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "a3cccbe4ed53554fec49d13dd19441ed9d46e43b",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "99df44772f67002db9f1d2e288f5402155c3f5e1",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "536c98382944d8d40b8b80a2a7e5bef1bba30f33",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "65bea093d070161a42bbf9ef2582ca10c274825a",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "5538ee3a79adc852aa8f6c5132231dbd9f31ae74",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "bf7cdd4ebbd4c02f6456d9e5710add2b340a41e6",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "52d292181b9b2562b8e90b3bc606fea4371581b9",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "c8d4ade26ef858fc14bad9ecec9e81b3d017a448",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "5c07eb48cdf22d44387cce5fc4364924cd001383",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "e8d2a15f589a7181bcb7a978317366dc532f1bde",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "8d05aba393d86c511e4d681aec4dfd6eb3dcad4d",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "f842351b8f180b8feb00a2c98281301df15b8778",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "48bbbc99a30aa52b26c65bbb7bcb0c44b91ae441",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "c9b7f50aa3479d52ff9923c0175e21d1cc942258",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "3e1781af06b071ac26283d3d982db004c8312c1a",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "b0a6ca57ad628a0ab6ee63ef57f3f66eb7f97084",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "a35227e933d34a464110061d3b2e9add39f48170",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "245b81f8a6e49aee0a8509dc34a544352b8249e3",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "7b06a7805cd3cf411cd2f46900fae454b1c85f0e",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "b49afc45ff1b7ec0a2335276c02d4a082f27ca2a",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "ded435365583d6ef3e56dbcace5c505c968bc3d8",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "a5041624cabb9a4882ff9170103b443e804a811a",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "8d12d679fcb46632aede14d9e7d708a1b5a01a46",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "cb48b45518d4035b97a82f55c94ba4bd5041f4ca",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "1ff6f691b7f0c04237d4098c0e88ed87cc77a29b",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "c1115d0848ee811b950c6959ddeecdb32831c730",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "6553296b1e37358121bdc44865bf3047d91c4ff1",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "e70d2ae94a25f85ba0927540422de20187e6896d",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "9997a895e871e982b25580324ab02d608dee377d",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "afd29ffdaba489e9861545dd01749eeca696d46a",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "9626c58f4a42f7bdde8b0eeba8abfd5f804e540e",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "93357c9bfff5e7c2aff5500c4a4f6ba0341672cd",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "187e78a23df4d1fcf7d33d1c11f3619c6d50b86e",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "6047949d4352439617a7eb14bfd041f80ceb9cb8",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "b80bfb5862d6060aaaff232a8e76fb92dd057aa0",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "4bc8f9185008ec8d609bb2aae204e8466a705dc9",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "4a04aa0783110e1cbf9b592886c3e54fff3ad6ea",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "02f894dbcd417db8d2d827534b0710969aa246da",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "d8e6612d907d7a2a92c24ded3765d8829177b43c",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "1005015dd911bddfa153ed18f1b4e698910a9d15",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "e5dcd774a41d4917b2961eef3aeb033f77ca0048",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "6538189fbd4c5abe73b1536f094c1b1a11bb2c79",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "6055ec6adf887bd173759b6365c7de646ded395c",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "abf379f7e07cc544d50098224f35f127f974fb5f",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "5a4d42a2df6bf0f3115e1049afe6af6cd74d990d",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "8488b285dfa3e201f23e1d22075a670ee7bfb52d",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "0789f4ebd3ae6298f2d8c74abff4317e25b292cd",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "3b43295ba91ce17873a9d14e8ac894e52ec51495",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "c416989cfad64d365c47d2d586888fb2a694c48c",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "48da45b5be293ed322bf46de1f79cc58fd6e50b9",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "919111cc4089ffaf9cb7fd52fa7ff2a6f5c366a6",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "aa4f68dcc901c0712e694b4b6b91f85f5347b3a6",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-authored-by: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "892d8f79619dfa5d61238f8d6366cd11fa876bd3",
+        "authored_at": "2026-11-15T00:00:00Z",
+        "committed_at": "2026-11-15T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "byteluo",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "devin-ai-integration[bot]",
+            "email": "158243242+devin-ai-integration[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+          "Co-authored-by: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+        ]
+      }
+    ]
+  }
+}

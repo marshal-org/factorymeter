@@ -1,0 +1,52 @@
+{
+  "note": "Cursor cloud agent opened it: account, commit author and email.",
+  "recorded": "2026-11-18",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "cursor"
+    ],
+    "signatures": [
+      "cursor-pr-author",
+      "cursor-commit-author",
+      "cursor-commit-email",
+      "cursor-body-badge"
+    ]
+  },
+  "pr": {
+    "repo": "MetaMask/metamask-mobile",
+    "number": 40004,
+    "url": "https://github.com/MetaMask/metamask-mobile/pull/40004",
+    "author": {
+      "login": "cursor[bot]",
+      "type": "Bot"
+    },
+    "head_ref": "test/cv-recurring-order-details-non-cancellable-fresh-order",
+    "body": "[...] rdings and or screenshots.\n\n\n<div><a href=\"https://cursor.com/agents/bc-e68e62bb-bb1d-4d66-9c15-7cd47c8ac8cf?cursor_ref=pr_footer&cursor_cta=open_in_web\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/open-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/open-in-web-light.png\"><img alt=\"Open in Web\" width=\"114\" height=\"28\" src=\"https://cursor.com/assets/images/open-in-web-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/automations/29b7103b-98e9-4766-8cf9-4dbfb6884524\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/view-automation-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/view-automation-light.png\"><img alt=\"View Automation\" width=\"141\" height=\"28\" src=\"https://cursor.com/assets/images/view-automation-dark.png\"></picture></a>&nbsp;</div>\n\n<!-- CURSOR_SUMMARY -->\n---\n\n> [!NOTE]\n> **Low Risk**\n> Test-only change in one component-view spec; no app or API behavior changes.\n> \n> **Overview**\n> Stabilizes the **RecurringOrderDetailsView** component-view case that checks Cancel is hidden when the API marks an open order non-cancellable.\n> \n> The test now keeps the `recurringOrder` mock in a local variable and, after the summary appears, uses **`waitFor`** to assert both that the stub was called for the route order’s id/account and that the **Cancel** control is absent. That defers the negative assertion until after the fresh order response replaces the cancellable route params, matching the view’s `orderQuery.order ?? routeOrder` behavior and removing the race that caused intermittent CI failures.\n> \n> <sup>Reviewed by [Cursor Bugbot](https://cursor.com/bugbot) for commit 79546bdb1b76bb05ed43320c18b875f620e62c3b. Bugbot is set up for automated code reviews on this repo. Configure [here](https://www.cursor.com/dashboard/bugbot).</sup>\n<!-- /CURSOR_SUMMARY -->",
+    "state": "MERGED",
+    "created_at": "2026-11-18T00:00:00Z",
+    "updated_at": "2026-11-18T00:00:00Z",
+    "commit_count": 1,
+    "commits": [
+      {
+        "sha": "79546bdb1b76bb05ed43320c18b875f620e62c3b",
+        "authored_at": "2026-11-18T00:00:00Z",
+        "committed_at": "2026-11-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "racitores",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      }
+    ]
+  }
+}

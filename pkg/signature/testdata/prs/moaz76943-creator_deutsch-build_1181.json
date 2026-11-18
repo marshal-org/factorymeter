@@ -1,0 +1,1734 @@
+{
+  "note": "A person opened a consolidation pull request. Squash commits inside it keep the Jules and Cursor co-author trailers.",
+  "recorded": "2026-11-18",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "cursor",
+      "jules"
+    ],
+    "signatures": [
+      "cursor-trailer",
+      "jules-trailer"
+    ]
+  },
+  "pr": {
+    "repo": "moaz76943-creator/deutsch-build",
+    "number": 1181,
+    "url": "https://github.com/moaz76943-creator/deutsch-build/pull/1181",
+    "author": {
+      "login": "moaz76943-creator",
+      "type": "User"
+    },
+    "head_ref": "consolidate/content-factory",
+    "body": "## What\n\nHistory-preserving import of `moaz76943-creator/-offline-packs-store` into the unified public target, so no earlier work can be lost.\n\n- **Method:** two-parent merge commit - parent 1 = `main` (`6bf297fab`), parent 2 = source `main` (`ca821e59a`). The source tree is materialised under `content-factory/`, so **no existing target path is overwritten** and every imported file keeps its real history.\n- **Content:** 877 files, ≈6.2 MB - packs (204), tools (377), tests (94), standards (36), legal evidence (37), catalog (13), community (8), media, images, docs, state.\n- **Inert source CI:** `content-factory/.github` cannot execute - GitHub only runs the repository-root `.github`.\n- **Provenance record:** `content-factory/IMPORT_PROVENANCE.md`.\n- **Source repository is not retired** (per `AGENTS.md` preservation rule).\n\n## Verification\n\n- `git log -1 --format='%P'` -> `6bf297fab... ca821e59a...` (real merge parents, history reachable).\n- `git ls-files content-factory | wc -l` -> 877.\n- Secret-shape scan over the imported tree (private-key blocks, `ghp_`/`github_pat_`/`AKIA` prefixes) -> no matches.\n\n## Deliberately NOT done here\n\nNo deduplication and no deletion of the overlapping `tools/`/`tests/`/`packs/`/`legal/` paths. Absorbing unique source content into the application tree requires per-file equivalence proof and is queued as a separate change. This PR only guarantees nothing is lost.",
+    "state": "MERGED",
+    "created_at": "2026-11-14T00:00:00Z",
+    "updated_at": "2026-11-14T00:00:00Z",
+    "commit_count": 332,
+    "commits": [
+      {
+        "sha": "d5f4daafc398bccb2bac85afa74cfc714097a392",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "472ac103adfadcfe34f38f19af5f0e0f0e15d680",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "0625aae247bd7962752d1dbfdcef461c4a76e687",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "c647701d1b85dce8c7d0fec870db57ab47c738f3",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "0784cf1208125f87c20fedf770b3413dad441762",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "c07b87defde3f45db537b4b4cbc765718a3f0006",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "02253a2b2002454043381d779d0dccd44becda2a",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "8b1d38d2852b68162b95626307d4e15a4fb320fd",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "24b062f46a7e51a7b786917574dadca6cd077ed5",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "364c8ab8e5c927e693c5f8f56b0857bafe2229da",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "12b5688a23a4fb8a683f0f9a4f44a45238ca191a",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "ee3b6b7c7c19e7cd1f6787776f7e2bc6605e00a8",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "2a537cb2706feb0ea7deef213b4766441d3abbdb",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "684c1e00909a2366ae6e09165e0182029db92716",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "4258f7bbd063584730702a93e7d62e7ecde9b0df",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "f478fc189b469ef5aa7a8b59c73f0dbc55555511",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "google-labs-jules[bot]",
+            "email": "161369871+google-labs-jules[bot]@users.noreply.github.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: google-labs-jules[bot] <161369871+google-labs-jules[bot]@users.noreply.github.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "4084d541e9f2ff738408eac67cb24203697e86f9",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "google-labs-jules[bot]",
+            "email": "161369871+google-labs-jules[bot]@users.noreply.github.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: google-labs-jules[bot] <161369871+google-labs-jules[bot]@users.noreply.github.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "5c9140c949c6abce5bbd98cfcaad259bd35a0f02",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "google-labs-jules[bot]",
+            "email": "161369871+google-labs-jules[bot]@users.noreply.github.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: google-labs-jules[bot] <161369871+google-labs-jules[bot]@users.noreply.github.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "84c12eac42016de5d16ecc5427b6265978de5ded",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "50c39e04a40904be7d8f161a5528edfc49132aea",
+        "authored_at": "2026-10-14T00:00:00Z",
+        "committed_at": "2026-10-14T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "7bafef1e1cef834acdbfc747a5d189b3c37fa64e",
+        "authored_at": "2026-10-15T00:00:00Z",
+        "committed_at": "2026-10-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "google-labs-jules[bot]",
+            "email": "161369871+google-labs-jules[bot]@users.noreply.github.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: google-labs-jules[bot] <161369871+google-labs-jules[bot]@users.noreply.github.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "d13987be0be66d96a02949f836f81d17401a8982",
+        "authored_at": "2026-10-15T00:00:00Z",
+        "committed_at": "2026-10-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "google-labs-jules[bot]",
+            "email": "161369871+google-labs-jules[bot]@users.noreply.github.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: google-labs-jules[bot] <161369871+google-labs-jules[bot]@users.noreply.github.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "6607c1356b583738177b21ae94b0753fbeabf599",
+        "authored_at": "2026-10-15T00:00:00Z",
+        "committed_at": "2026-10-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "google-labs-jules[bot]",
+            "email": "161369871+google-labs-jules[bot]@users.noreply.github.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: google-labs-jules[bot] <161369871+google-labs-jules[bot]@users.noreply.github.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "75f4f43bed1feb042645347530754307c6b2bf6b",
+        "authored_at": "2026-10-15T00:00:00Z",
+        "committed_at": "2026-10-15T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "google-labs-jules[bot]",
+            "email": "161369871+google-labs-jules[bot]@users.noreply.github.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: google-labs-jules[bot] <161369871+google-labs-jules[bot]@users.noreply.github.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "be2813d0d52b4346250a57d84f37c157ce4e66eb",
+        "authored_at": "2026-10-16T00:00:00Z",
+        "committed_at": "2026-10-16T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "744e813808d0e8cc61f4f8ef36bd17ee707abc1a",
+        "authored_at": "2026-10-16T00:00:00Z",
+        "committed_at": "2026-10-16T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "1a732e9065aee8c11e05c9d92ea0ef06a0c23933",
+        "authored_at": "2026-10-16T00:00:00Z",
+        "committed_at": "2026-10-16T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "67839485a061bb276b00d80a8f4822efa45c662a",
+        "authored_at": "2026-10-16T00:00:00Z",
+        "committed_at": "2026-10-16T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "277537dc1239b1bb21571673b3436a319c860535",
+        "authored_at": "2026-10-16T00:00:00Z",
+        "committed_at": "2026-10-16T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "bf42a91bae4edee02a1e6a6d92c22d764d1afc49",
+        "authored_at": "2026-10-16T00:00:00Z",
+        "committed_at": "2026-10-16T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "ee3d1eccb46729f04336e0e9a5c08d3b0b72d8c4",
+        "authored_at": "2026-10-16T00:00:00Z",
+        "committed_at": "2026-10-16T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "1c5bafb51fec5e2a75dcb59bfa230ae88ba69a65",
+        "authored_at": "2026-10-16T00:00:00Z",
+        "committed_at": "2026-10-16T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "5c965970d7375c4f2c617d932cf6e951185adfe4",
+        "authored_at": "2026-10-16T00:00:00Z",
+        "committed_at": "2026-10-16T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "ef9ddb99e73d06fbc97263ac905d1e4a019c5368",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "36ac79bea3db1c178d4478f2c15f414ca293126a",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "fb43599d0c1fc6a4c8ee24924573471283728549",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "fe23b3d16ce567bebcce6f7c98daf058a2bd2eb1",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "PUBLIC-LANE-06: fail-closed source receipts, deterministic immutable staging, interrupted-write rollback and 17/17 release regressions. No production release or manifest changes."
+        ]
+      },
+      {
+        "sha": "849b73c822d1192722dca1442603ae984fae70dd",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "e429c8b8427d4cd37c826e7b22bd336af8d812f5",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "4b97f302ad102c429ae72dc9836869737907d6e1",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "3000b5718ed468545dabe887be1a76919c757ad4",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "9b9bc0d09d067fe11499be60df8ba8d5da29654c",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "b6220505fbc4b04db7d35514cf50ef6c441a11cc",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "27fdc4fd572cf976121fda2a837ead91ca976095",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "9edc70e92bc5fda927025f70ce3ff393ea8e2969",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "89794a8a8041a520f2cf35dd695acf9494fc2010",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "557a0f2352b3036527dd1d0fae04cdbad46a6694",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "6fe4f97d1c84f03f1343d4c12eb671bc0010b08f",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "b4b17d1797e310fd5224c3e1ad8058ae6803c7bc",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "136e9b51a91a7caba08dcf93049d12ac21310416",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "562e622cf74cf7c39ef16aa62b9fc0778fe29afc",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "f76b1bb86f7dd7dedc0be64806dc731f9b8b372f",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "9f312274165e065b9ea8ece7f8f1b16f0cea1875",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "26cf9c4d7a044a3577e3ff20f92ba33e0e34c0f5",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "ad7fd2da51caf6ecada609459464f507842325fb",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "8a0a5b1350d910e8f9dfeaab481490ffba043915",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "10b3682f7473ec165b6aa1bf4033d4a3889d998f",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "50f916d815a9879a8ef9bf6fedd76aba18b53b75",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: Cursor Agent <cursoragent@cursor.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "dc048df3c78f04ccbcd3d2b8d28a78ff4df52c1a",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor Agent <cursoragent@cursor.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "71418ae255472fa6a075c70e80048246d7c6aea2",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: Cursor Agent <cursoragent@cursor.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "c0620696ba0c756d795ccea8f77e140788c17a9c",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: Cursor Agent <cursoragent@cursor.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "490a528a3bc644361c66a8b0ffae78a5086b87f6",
+        "authored_at": "2026-10-17T00:00:00Z",
+        "committed_at": "2026-10-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: Cursor Agent <cursoragent@cursor.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "7fe1bc777b6a2ac5a44c47791d2f7c8898375d60",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "google-labs-jules[bot]",
+            "email": "161369871+google-labs-jules[bot]@users.noreply.github.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: google-labs-jules[bot] <161369871+google-labs-jules[bot]@users.noreply.github.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "f862133a8e55a8e15e055392b938312eaaac7d9a",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "google-labs-jules[bot]",
+            "email": "161369871+google-labs-jules[bot]@users.noreply.github.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: google-labs-jules[bot] <161369871+google-labs-jules[bot]@users.noreply.github.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "314c615e674daf7e3b4c29ebc058b899bf02424a",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "e6f944e27e23a67e5d99ae5218c3a38ac22bcfc4",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "google-labs-jules[bot]",
+            "email": "161369871+google-labs-jules[bot]@users.noreply.github.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: google-labs-jules[bot] <161369871+google-labs-jules[bot]@users.noreply.github.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "1035d044d9994b3ea50e05766358b8c2ed4d4050",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "d9a366ac189fe1462544415e9e149dbb90520da8",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "google-labs-jules[bot]",
+            "email": "161369871+google-labs-jules[bot]@users.noreply.github.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: google-labs-jules[bot] <161369871+google-labs-jules[bot]@users.noreply.github.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "c1592b3a88392c0da1d920b5ca91bd4a1e4cbf0c",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "google-labs-jules[bot]",
+            "email": "161369871+google-labs-jules[bot]@users.noreply.github.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: google-labs-jules[bot] <161369871+google-labs-jules[bot]@users.noreply.github.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "62311a660ccf334566337817cf0aa88433c23f68",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "e2c98279aad6a6ec037fdd8e3e6043ef9891c679",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "33d0ae530ab9711d26313ec00ef0a0cf42ba1b53",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "8d728673596c7bb9ada8df4f15a645b9fcd9c55c",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "2edad172bc8c67b91e1998d2881c062d44984dbe",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "dd83a4a6da23a00363f0fd74ef0406fe29f94540",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: Cursor Agent <cursoragent@cursor.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "50780c1153eaa0dadd8f5f458ecc6ef4332652ac",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "9b8ee5e5648d1abe96e810248bd05ac0cc08ee21",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "831043f9e41b6b63b1f1e94b937c3fee29f567af",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: Cursor Agent <cursoragent@cursor.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "0233cbb20e4019a653b510f494eea7be960960ec",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: Cursor Agent <cursoragent@cursor.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "09b5893c643d72c165b9e1ce49fa61c9d822af74",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: Cursor Agent <cursoragent@cursor.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "b4a0e3395dcc1690b1f7d05332b0311e05bdb882",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: Cursor Agent <cursoragent@cursor.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "77a65103c826b2382c9342c9139110b110075843",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: Cursor Agent <cursoragent@cursor.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "056e4b37e2eaa6d97933ecd07c8d3cc8895bb22c",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: Cursor Agent <cursoragent@cursor.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "58212894a3d1a51762c34240a23d066ae0a3893c",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: Cursor Agent <cursoragent@cursor.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "05263a813699c440935e93a19bbbccd42c1b81c8",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>",
+          "Co-authored-by: Cursor Agent <cursoragent@cursor.com>",
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "4f9131ee8a766c836fab641677f7b93e53a926af",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "15f03f7f9c60bb076388bdbcf12ba981a6a35559",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "a14459673250bed87ec987304aa0c9e2f9610723",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "68ba19df7728a13581ce0cd44fa820556e3408c2",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "2584e4c968a06a8b6220b36e5edfeb8de98855f3",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "3de70e7d21c87b7bd18e28ecd3d05fa7c1596dd8",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "71966da93606ba4155d8f90d148a794296aa2a56",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "ba7c39d583f0b492b9589d4752a022efc9034245",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "66d1fa5330b273cc9f7933e0773d1b85e2efe544",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "dd0a31f3bad95310e31e3ae73785d7932ea451c2",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "63411cd57cf9faf04bf7764a14b048644f4ee32e",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "f68c8e4601f9b5cd24d8770ca567cfcb918b2281",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "d216151b73f1ebc40acc2a47fefcd6fd9ff777cb",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "cf92538b2513240f6f345ab1c3ead24fb2fccf35",
+        "authored_at": "2026-10-18T00:00:00Z",
+        "committed_at": "2026-10-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "e1840d8487fe4a649b6a7e97f73b18e8e73e5eb6",
+        "authored_at": "2026-10-19T00:00:00Z",
+        "committed_at": "2026-10-19T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "moaz76943-creator",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "note": "Negative. A person opened it and nothing discloses an agent.",
+  "recorded": "2026-11-18",
+  "expect": {
+    "class": "human"
+  },
+  "pr": {
+    "repo": "marshal-org/runlease",
+    "number": 78,
+    "url": "https://github.com/marshal-org/runlease/pull/78",
+    "author": {
+      "login": "ofirmakmal",
+      "type": "User"
+    },
+    "head_ref": "feat/agent-by-digest",
+    "body": "[...] miss is remembered for a minute.\n  - `GET /agent` still serves the relay's own agent.\n- **CLI asks for its own digest.** `up` and `doctor` use the by-digest URL. With a relay older than this route, they fall back to `/agent` when its digest matches. The VM still checks the digest at boot, so the security model does not change.\n- **Versioned wire protocol.** Handshakes carry `\"proto\"`, a string (no field means 1). The relay accepts `MinProtocol..MaxProtocol` and tells a client outside the range to upgrade. Old relays ignore the field, because `json.Unmarshal` drops unknown keys.\n- **CI** runs the latest released agent (checked against `checksums.txt`) against the relay of every commit (`TestRelay_releasedAgent`).\n- **Docs:** `CLAUDE.md` and `docs/self-hosting-relay.md` now say a CLI release needs no relay release.\n\n**Result:** a CLI release needs no relay change, as long as the protocol stays in range. CLIs up to v0.9.0 still pin plain `/agent`, so they need one last upgrade. A relay cannot fix them from the server side.\n\n## Test plan\n\n- [x] `go vet ./...` and `go test -count=1 ./...` pass\n- [x] Relay unit tests cover:\n  - the own agent served by digest;\n  - an older release fetched once, then served from cache;\n  - a tampered release refused and not cached;\n  - a miss remembered;\n  - bad input refused with 400;\n  - the cache surviving a restart;\n  - the discovery doc;\n  - the protocol range.\n- [x] CLI tests cover:\n  - the by-digest URL;\n  - an old relay whose own agent matches;\n  - an old relay with another agent (refused before launch);\n  - a relay that lies about a digest;\n  - an unreachable relay;\n  - doctor.\n- [x] Compat: an agent built from v0.5.0 registers and echoes through the new relay (`TestRelay_releasedAgent`, run locally)\n- [x] The local relay fetched the real v0.8.0 (`896eea2b…`) and v0.9.0 (`b05619d5…`) agents from GitHub by digest, and each SHA-256 matched\n- [ ] Deployed relay + a fresh VM launched by a CLI of a different release than the relay\n\n",
+    "state": "MERGED",
+    "created_at": "2026-11-18T00:00:00Z",
+    "updated_at": "2026-11-18T00:00:00Z",
+    "commit_count": 3,
+    "commits": [
+      {
+        "sha": "174ebd9d34e5763bca8e2a88f9504dbc11e0e660",
+        "authored_at": "2026-11-18T00:00:00Z",
+        "committed_at": "2026-11-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "ofirmakmal",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "9a4372c07dcc90ff64b3736ae6d28acef43ebce0",
+        "authored_at": "2026-11-18T00:00:00Z",
+        "committed_at": "2026-11-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "ofirmakmal",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "46083659f5b78634355527918a22d2f53ffd0695",
+        "authored_at": "2026-11-18T00:00:00Z",
+        "committed_at": "2026-11-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "ofirmakmal",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      }
+    ]
+  }
+}

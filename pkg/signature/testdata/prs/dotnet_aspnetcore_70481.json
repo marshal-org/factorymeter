@@ -1,0 +1,88 @@
+{
+  "note": "Copilot coding agent opened it, and a person co-authored commits.",
+  "recorded": "2026-11-18",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "copilot"
+    ],
+    "signatures": [
+      "copilot-pr-author",
+      "copilot-trailer"
+    ]
+  },
+  "pr": {
+    "repo": "dotnet/aspnetcore",
+    "number": 70481,
+    "url": "https://github.com/dotnet/aspnetcore/pull/70481",
+    "author": {
+      "login": "copilot-swe-agent[bot]",
+      "type": "Bot"
+    },
+    "head_ref": "remove-mono-browser-runtime",
+    "body": "# Remove Mono browser runtime usage from build and test infrastructure\n\n<!-- Thank you for submitting a pull request to our repo. -->\n\n<!-- If this is your first PR in the ASP.NET Core repo, please run through the checklist\nbelow to ensure a smooth review and merge process for your PR. -->\n\n- [ ] You've read the [Contributor Guide](https://github.com/dotnet/aspnetcore/blob/main/CONTRIBUTING.md) and [Code of Conduct](https://github.com/dotnet/aspnetcore/blob/main/CODE-OF-CONDUCT.md).\n- [ ] You've included unit or integration tests for your change, where applicable.\n- [ ] You've included inline docs for your change, where applicable.\n- [ ] There's an open issue for the PR that you are making. If you'd like to propose a new feature or change, please open an issue to discuss the change or find an existing issue.\n\n<!-- Once all that is done, you're ready to go. Open the PR with the content below. -->\n\nRemove Mono browser runtime usage from build and test infrastructure.\n\n## Description\n\nSet `UseMonoRuntime=false` unconditionally in shared generated build props and propagate it to template-test child processes, including automatic restores from `dotnet new`. This avoids restoring Mono browser runtime packs while the WasmSdk default still selects Mono.\n\nSamples and shipped templates are unchanged. Follow-up to #70440.\n\n<!-- No linked issue. -->",
+    "state": "MERGED",
+    "created_at": "2026-11-10T00:00:00Z",
+    "updated_at": "2026-11-10T00:00:00Z",
+    "commit_count": 3,
+    "commits": [
+      {
+        "sha": "9880632916d9b7ec809788a6239a38f78338f7e1",
+        "authored_at": "2026-11-10T00:00:00Z",
+        "committed_at": "2026-11-10T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "akoeplinger",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "Copilot",
+            "email": "223556219+Copilot@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "632d9aa9a306639249db0169b1936cb217b459e6",
+        "authored_at": "2026-11-10T00:00:00Z",
+        "committed_at": "2026-11-10T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "akoeplinger",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "Copilot",
+            "email": "223556219+Copilot@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "6aeafaccd5cbd0a7f0bec23e7bcad600154be638",
+        "authored_at": "2026-11-11T00:00:00Z",
+        "committed_at": "2026-11-11T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "akoeplinger",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "Copilot",
+            "email": "223556219+Copilot@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+        ]
+      }
+    ]
+  }
+}

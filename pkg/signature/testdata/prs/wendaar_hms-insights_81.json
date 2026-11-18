@@ -1,0 +1,68 @@
+{
+  "note": "A person opened it. Commits are authored by the OpenAI codex account.",
+  "recorded": "2026-11-18",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "codex"
+    ],
+    "signatures": [
+      "codex-commit-author",
+      "codex-commit-email",
+      "codex-branch"
+    ]
+  },
+  "pr": {
+    "repo": "Wendaar/HMS-Insights",
+    "number": 81,
+    "url": "https://github.com/Wendaar/HMS-Insights/pull/81",
+    "author": {
+      "login": "Wendaar",
+      "type": "User"
+    },
+    "head_ref": "codex/team-compare-season-scope",
+    "body": "Team Compare public links and iframes can now restrict the catalog to a competition or lock one explicit season, while Studio retains the full organization catalog. Studio exports one of three scopes without pinning teams and preserves it across reload/language changes; changing organization clears it.\n\nServer validates organization/competition/season/group/phase ownership before data reads and cache access, with cache separation and no replacement season for invalid/empty selections. Existing unrestricted and preselection URLs remain compatible. Documentation includes verified PHM Cup 2026-2027 UUIDs.\n\nValidation: full Node test suite and Team Compare Playwright browser QA, including API malformed/foreign/conflicting IDs, warm cache, all three export scopes, Studio reload/reset, new browser context, locked division/language selection, empty season and HMS outage. No Game Center, statistics calculations or other widget behavior changed. Production deployment requested by the user.",
+    "state": "MERGED",
+    "created_at": "2026-11-18T00:00:00Z",
+    "updated_at": "2026-11-18T00:00:00Z",
+    "commit_count": 3,
+    "commits": [
+      {
+        "sha": "dea39f3cf5f8d019bf8692ca525132f591a4bbb2",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "Wendaar",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "00a3097a19089ade376fcedb945c4fa0c455f72c",
+        "authored_at": "2026-11-18T00:00:00Z",
+        "committed_at": "2026-11-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "codex",
+            "email": "codex@openai.com"
+          }
+        ]
+      },
+      {
+        "sha": "6eedc9bd8d5a7116353b21ae0a7218ac59eb9d6b",
+        "authored_at": "2026-11-18T00:00:00Z",
+        "committed_at": "2026-11-18T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "codex",
+            "email": "codex@openai.com"
+          }
+        ]
+      }
+    ]
+  }
+}

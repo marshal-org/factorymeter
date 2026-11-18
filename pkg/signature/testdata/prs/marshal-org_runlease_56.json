@@ -1,0 +1,41 @@
+{
+  "note": "Negative. Dependabot is automation, not an agent.",
+  "recorded": "2026-11-18",
+  "expect": {
+    "class": "automation"
+  },
+  "pr": {
+    "repo": "marshal-org/runlease",
+    "number": 56,
+    "url": "https://github.com/marshal-org/runlease/pull/56",
+    "author": {
+      "login": "dependabot[bot]",
+      "type": "Bot"
+    },
+    "head_ref": "dependabot/go_modules/go.opentelemetry.io/otel/trace-1.47.0",
+    "body": "[...] chore: Replace deprecated gofumpt extra-rules with extra options (<a href=\"https://redirect.github.com/open-telemetry/opentelemetry-go/issues/9062\">#9062</a>)</li>\n<li>Additional commits viewable in <a href=\"https://github.com/open-telemetry/opentelemetry-go/compare/v1.45.0...v1.47.0\">compare view</a></li>\n</ul>\n</details>\n<br />\n\n\n[![Dependabot compatibility score](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=go.opentelemetry.io/otel/trace&package-manager=go_modules&previous-version=1.45.0&new-version=1.47.0)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)\n\nDependabot will resolve any conflicts with this PR as long as you don't alter it yourself. You can also trigger a rebase manually by commenting `@dependabot rebase`.\n\n[//]: # (dependabot-automerge-start)\n[//]: # (dependabot-automerge-end)\n\n---\n\n<details>\n<summary>Dependabot commands and options</summary>\n<br />\n\nYou can trigger Dependabot actions by commenting on this PR:\n- `@dependabot rebase` will rebase this PR\n- `@dependabot recreate` will recreate this PR, overwriting any edits that have been made to it\n- `@dependabot show <dependency name> ignore conditions` will show all of the ignore conditions of the specified dependency\n- `@dependabot ignore this major version` will close this PR and stop Dependabot creating any more for this major version (unless you reopen the PR or upgrade to it yourself)\n- `@dependabot ignore this minor version` will close this PR and stop Dependabot creating any more for this minor version (unless you reopen the PR or upgrade to it yourself)\n- `@dependabot ignore this dependency` will close this PR and stop Dependabot creating any more for this dependency (unless you reopen the PR or upgrade to it yourself)\nYou can disable automated security fix PRs for this repo from the [Security Alerts page](https://github.com/marshal-org/runlease/network/alerts).\n\n</details>",
+    "state": "MERGED",
+    "created_at": "2026-11-16T00:00:00Z",
+    "updated_at": "2026-11-16T00:00:00Z",
+    "commit_count": 1,
+    "commits": [
+      {
+        "sha": "072d9e02031e89a77f7700f220dcd1e5dec12bcb",
+        "authored_at": "2026-11-16T00:00:00Z",
+        "committed_at": "2026-11-16T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "dependabot[bot]",
+            "email": "49699333+dependabot[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "dependency-version: 1.47.0",
+          "dependency-type: indirect",
+          "Signed-off-by: redacted <redacted@example.invalid>"
+        ]
+      }
+    ]
+  }
+}

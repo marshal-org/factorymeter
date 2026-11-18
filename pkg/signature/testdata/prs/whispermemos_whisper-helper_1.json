@@ -1,0 +1,51 @@
+{
+  "note": "A person opened it from a claude/ branch, with the trailer and the footer.",
+  "recorded": "2026-11-18",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "claude-code"
+    ],
+    "signatures": [
+      "claude-trailer",
+      "claude-body-footer",
+      "claude-branch"
+    ]
+  },
+  "pr": {
+    "repo": "whispermemos/whisper-helper",
+    "number": 1,
+    "url": "https://github.com/whispermemos/whisper-helper/pull/1",
+    "author": {
+      "login": "vojto",
+      "type": "User"
+    },
+    "head_ref": "claude/session-creation-workflow-ca26ef",
+    "body": "**New: Settings > Sessions.** Pick how a memo's session gets into the Claude app:\n\n- **Open when the first answer is ready** (default, unchanged): `claude -p`, then `claude --desktop --resume`. Shows with your other sessions, but only after the first turn ends.\n- **Open right away with Remote Control:** `claude --bg --remote-control`, read the `claude.ai/code/session_…` link from `claude logs`, open it as `claude://claude.ai/code/session_…`. Opens in seconds and updates live, also on the phone. Shows under Remote Control in the sidebar.\n\nWhat didn't work (notes in the README): a `claude://code/new?prompt=` link only fills the box; resuming a running background session shows a frozen copy; the first flow can't get Remote Control.\n\n**Also fixed:** local ad-hoc builds crashed at launch. With the hardened runtime on, macOS refused to load the ad-hoc signed Sparkle. Ad-hoc builds now skip the hardened runtime; Developer ID builds are unchanged.\n\nTested: `swift test` passes (new tests for reading the background id and the Remote Control link). Built app launches, the Sessions tab was checked by hand, and a real memo ran through the Remote Control flow.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+    "state": "MERGED",
+    "created_at": "2026-11-12T00:00:00Z",
+    "updated_at": "2026-11-12T00:00:00Z",
+    "commit_count": 1,
+    "commits": [
+      {
+        "sha": "0c00beda297a12639dc486dc69ef155d2e9f9df5",
+        "authored_at": "2026-11-12T00:00:00Z",
+        "committed_at": "2026-11-12T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "vojto",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "claude",
+            "email": "noreply@anthropic.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+        ]
+      }
+    ]
+  }
+}

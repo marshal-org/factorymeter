@@ -1,0 +1,43 @@
+{
+  "note": "Jules opened it: account and commit author.",
+  "recorded": "2026-11-18",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "jules"
+    ],
+    "signatures": [
+      "jules-pr-author",
+      "jules-commit-author"
+    ]
+  },
+  "pr": {
+    "repo": "AlbiDR/Clash-Manager",
+    "number": 2565,
+    "url": "https://github.com/AlbiDR/Clash-Manager/pull/2565",
+    "author": {
+      "login": "google-labs-jules[bot]",
+      "type": "Bot"
+    },
+    "head_ref": "nightly/stage-3-baseline-consolidation-cf523b7a-8984269560712424759",
+    "body": "### Nightly Stage 3: Baseline Consolidation - Declarative Schema Hardener\n\n**Status:** CHANGED\n\nIn plain terms: this changes 1 code file, so the app's behaviour may be affected. No tests were added or changed alongside it.\n\n**What changed:** Folded 20260705030000_voyage_history_pruning.sql by reconciling features.roster_view grant in master baseline; 19 migrations remain still to fold next 20260917070640_fix_battle_stats_today_branch_sargable.sql\n\n**Why:** Target A chronological migration folding of oldest pending migration to advance declarative baseline consolidation\n\n**Result:** pnpm audit:migrations PASS (79 migrations, 188 baseline objects, 0 violations); fold-state reconciled 20260705030000_voyage_history_pruning.sql with 19 migrations owning unfolded objects remaining; DB-UNAVAILABLE\n\n**Files changed:** .github/nightly-logs/03-baseline-consolidation-coverage.log, Backend/supabase/migrations/20260531232406_master_migration.sql\n\n<!--\nNIGHTLY_PR_METADATA:\n  Domain: database\n  Cycle: nightly-cycle/2026-11-12\n  Contract: 8c32444005e6edf746eda3ca4e7e0dbe86a11a195765389a2f7db2cce85373e0\n  Why: Target A chronological migration folding of oldest pending migration to advance declarative baseline consolidation\n  Change: Folded 20260705030000_voyage_history_pruning.sql by reconciling features.roster_view grant in master baseline; 19 migrations remain still to fold next 20260917070640_fix_battle_stats_today_branch_sargable.sql\n  Result: pnpm audit:migrations PASS (79 migrations, 188 baseline objects, 0 violations); fold-state reconciled 20260705030000_voyage_history_pruning.sql with 19 migrations owning unfolded objects remaining; DB-UNAVAILABLE\n  Files: .github/nightly-logs/03-baseline-consolidation-coverage.log, Backend/supabase/migrations/20260531232406_master_migration.sql\n  Nudges: 0\n  Execution: 4b281451ccff9022d39f1f3114d3361e63d0140f\n-->",
+    "state": "MERGED",
+    "created_at": "2026-11-12T00:00:00Z",
+    "updated_at": "2026-11-12T00:00:00Z",
+    "commit_count": 1,
+    "commits": [
+      {
+        "sha": "2f1c9f5c6f5bef1d37a3498ed89da860e785da86",
+        "authored_at": "2026-11-12T00:00:00Z",
+        "committed_at": "2026-11-12T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "google-labs-jules[bot]",
+            "email": "161369871+google-labs-jules[bot]@users.noreply.github.com"
+          }
+        ]
+      }
+    ]
+  }
+}

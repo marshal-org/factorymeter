@@ -1,0 +1,128 @@
+{
+  "note": "A person opened it. Commits are authored by cursoragent and the description carries the badge.",
+  "recorded": "2026-11-18",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "cursor"
+    ],
+    "signatures": [
+      "cursor-commit-author",
+      "cursor-commit-email",
+      "cursor-body-badge",
+      "cursor-branch"
+    ]
+  },
+  "pr": {
+    "repo": "Wildboar-Software/asn1-typescript-libraries",
+    "number": 235,
+    "url": "https://github.com/Wildboar-Software/asn1-typescript-libraries/pull/235",
+    "author": {
+      "login": "JonathanWilbur",
+      "type": "User"
+    },
+    "head_ref": "cursor/acdf-tuple-tostring-tojson-1480",
+    "body": "<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\n## Summary\n\nNarrows this PR after review: `toString()` / `toJSON()` are **not** added on `ACDFTuple`, `ACDFTupleExtended`, `UserClasses`, `Filter`, `ItemPermission`, `ProtectedItems`, or `ContextAssertion`.\n\nWhat remains:\n\n- `MaxValueCount`, `RestrictedValue` - instance methods\n- `AuthenticationLevel` CHOICE - `authenticationLevelToString` / `authenticationLevelToJSON`\n- `GrantsAndDenials` named bits - `grantsAndDenialsToString` / `grantsAndDenialsToJSON` (X.697 clause 24.4 identifiers of set bits)\n\n`MaxValueCount` and `RestrictedValue` print with simple template strings, not `gserSequence`.\n\n## Tests\n\n`npx vitest run --config packages/x500/vite.config.ts src/lib/json.spec.mts src/lib/bac src/lib/types`: 69 passed.\n<!-- CURSOR_AGENT_PR_BODY_END -->\n\n<div><a href=\"https://cursor.com/agents/bc-d9f0cdb5-9d37-42c9-887a-f93256fc1480?cursor_ref=pr_footer&cursor_cta=open_in_web\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/open-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/open-in-web-light.png\"><img alt=\"Open in Web\" width=\"114\" height=\"28\" src=\"https://cursor.com/assets/images/open-in-web-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/background-agent?bcId=bc-d9f0cdb5-9d37-42c9-887a-f93256fc1480&cursor_ref=pr_footer&cursor_cta=open_in_cursor\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/open-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/open-in-cursor-light.png\"><img alt=\"Open in Cursor\" width=\"131\" height=\"28\" src=\"https://cursor.com/assets/images/open-in-cursor-dark.png\"></picture></a>&nbsp;</div>\n\n",
+    "state": "MERGED",
+    "created_at": "2026-11-10T00:00:00Z",
+    "updated_at": "2026-11-10T00:00:00Z",
+    "commit_count": 5,
+    "commits": [
+      {
+        "sha": "870833a8d692e2be779d322625207f7ba299ca31",
+        "authored_at": "2026-11-10T00:00:00Z",
+        "committed_at": "2026-11-10T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "JonathanWilbur",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "f438e2b30f8d45d40b13e928acddece790b35104",
+        "authored_at": "2026-11-11T00:00:00Z",
+        "committed_at": "2026-11-11T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "JonathanWilbur",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "8d32970b7d704165dcdf8d41021e140418026541",
+        "authored_at": "2026-11-11T00:00:00Z",
+        "committed_at": "2026-11-11T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "JonathanWilbur",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "8a64f573a9b2ced6a31a01c631e3fd192be0df36",
+        "authored_at": "2026-11-11T00:00:00Z",
+        "committed_at": "2026-11-11T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "JonathanWilbur",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "9b64d36b87092a34f429afe98b33f3d2d5717c78",
+        "authored_at": "2026-11-11T00:00:00Z",
+        "committed_at": "2026-11-11T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          },
+          {
+            "login": "JonathanWilbur",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "note": "Copilot coding agent opened it: account, commit author and trailer.",
+  "recorded": "2026-11-18",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "copilot"
+    ],
+    "signatures": [
+      "copilot-pr-author",
+      "copilot-commit-author",
+      "copilot-trailer"
+    ]
+  },
+  "pr": {
+    "repo": "microsoft/typespec",
+    "number": 12580,
+    "url": "https://github.com/microsoft/typespec/pull/12580",
+    "author": {
+      "login": "copilot-swe-agent[bot]",
+      "type": "Bot"
+    },
+    "head_ref": "revert/csharp-deprecation-prs",
+    "body": "## Summary\n\nReverts #12523 and #12394, removing automatic `Obsolete` attribute generation for deprecated C# APIs and model properties, along with the associated metadata, warning suppressions, tests, and generated sample additions.\n\nConflicts were resolved to preserve newer constructor samples and array-customization coverage. The existing one-line partial-method modifier safeguard is retained because removing it breaks two newer paging tests. Sample-TypeSpec was regenerated using the underlying CLI commands from `Generate.ps1`.\n\n## Validation\n\n- `npm run build` passed.\n- Emitter tests: 418 passed, 2 skipped.\n- Core generator tests: 3,200 passed.\n- ClientModel generator tests: 2,729 passed.\n- Sample customization tests: 37 passed.\n- `git diff --check` passed.\n\nFormatting and Cop execution were blocked by session permissions. `npm run lint` could not run because ESLint is missing. PowerShell is unavailable, so the full regeneration script could not run; the affected Sample-TypeSpec project was regenerated directly instead.",
+    "state": "MERGED",
+    "created_at": "2026-11-13T00:00:00Z",
+    "updated_at": "2026-11-13T00:00:00Z",
+    "commit_count": 5,
+    "commits": [
+      {
+        "sha": "6299225bdd89d1b90c99b6f52343d3773829e0a7",
+        "authored_at": "2026-11-13T00:00:00Z",
+        "committed_at": "2026-11-13T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "jorgerangel-msft",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "Copilot",
+            "email": "223556219+Copilot@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "bda7027011b35daa373ee06997111e21229d3829",
+        "authored_at": "2026-11-13T00:00:00Z",
+        "committed_at": "2026-11-13T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "Copilot",
+            "email": "198982749+Copilot@users.noreply.github.com"
+          },
+          {
+            "login": "jorgerangel-msft",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "ec82f3fb6aff87f8baf56979802e726dd4855398",
+        "authored_at": "2026-11-13T00:00:00Z",
+        "committed_at": "2026-11-13T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "Copilot",
+            "email": "198982749+Copilot@users.noreply.github.com"
+          },
+          {
+            "login": "jorgerangel-msft",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: redacted <redacted@example.invalid>"
+        ]
+      },
+      {
+        "sha": "60b509b7397f0384a290d3c1498d9fd9133250d8",
+        "authored_at": "2026-11-13T00:00:00Z",
+        "committed_at": "2026-11-13T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "jorgerangel-msft",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "Copilot",
+            "email": "198982749+Copilot@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: copilot-swe-agent[bot] <198982749+Copilot@users.noreply.github.com>"
+        ]
+      },
+      {
+        "sha": "cb12834952228c3f33b621b5d878ddb4b62e6ffb",
+        "authored_at": "2026-11-16T00:00:00Z",
+        "committed_at": "2026-11-16T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "jorgerangel-msft",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "Copilot",
+            "email": "198982749+Copilot@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: copilot-swe-agent[bot] <198982749+Copilot@users.noreply.github.com>"
+        ]
+      }
+    ]
+  }
+}

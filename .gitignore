@@ -1,0 +1,33 @@
+# Binaries (root-level only, so cmd/ source dirs are not excluded)
+/factorymeter
+*.exe
+
+# Build output
+/dist/
+/bin/
+
+# Go test cache and coverage
+*.test
+*.out
+coverage.html
+
+# Reports and raw collections written while trying the tool
+/report.html
+/report.json
+/raw.json
+/factorymeter-report*
+
+# Environment / secrets
+.env
+.env.local
+*.pem
+*.key
+
+# macOS
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo

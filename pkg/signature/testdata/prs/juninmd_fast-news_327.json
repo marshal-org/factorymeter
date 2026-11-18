@@ -1,0 +1,44 @@
+{
+  "note": "Jules opened it. The description carries the Jules footer.",
+  "recorded": "2026-11-18",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "jules"
+    ],
+    "signatures": [
+      "jules-pr-author",
+      "jules-commit-author",
+      "jules-body-footer"
+    ]
+  },
+  "pr": {
+    "repo": "juninmd/fast-news",
+    "number": 327,
+    "url": "https://github.com/juninmd/fast-news/pull/327",
+    "author": {
+      "login": "google-labs-jules[bot]",
+      "type": "Bot"
+    },
+    "head_ref": "add-infomoney-feed-16767085759495887479",
+    "body": "Added the InfoMoney RSS feed to expand business news coverage via the Continuous Expansion cycle. The missing `@juninmd/digest-kit` dependency was also installed in the root workspace to fix an existing test/build failure caused by missing dependencies when resolving Vite imports. All automated rules for RAG, Telegram UI, and embedding logic were safely bypassed based on memory context, since they are already fully implemented in the backend architecture.\n\n---\n*PR created automatically by Jules for task [16767085759495887479](https://jules.google.com/task/16767085759495887479) started by @juninmd*",
+    "state": "MERGED",
+    "created_at": "2026-11-12T00:00:00Z",
+    "updated_at": "2026-11-12T00:00:00Z",
+    "commit_count": 1,
+    "commits": [
+      {
+        "sha": "e6dc1da7bb8e9b0615043f653e0efb43e2843770",
+        "authored_at": "2026-11-12T00:00:00Z",
+        "committed_at": "2026-11-12T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "google-labs-jules[bot]",
+            "email": "161369871+google-labs-jules[bot]@users.noreply.github.com"
+          }
+        ]
+      }
+    ]
+  }
+}

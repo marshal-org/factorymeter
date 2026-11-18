@@ -1,0 +1,244 @@
+# factorymeter signature registry
+#
+# This file is the whole definition of how factorymeter decides that a pull
+# request was written by a coding agent. It is open so that anyone can read it,
+# argue with it and extend it. To add or change a signature, open a pull
+# request that edits this file and adds a recorded fixture of a real public
+# pull request under pkg/signature/testdata/prs/. See CONTRIBUTING.md.
+#
+# Signature kinds
+#   pr_author_login      login of the account that opened the pull request
+#   commit_author_login  GitHub login of a commit author
+#   commit_author_email  email of a commit author
+#   commit_trailer       a trailer line of a commit message, such as Co-authored-by
+#   pr_body              the pull request description
+#   branch_prefix        the head branch name
+#
+# Matchers (exactly one per signature)
+#   equals   list of exact values, compared without case
+#   prefix   list of prefixes, compared without case
+#   regex    one Go regular expression (RE2). Add (?i) to ignore case.
+#
+# Confidence
+#   high    the agent's own account opened the pull request or wrote a commit.
+#           A person cannot produce this by accident.
+#   medium  a disclosure the tool writes by default: a trailer, a footer or a
+#           badge. A person can turn it off, and a person can also type it.
+#   low     a naming habit, such as a branch prefix. People use these prefixes
+#           by hand, so a low match alone never counts as an agent pull request.
+#
+# A pull request counts as agent-written when at least one signature matches at
+# medium or high. This is a floor: local agents can run with the disclosure
+# turned off, and those pull requests look human. The report calls the number
+# "disclosed agent share" for that reason.
+#
+# verified is the date someone last checked the signature against a real pull
+# request. The evidence is the fixtures: a test fails when a signature has no
+# recorded real pull request that it matches.
+
+version: 1
+
+agents:
+  - id: copilot
+    name: GitHub Copilot coding agent
+    vendor: GitHub
+    kind: cloud
+    signatures:
+      - id: copilot-pr-author
+        kind: pr_author_login
+        equals: ["Copilot", "copilot-swe-agent[bot]"]
+        confidence: high
+        verified: "2026-11-18"
+      - id: copilot-commit-author
+        kind: commit_author_login
+        equals: ["Copilot", "copilot-swe-agent[bot]"]
+        confidence: high
+        verified: "2026-11-18"
+      - id: copilot-trailer
+        kind: commit_trailer
+        regex: '(?i)^co-authored-by:.*<(\d+\+)?(copilot|copilot-swe-agent\[bot\])@users\.noreply\.github\.com>'
+        confidence: medium
+        verified: "2026-11-18"
+      - id: copilot-branch
+        kind: branch_prefix
+        prefix: ["copilot/"]
+        confidence: low
+        verified: "2026-11-18"
+
+  - id: codex
+    name: OpenAI Codex
+    vendor: OpenAI
+    kind: cloud and local
+    signatures:
+      - id: codex-pr-author
+        kind: pr_author_login
+        equals: ["chatgpt-codex-connector[bot]"]
+        confidence: high
+        verified: "2026-11-18"
+      - id: codex-commit-author
+        kind: commit_author_login
+        equals: ["codex"]
+        confidence: high
+        verified: "2026-11-18"
+      - id: codex-commit-email
+        kind: commit_author_email
+        equals: ["codex@openai.com"]
+        confidence: high
+        verified: "2026-11-18"
+      - id: codex-trailer
+        kind: commit_trailer
+        regex: '(?i)^co-authored-by:.*<codex@openai\.com>'
+        confidence: medium
+        verified: "2026-11-18"
+      - id: codex-branch
+        kind: branch_prefix
+        prefix: ["codex/"]
+        confidence: low
+        verified: "2026-11-18"
+
+  - id: cursor
+    name: Cursor agent
+    vendor: Anysphere
+    kind: cloud and local
+    signatures:
+      - id: cursor-pr-author
+        kind: pr_author_login
+        equals: ["cursor[bot]"]
+        confidence: high
+        verified: "2026-11-18"
+      - id: cursor-commit-author
+        kind: commit_author_login
+        equals: ["cursoragent"]
+        confidence: high
+        verified: "2026-11-18"
+      - id: cursor-commit-email
+        kind: commit_author_email
+        equals: ["cursoragent@cursor.com"]
+        confidence: high
+        verified: "2026-11-18"
+      - id: cursor-trailer
+        kind: commit_trailer
+        regex: '(?i)^co-authored-by:.*<cursoragent@cursor\.com>'
+        confidence: medium
+        verified: "2026-11-18"
+      - id: cursor-body-badge
+        kind: pr_body
+        regex: 'https://cursor\.com/(background-agent\?bcId=|agents/)bc-'
+        confidence: medium
+        verified: "2026-11-18"
+      - id: cursor-branch
+        kind: branch_prefix
+        prefix: ["cursor/"]
+        confidence: low
+        verified: "2026-11-18"
+
+  - id: claude-code
+    name: Claude Code
+    vendor: Anthropic
+    kind: cloud and local
+    signatures:
+      - id: claude-pr-author
+        kind: pr_author_login
+        equals: ["claude[bot]"]
+        confidence: high
+        verified: "2026-11-18"
+      - id: claude-commit-author
+        kind: commit_author_login
+        equals: ["claude[bot]"]
+        confidence: high
+        verified: "2026-11-18"
+      - id: claude-trailer
+        kind: commit_trailer
+        regex: '(?i)^co-authored-by:.*<noreply@anthropic\.com>'
+        confidence: medium
+        verified: "2026-11-18"
+      - id: claude-body-footer
+        kind: pr_body
+        regex: '(?i)generated (with|by) \[claude code\]\('
+        confidence: medium
+        verified: "2026-11-18"
+      - id: claude-session-link
+        kind: pr_body
+        regex: 'https://claude\.ai/code/session_[A-Za-z0-9]+'
+        confidence: medium
+        verified: "2026-11-18"
+      - id: claude-branch
+        kind: branch_prefix
+        prefix: ["claude/"]
+        confidence: low
+        verified: "2026-11-18"
+
+  - id: devin
+    name: Devin
+    vendor: Cognition
+    kind: cloud
+    signatures:
+      - id: devin-pr-author
+        kind: pr_author_login
+        equals: ["devin-ai-integration[bot]"]
+        confidence: high
+        verified: "2026-11-18"
+      - id: devin-commit-author
+        kind: commit_author_login
+        equals: ["devin-ai-integration[bot]"]
+        confidence: high
+        verified: "2026-11-18"
+      - id: devin-trailer
+        kind: commit_trailer
+        regex: '(?i)^co-authored-by:.*<(\d+\+)?devin-ai-integration\[bot\]@users\.noreply\.github\.com>'
+        confidence: medium
+        verified: "2026-11-18"
+      - id: devin-branch
+        kind: branch_prefix
+        prefix: ["devin/"]
+        confidence: low
+        verified: "2026-11-18"
+
+  - id: jules
+    name: Jules
+    vendor: Google
+    kind: cloud
+    signatures:
+      - id: jules-pr-author
+        kind: pr_author_login
+        equals: ["google-labs-jules[bot]"]
+        confidence: high
+        verified: "2026-11-18"
+      - id: jules-commit-author
+        kind: commit_author_login
+        equals: ["google-labs-jules[bot]"]
+        confidence: high
+        verified: "2026-11-18"
+      - id: jules-trailer
+        kind: commit_trailer
+        regex: '(?i)^co-authored-by:.*<(\d+\+)?google-labs-jules\[bot\]@users\.noreply\.github\.com>'
+        confidence: medium
+        verified: "2026-11-18"
+      - id: jules-body-footer
+        kind: pr_body
+        regex: '(?i)PR created automatically by Jules'
+        confidence: medium
+        verified: "2026-11-18"
+
+# Automation accounts open pull requests without a person or a coding agent
+# deciding what to write: dependency bumps, release pull requests, sync jobs.
+# They are reported in their own class and left out of both the agent and the
+# human numbers. Any other pull request author that GitHub marks as a bot, and
+# that no agent signature matches, is also counted as automation.
+automation:
+  logins:
+    - "dependabot[bot]"
+    - "dependabot-preview[bot]"
+    - "renovate[bot]"
+    - "renovate-bot"
+    - "github-actions[bot]"
+    - "release-please[bot]"
+    - "googleapis-release-please[bot]"
+    - "pre-commit-ci[bot]"
+    - "snyk-bot"
+    - "mergify[bot]"
+    - "allcontributors[bot]"
+    - "imgbot[bot]"
+    - "depfu[bot]"
+    - "transifex-integration[bot]"
+    - "weblate"

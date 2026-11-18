@@ -1,0 +1,176 @@
+{
+  "note": "A person opened it. Commits carry both the Codex and the Claude trailers: two agents.",
+  "recorded": "2026-11-18",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "codex",
+      "claude-code"
+    ],
+    "signatures": [
+      "codex-trailer",
+      "claude-trailer",
+      "claude-body-footer"
+    ]
+  },
+  "pr": {
+    "repo": "chhuax/Kanso",
+    "number": 23,
+    "url": "https://github.com/chhuax/Kanso/pull/23",
+    "author": {
+      "login": "chhuax",
+      "type": "User"
+    },
+    "head_ref": "ci/apple-test-all-channels",
+    "body": "[...] 。\n- apple 任务超时 45 → 60 分钟。\n\n## MCP 测试隔离\n\n提交 `859ceb1` 从 `wp/f9-mcp-ui-2` 单独带入 Claude 的测试隔离修复。两个用例改用注入的假服务，仍覆盖服务不支持与启动失败，并避开真实 HOME 和单实例锁。#23 可以独立合并。\n\n## 待观察\n\n首次在 runner 上跑：没有 Metal 时未做跳过的测试、对时间敏感的测试可能失败，出现后逐个处理。\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\n## Runner 兼容与检查名统一\n\n- 首次执行 Swift 测试时，Xcode 16.4 在 `FilerFileSystemTests` 的同步生命周期方法中报告主线程隔离错误，尚未运行到 MCP 测试。`FilerFileSystemTests` 和同样写法的 `InputMethodTests` 改用仓库已有的异步 XCTest 生命周期。\n- CI 检查名统一为 `macos`，与 Release 的 `macos (arm64)` / `macos (x86_64)` 一致；默认分支必需检查同步为 `rust`、`macos`，严格检查策略保持启用。\n\n## 本轮验证\n\n- 本地 `cargo xtask ci` 的 Rust 检查、绑定校验、渠道矩阵和三个 macOS 渠道构建通过。Swift 全量执行 684 项，1 项跳过，只有 `testSettingsGeneralDark` 和 `testSettingsGeneralLight` 两项截图比对失败。\n- 与 GitHub 同范围的 Swift 测试执行 645 项，1 项跳过、0 失败。两个 MCP 用例均实际执行，`McpUITests` 35 项全部通过。`cargo deny check` 通过。\n\n## Swift runner 复验\n\n- 在 `798b230` 上，三渠道构建通过，Swift 测试完成编译。测试进程因 Metal 回调中的队列断言反复崩溃并重启，Git 提交失败用例也因写死中文提示而失败。\n- `70b49d1` 显式标记 Metal 完成回调为 `@Sendable`，Git 用例按当前语言检查暂存提示。\n- GitHub `70b49d1` 的 Swift 步骤耗时 2 分 27 秒，结束于一个 MCP 测试失败，后续 x86_64 交叉编译被跳过。\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nCo-Authored-By: Codex <codex@openai.com>\n",
+    "state": "MERGED",
+    "created_at": "2026-11-18T00:00:00Z",
+    "updated_at": "2026-11-18T00:00:00Z",
+    "commit_count": 8,
+    "commits": [
+      {
+        "sha": "cae04eef692548a43e00e9942f551134405fe16f",
+        "authored_at": "2026-11-18T00:00:00Z",
+        "committed_at": "2026-11-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "chhuax",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "claude",
+            "email": "noreply@anthropic.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+        ]
+      },
+      {
+        "sha": "b965bc8b4817da9cbd0e2a8ae46f50604c5fe384",
+        "authored_at": "2026-11-18T00:00:00Z",
+        "committed_at": "2026-11-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "chhuax",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "claude",
+            "email": "noreply@anthropic.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+        ]
+      },
+      {
+        "sha": "107fc0d9ce3d937b2d432e1ea563148ba6b045c5",
+        "authored_at": "2026-11-18T00:00:00Z",
+        "committed_at": "2026-11-18T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "chhuax",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "c5dcfafe01dcc130c7eea8fe8c7b82da5ddb8322",
+        "authored_at": "2026-11-18T00:00:00Z",
+        "committed_at": "2026-11-18T00:00:00Z",
+        "parents": 2,
+        "authors": [
+          {
+            "login": "chhuax",
+            "email": "redacted@example.invalid"
+          }
+        ]
+      },
+      {
+        "sha": "f0b74965f6b5ef9eeaabf0c5930e8210b384a232",
+        "authored_at": "2026-11-18T00:00:00Z",
+        "committed_at": "2026-11-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "chhuax",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "codex",
+            "email": "codex@openai.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Codex <codex@openai.com>"
+        ]
+      },
+      {
+        "sha": "798b2302b9332373951b36117cf87b0e1494cb42",
+        "authored_at": "2026-11-18T00:00:00Z",
+        "committed_at": "2026-11-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "chhuax",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "codex",
+            "email": "codex@openai.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Codex <codex@openai.com>"
+        ]
+      },
+      {
+        "sha": "70b49d1e521536d42da82b3f8a5ab0bbc1a3712f",
+        "authored_at": "2026-11-18T00:00:00Z",
+        "committed_at": "2026-11-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "chhuax",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "codex",
+            "email": "codex@openai.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Codex <codex@openai.com>"
+        ]
+      },
+      {
+        "sha": "859ceb19c0cff4316c8e099c10cba4bf79d10f8a",
+        "authored_at": "2026-11-18T00:00:00Z",
+        "committed_at": "2026-11-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "chhuax",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "claude",
+            "email": "noreply@anthropic.com"
+          },
+          {
+            "login": "codex",
+            "email": "codex@openai.com"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "Co-Authored-By: Codex <codex@openai.com>"
+        ]
+      }
+    ]
+  }
+}

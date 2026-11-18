@@ -1,0 +1,410 @@
+{
+  "note": "A person opened it. Local Cursor left only the co-author trailer.",
+  "recorded": "2026-11-18",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "cursor"
+    ],
+    "signatures": [
+      "cursor-trailer"
+    ]
+  },
+  "pr": {
+    "repo": "Adaptive-Web-Community/Adaptive-Web-Components",
+    "number": 355,
+    "url": "https://github.com/Adaptive-Web-Community/Adaptive-Web-Components/pull/355",
+    "author": {
+      "login": "bheston",
+      "type": "User"
+    },
+    "head_ref": "token-library/component-documentation",
+    "body": "## Summary\n- Implements [ADR 22](docs/decisions/0022-component-documentation-layers.md) across **components-foundation** and **components-fast**: `*.documentation.ts`, `*.web.binding.ts`, generated `*.generated.ts`, and FAST templates using `documentationToComponentAnatomy`.\n- Extends adaptive-ui contract generation and markdown export; adds shared `labelled` / `text-input` / `content-labelled` documentation includes.\n- Finishes remaining components (dialog, tooltip, tree, data grid family, calendar, card) and removes hand-written `*Conditions` / duplicate part maps from FAST templates.\n\n## Test plan\n- [ ] `npm run build`, `npm test`, and `npm run lint` in `packages/components-foundation`\n- [ ] `npm run build` and `npm run lint` in `packages/components-fast`\n- [ ] `npm test` in `packages/adaptive-ui`\n- [ ] `scripts/check-each-commit.sh 7ae3fd90` (API reports per commit)\n\n\nMade with [Cursor](https://cursor.com)",
+    "state": "MERGED",
+    "created_at": "2026-11-17T00:00:00Z",
+    "updated_at": "2026-11-17T00:00:00Z",
+    "commit_count": 20,
+    "commits": [
+      {
+        "sha": "ef5efa5850f74152de03b464dfc8cafa1afe97b7",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      },
+      {
+        "sha": "0bb9c8d06379675dbfd3904c30b4fe083359796e",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      },
+      {
+        "sha": "515557f6c02cc7873dff9eb78b1f37cbf19683b3",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      },
+      {
+        "sha": "c47cecceb500662a16995f9a1ea5a560960cc308",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      },
+      {
+        "sha": "afb4f1d35eeba40412d4a3efffd3081c856997f7",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      },
+      {
+        "sha": "25c6e97a6bef4009aee4c1aa12a60a4b68913e9e",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      },
+      {
+        "sha": "1dcd1f565d3616efa2bb7f94cf605f0c3ff261f0",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      },
+      {
+        "sha": "897fb1b81d53f433dcf22519b4b8730eb5651876",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      },
+      {
+        "sha": "2f8a048e525dc2ae4bbee8e124cf16679ee8df45",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      },
+      {
+        "sha": "54341f9d7346f9196617910e48c2310414c64dad",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      },
+      {
+        "sha": "75ec275eaade26c8b1519c8cf58811161f4bc320",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      },
+      {
+        "sha": "0f6013d0dc30a583574c226f37fb98d7cf38795d",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      },
+      {
+        "sha": "ee2b01ad8df92b68ee1e82d2492b333404a2d2ed",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      },
+      {
+        "sha": "b7d4dcfd9d64e1ddd6e253aa5b5e096b359d2f03",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      },
+      {
+        "sha": "1100f39bbed6dc455aa3ad93e6a192f32c144fde",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      },
+      {
+        "sha": "8233c482ff30f45f3858860166ba2d3b3b5ce86c",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      },
+      {
+        "sha": "1f81447844456d61d37f6e30b84dfb9779ee93d4",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      },
+      {
+        "sha": "3be3e7c47e30072edd95b388cafe02c20e9d7409",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      },
+      {
+        "sha": "28af046b22ccc89a3fc9f8deb066f1bb3fde247e",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      },
+      {
+        "sha": "f38f7dc5a99ea9271707dfd3f9d189e4ba24965e",
+        "authored_at": "2026-11-17T00:00:00Z",
+        "committed_at": "2026-11-17T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "bheston",
+            "email": "redacted@example.invalid"
+          },
+          {
+            "login": "cursoragent",
+            "email": "cursoragent@cursor.com"
+          }
+        ],
+        "trailers": [
+          "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "note": "The Claude GitHub App opened it: account, commit author and footer.",
+  "recorded": "2026-11-18",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "claude-code"
+    ],
+    "signatures": [
+      "claude-pr-author",
+      "claude-commit-author",
+      "claude-body-footer"
+    ]
+  },
+  "pr": {
+    "repo": "roundup-app/roundup",
+    "number": 7477,
+    "url": "https://github.com/roundup-app/roundup/pull/7477",
+    "author": {
+      "login": "claude[bot]",
+      "type": "Bot"
+    },
+    "head_ref": "build/issue-7471",
+    "body": "Closes #7471\nScenarios: U7471a\nA Pane's views reach the Toast queue through a per-Project queue (`projectMessageQueue`, `ink/messageToast.tsx`); `createMessageToast` reads its origin once per message, so a hidden Project's toast starts with `<name> · ` and keeps its text after a tab switch. No call site writes the prefix; App-level and Rail toasts are unchanged.\n\nReuse: no new library machinery; it is a thin wrapper over the existing `ToastQueueContext` (Solid context already installed), so no candidates apply.\n\nMoves: none (copy only, no layout change).\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+    "state": "MERGED",
+    "created_at": "2026-11-18T00:00:00Z",
+    "updated_at": "2026-11-18T00:00:00Z",
+    "commit_count": 2,
+    "commits": [
+      {
+        "sha": "c262a11d4197920cfb5d2991770300702ee606b3",
+        "authored_at": "2026-11-18T00:00:00Z",
+        "committed_at": "2026-11-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "claude[bot]",
+            "email": "209825114+claude[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Author-Agent: builder-44284591673"
+        ]
+      },
+      {
+        "sha": "c756d62d850a1b0deb7aae6865478daf2d0fef63",
+        "authored_at": "2026-11-18T00:00:00Z",
+        "committed_at": "2026-11-18T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "claude[bot]",
+            "email": "209825114+claude[bot]@users.noreply.github.com"
+          }
+        ],
+        "trailers": [
+          "Author-Agent: builder-44288401285"
+        ]
+      }
+    ]
+  }
+}
