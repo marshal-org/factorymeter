@@ -21,6 +21,7 @@ GitHub CLI's login is enough.
 git clone https://github.com/marshal-org/factorymeter
 cd factorymeter
 go build -o factorymeter ./cmd/factorymeter
+./factorymeter sync marshal-org/runlease
 ./factorymeter report marshal-org/runlease
 ```
 

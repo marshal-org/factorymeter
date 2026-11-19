@@ -1,7 +1,15 @@
-# What factorymeter measures
+# What snapshot and trend measure
 
-Every number in the report is defined here. If a number surprises you, this page says
-exactly what was counted, so you can check it by hand.
+This page defines the numbers of `factorymeter snapshot` and `factorymeter trend`, the first
+generation of the tool. They read GitHub on every run and measure a pull request between open
+and merge. If a number surprises you, this page says exactly what was counted, so you can check
+it by hand.
+
+`factorymeter report` measures the whole line by station, from the store. Its numbers are
+defined in [reference/metrics.md](reference/metrics.md), and [contract.md](contract.md) says
+how a report is put together.
+
+On this page, "the report" is what `snapshot` prints.
 
 ## The window and the cohort
 

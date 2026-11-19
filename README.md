@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>Find where your delivery line waits, now that agents write the code.</strong><br>
-  One command reads your GitHub history, splits it by agent and human pull requests, and names the constraint.
+  It reads your GitHub history, follows each change through seven stations, splits it by agents and people, and names the constraint.
 </p>
 
 <p align="center">
@@ -18,9 +18,9 @@
 </p>
 
 ```bash
-factorymeter report owner/repo                      # one repository, the last 30 days
-factorymeter report my-org --since 12w              # every active repository of an owner
-factorymeter report owner/repo --html report.html   # also write a one-page HTML report
+factorymeter sync owner/repo      # read the history into a store on your machine
+factorymeter report owner/repo    # the line, station by station, with 26 weeks of history
+factorymeter sync my-org && factorymeter report my-org   # every active repository of an owner
 ```
 
 It only reads. It needs a read-only GitHub token, it runs on your machine, and it sends nothing
@@ -34,64 +34,60 @@ Coding agents open pull requests faster than people do. The line does not get fa
 amount. The work piles up somewhere else: waiting for a first review, waiting for CI, waiting for
 someone to press merge.
 
-Counting how much of the code agents wrote does not tell you what to fix. factorymeter measures
-each stage a pull request passes through and tells you which one holds the most time. That stage
-is your constraint. Speeding up any other stage changes little.
+Counting how much of the code agents wrote does not tell you what to fix. factorymeter follows
+each change through seven stations, `spec` → `code` → `ci` → `verify` → `review` → `merge` →
+`release`, and tells you which one holds the most time. That station is your constraint.
+Speeding up any other station changes little.
 
 | Question | What factorymeter reports |
 |---|---|
-| Where does work wait? | The **constraint**: the stage that holds the largest share of the time between open and merge |
-| Do agent pull requests wait longer than human ones? | Every number side by side for agent and human pull requests |
+| Where does work wait? | The **constraint**: the station that holds the largest share of the hours changes spend on the line |
+| What happens at each station? | The same five numbers for every station: how much flows out, the wait, the work, the rework and the queue |
+| Do agent changes wait longer than human ones? | Every number side by side for agents, people and automation |
+| Is it getting better? | Every number against the weeks before, with one point per week for up to 26 weeks |
 | How much of the work do agents do? | **Disclosed agent share**, which is a floor, and says so |
-| What should I try first? | A link that opens the [Lights Out](https://thesoftwarefactory.site/lights-out/) simulator on your own numbers |
 
 ## What you get
 
 This is the top of a real report. It was run on
-[`marshal-org/runlease`](https://github.com/marshal-org/runlease) on 2026-11-18, and it took 10
-GitHub API calls and 18 seconds.
+[`marshal-org/runlease`](https://github.com/marshal-org/runlease) on 2026-11-19, from a store that
+held 73 changes, 319 CI runs and 55 deploys.
 
 ```text
-factorymeter  marshal-org/runlease  2026-10-19 to 2026-11-18 (30 days)
+DELIVERY LINE: MARSHAL-ORG/RUNLEASE
+===================================
 
-Your pull requests spend most of their time ready and waiting for a merge that no other
-person reviews: a median of 16 min, and 53% of the time from open to merge.
+13 weeks, 2026-08-20 to 2026-11-19. Compared with the 13 weeks before. History: 26 weeks.
 
-- The constraint is the merge station (ready, merged with no human review). It holds 53%
-  of the time agent and human pull requests spend between open and merge.
-- There are too few pull requests to compare agents with humans at the constraint. It
-  takes 5 of each, and this window has 1 agent and 43 human.
-- Disclosed agent share is 2%: 1 of the 44 pull requests merged by agents and people.
-  This is a floor, because an agent that leaves no trace counts as human.
+Release is the constraint. It holds 100 percent of the hours changes spend on the line.
 
-Agent and human pull requests
-                                  Agent    Human  Automation
-  Pull requests merged                1       43           9
-  Merged per week                   0.2     10.0         2.1
-  Merge rate                        25%     100%         90%
-  Open to merge, median           5 min   19 min      59 min
-  Time to first review, median      n/a      n/a         n/a
-  Merged with no human review      100%     100%        100%
-  Rework rate                       n/a      n/a         n/a
-  CI time per run, median       4.2 min  5.6 min     5.8 min
-  CI runs per pull request          1.0      2.6         1.0
-  CI runs that failed                0%      10%         89%
-  Size, median lines changed       1358      363          10
+Over the 13 weeks to 2026-11-19, changes stood 2748 hours a week at release and 4.2 a week left it.
 
-Where the time goes
-  Stage                                            Station  Share    Agent median    Human median  Agent PRs  Human PRs
-  In draft                                            code     4%  under a minute  under a minute          1         43
-  Ready, merged with no human review (constraint)    merge    53%           5 min          16 min          1         43
-  CI running                                            ci    43%           4 min          12 min          1         43
+THE LINE
+
+  Station               Status         Out a week   Wait  Work  Rework  Queue   Held  Out, by week
+  Spec                  not connected
+  Code                  measured            3.8 ▲           0m   6% ▲!      0  <1% ▼  ▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█
+  CI                    measured            8.0 ▲      -    6m      9%           <1%  ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█
+  Verify                not connected
+  Review                measured              0.0      -     -       -      0         ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+  Merge                 measured            3.5 ▲  16m ▼            0%      0  <1% ▼  ▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█
+  Release (constraint)  partial             4.2 ▲   6.2h     -       -    0 ▼   100%  ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█
+
+Wait and work are medians. Held is the station's share of the hours changes spend on the line. ▲ and ▼ show a move against the weeks before, ! a move for the worse, ~ a value drawn from fewer than 5 items.
+
+  * Spec: No tickets are in the store. Spec is measured from a ticket source.
+  * Verify: Fewer than 5 deployments to an environment that is not production were found on a commit of a change before it merged.
+  * Review: No change in the store was reviewed by another person. A change that waits here may be waiting to merge.
+  * Release: Published releases stand in for production deploys in marshal-org/runlease.
 ```
 
-The full report goes on to list which agents it found, the numbers for the simulator, and the
-limits of what it could see. Every definition is in [docs/metrics.md](docs/metrics.md).
+The report goes on with agents next to people, then each station number by number with its
+history, then what was loaded and the limits of what it could see. A station that cannot be
+measured says what to connect. It is never shown as zero.
 
-The next version of the report is built on a fixed contract: seven stations, a
-registry of metric ids with exact definitions, and a JSON layout with a schema.
-[docs/contract.md](docs/contract.md) describes it, and `factorymeter metrics`
-prints the registry.
+Every number has a fixed id and an exact definition. `factorymeter metrics` prints them, and
+[docs/contract.md](docs/contract.md) says what you can rely on.
 
 ## Install
 
@@ -127,64 +123,54 @@ rate limit.
 The client refuses to send a GraphQL mutation and only sends `GET` requests to the REST API, so
 it cannot change anything even with a token that could.
 
-## The three outputs
+## Sync, then report
+
+`sync` reads the history from GitHub into a store on your machine. The first sync reads 26
+weeks. A later one reads only what changed. `report` reads the store and nothing else, so it
+takes no token, makes no request and can run as often as you like.
+
+```bash
+factorymeter sync my-org                       # every active repository of an owner
+factorymeter report my-org                     # the last 13 weeks against the 13 before
+factorymeter report my-org --since 26w         # a longer window
+factorymeter report owner/repo --until 4w      # the line as it stood four weeks ago
+factorymeter store info my-org                 # what the store holds
+```
+
+Run both once a week and the report follows the line week after week. A sync that is stopped
+goes on where it left off. The store is a directory of Parquet files:
+[docs/store.md](docs/store.md) has the details.
 
 | Output | How | For |
 |---|---|---|
 | Terminal | the default | reading it now |
-| HTML | `--html report.html` | one self-contained page to share. No scripts, no outside assets |
-| JSON | `--json report.json`, or `--format json` | your own dashboards. `--detail` adds one row per pull request |
+| Markdown | `--format markdown` | a job summary or a pull request |
+| JSON | `--json line.json`, or `--format json` | your own dashboards. The layout is `factorymeter/v1`, with a [JSON Schema](docs/reference/factorymeter-v1.schema.json) |
+| Summary | add `--summary` | sharing. It leaves out every repository name, title and link, so the file holds station numbers only |
 
-`--format markdown` prints the report as Markdown, which is what the GitHub Action writes to the
-job summary.
-
-Other useful flags:
+Other useful commands:
 
 ```bash
-factorymeter report owner/repo --since 2026-01-01 --until 2026-03-31   # a fixed window
-factorymeter report owner/repo --save-raw raw.json                     # keep what was collected
-factorymeter report --from-raw raw.json                                # rebuild the report offline
-factorymeter classify owner/repo#123                                   # why one pull request counted
-factorymeter signatures list                                           # every signature in use
+factorymeter metrics review                # the numbers of one station, with definitions
+factorymeter classify owner/repo#123       # why one pull request counted as agent or human
+factorymeter signatures list               # every signature in use
 ```
 
-## The trend
+## Without a store
 
-One report is one snapshot. `trend` cuts a longer window into equal periods, measures each one
-the way the report does, and shows what changed.
+The first generation of factorymeter is still here. `snapshot` and `trend` read a window straight
+from GitHub on every run and keep nothing. They measure pull requests between open and merge, and
+write a one-page HTML report.
 
 ```bash
-factorymeter trend owner/repo                               # the last 12 weeks, week by week
-factorymeter trend owner/repo --since 26w --every 2w        # half a year in two-week periods
-factorymeter trend owner/repo --html trend.html --json trend.json
-factorymeter trend --from-raw raw.json --every 4w           # another cut of the same data, offline
+factorymeter snapshot owner/repo --html report.html        # the last 30 days
+factorymeter trend owner/repo --since 26w --every 2w       # the same numbers over time
+factorymeter snapshot owner/repo --save-raw raw.json       # keep what was collected
+factorymeter trend --from-raw raw.json --every 4w          # another cut, offline
 ```
 
-It follows every number of the report: pull requests merged per week, the disclosed agent share,
-merge rate, deploys, the time from open to merge, each stage's share of that time, review, CI,
-size, and each disclosed agent. It says whether the constraint moved.
-
-The terminal and Markdown outputs give both ends, the change and a small bar line per number.
-The HTML page draws one chart per number, agent against human, with the full table under each
-group. Like the report, it is one file with no scripts and no outside assets.
-
-The change is measured between the first third and the last third of the periods, so one odd
-week does not decide it. [docs/metrics.md](docs/metrics.md#the-trend) has the rules.
-
-## Keep the history on disk
-
-A report reads the whole window from GitHub each time. `sync` reads it once into a store on
-your machine, and after that only what changed.
-
-```bash
-factorymeter sync owner/repo      # the first sync reads 26 weeks; a later one reads what changed
-factorymeter sync my-org          # every active repository of an owner
-factorymeter store info my-org    # what the store holds
-```
-
-The store is a directory of Parquet files. A sync that is stopped goes on where it left off.
-`report` and `trend` move to the store in the next release. [docs/store.md](docs/store.md) has
-the details.
+[docs/metrics.md](docs/metrics.md) defines their numbers. They are not the numbers of the
+contract: `report` is where new work goes.
 
 ## How agents are detected
 
@@ -210,7 +196,7 @@ agent and the human numbers.
 
 ## What it cannot see
 
-The report prints these limits every time. They are not fine print.
+The report prints the limits that apply every time. They are not fine print.
 
 - **Disclosed agent share is a floor.** Cloud agents sign their work with their own account, so
   they are easy to see. A local agent is seen only when it leaves a trailer, a footer or a badge,
@@ -218,7 +204,9 @@ The report prints these limits every time. They are not fine print.
 - **Squash merges can drop commit trailers.** factorymeter reads the commits of each pull
   request, not the merge commit, and at most the first 100 commits.
 - **A branch prefix alone is not proof.** People type `claude/` and `codex/` by hand.
-- **Times are wall-clock.** Nights and weekends count.
+- **Times are hours on the clock.** Nights and weekends count.
+- **Writing time starts at the first commit of a change.** Work before that commit is not seen.
+- **Tickets are not read yet.** The `spec` station is not connected until a ticket source is.
 - **CI means GitHub Actions.** Other CI systems are not read.
 - **A pull request is agent or human as a whole.** There is no line-level attribution.
 - **Work that skips pull requests is not measured.**
@@ -228,8 +216,10 @@ It has not been tested against GitHub Enterprise Server. It reads `GITHUB_API_UR
 
 ## Run it on a schedule
 
-factorymeter is also a GitHub Action. It writes the report to the job summary and uploads the
-HTML and JSON as a build artifact. It asks for read permissions only.
+factorymeter is also a GitHub Action. It writes a report to the job summary and uploads the
+HTML and JSON as a build artifact. It asks for read permissions only. The Action still runs
+`snapshot`. It moves to `sync` and `report`, with the store kept between runs, in a later
+release.
 
 ```yaml
 name: factorymeter
@@ -271,7 +261,7 @@ can read.
 
 ## Try a fix before you make it
 
-The report ends with a link to [Lights Out](https://thesoftwarefactory.site/lights-out/), a
+`snapshot` ends with a link to [Lights Out](https://thesoftwarefactory.site/lights-out/), a
 simulator of a delivery line. The link fills its "My factory" form with your measured numbers, so
 you can see what happens to your line when you add review capacity, faster CI or more agents.
 
@@ -283,7 +273,8 @@ server, so opening the link shares nothing.
 - It does not write to GitHub. No comments, no labels, no checks.
 - It is not a hosted service. There is no account and no dashboard to log in to.
 - It sends no telemetry.
-- It does not name people. The report holds counts and times, not authors or reviewers.
+- It does not name people. The report holds counts and times, not authors or reviewers. The
+  store on your machine does hold the logins GitHub returned, and it stays on your machine.
 
 ## Contributing
 

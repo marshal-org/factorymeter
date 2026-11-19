@@ -121,7 +121,7 @@ Inside this version fields are only added. A reader must ignore a field it does 
 | `previous` | number or null | The value over the previous window. Null when the store does not reach that far back or nothing was counted. |
 | `previous_n` | integer | How many items the previous value is drawn from. |
 | `change` | number or null | How the value moved against the previous one. For a share it is the difference, so 0.05 is five points. For anything else it is relative, so 0.2 is 20 percent more. Null when either end is missing or the previous value is zero. |
-| `trend` | string | Whether the move is good news, given the direction in which the metric gets better. Flat when the move is too small to call, unknown when either end is missing or thin. One of `better`, `worse`, `flat`, `unknown`. |
+| `trend` | string | Whether the move is good news, given the direction in which the metric gets better. Flat when the move is too small to call. Unknown when either end is missing or thin, or when the metric is not better in either direction. One of `better`, `worse`, `flat`, `unknown`. |
 | `points` | list of Point | One value per period of the window's periods, oldest first. |
 
 ## Slice

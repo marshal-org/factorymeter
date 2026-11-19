@@ -110,7 +110,7 @@ The constraint is the station that holds work the longest. For each station that
 | `code.rework` | Changes abandoned | `share` | lower | 5 | `class`, `agent`, `repo` |
 | `code.queue` | Changes in draft | `count` | lower | none | `class`, `agent`, `repo` |
 | `code.queue.oldest` | Changes in draft, age of the oldest | `hours` | lower | none | `class`, `agent`, `repo` |
-| `code.held.total` | Hours held at code | `hours` | lower | 5 | `class`, `agent`, `repo` |
+| `code.held.total` | Hours a week held at code | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `code.held.share` | Share of the line's time held at code | `share` | lower | 5 | `class`, `agent`, `repo` |
 
 - `code.flow`: Changes marked ready for review in the period. A change opened ready counts when it is opened. The count is divided by the length of the period in weeks.
@@ -141,7 +141,7 @@ The constraint is the station that holds work the longest. For each station that
 | `ci.work.p50` | CI round time, median | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `ci.work.p90` | CI round time, 90th percentile | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `ci.rework` | CI rounds that failed | `share` | lower | 5 | `class`, `agent`, `repo` |
-| `ci.held.total` | Hours held at ci | `hours` | lower | 5 | `class`, `agent`, `repo` |
+| `ci.held.total` | Hours a week held at ci | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `ci.held.share` | Share of the line's time held at ci | `share` | lower | 5 | `class`, `agent`, `repo` |
 
 - `ci.flow`: CI rounds that finished in the period. A CI round is every run on one commit of a change. Skipped and cancelled runs are left out. The count is divided by the length of the period in weeks.
@@ -172,7 +172,7 @@ The constraint is the station that holds work the longest. For each station that
 | `verify.work.p50` | Time to bring the change up, median | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `verify.work.p90` | Time to bring the change up, 90th percentile | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `verify.rework` | Verify deployments that failed | `share` | lower | 5 | `class`, `agent`, `repo` |
-| `verify.held.total` | Hours held at verify | `hours` | lower | 5 | `class`, `agent`, `repo` |
+| `verify.held.total` | Hours a week held at verify | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `verify.held.share` | Share of the line's time held at verify | `share` | lower | 5 | `class`, `agent`, `repo` |
 
 - `verify.flow`: Changes whose first deployment to an environment that is not production reported success in the period. The count is divided by the length of the period in weeks.
@@ -204,7 +204,7 @@ The constraint is the station that holds work the longest. For each station that
 | `review.rework` | Changes sent back in review | `share` | lower | 5 | `class`, `agent`, `repo` |
 | `review.queue` | Changes waiting for first review | `count` | lower | none | `class`, `agent`, `repo` |
 | `review.queue.oldest` | Changes waiting for first review, age of the oldest | `hours` | lower | none | `class`, `agent`, `repo` |
-| `review.held.total` | Hours held at review | `hours` | lower | 5 | `class`, `agent`, `repo` |
+| `review.held.total` | Hours a week held at review | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `review.held.share` | Share of the line's time held at review | `share` | lower | 5 | `class`, `agent`, `repo` |
 | `review.skipped` | Changes merged with no review | `share` | lower | 5 | `class`, `agent`, `repo` |
 
@@ -239,7 +239,7 @@ The constraint is the station that holds work the longest. For each station that
 | `merge.rework` | Merges reverted | `share` | lower | 5 | `class`, `agent`, `repo` |
 | `merge.queue` | Changes approved and not merged | `count` | lower | none | `class`, `agent`, `repo` |
 | `merge.queue.oldest` | Changes approved and not merged, age of the oldest | `hours` | lower | none | `class`, `agent`, `repo` |
-| `merge.held.total` | Hours held at merge | `hours` | lower | 5 | `class`, `agent`, `repo` |
+| `merge.held.total` | Hours a week held at merge | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `merge.held.share` | Share of the line's time held at merge | `share` | lower | 5 | `class`, `agent`, `repo` |
 
 - `merge.flow`: Changes merged in the period. The count is divided by the length of the period in weeks.
@@ -271,7 +271,7 @@ The constraint is the station that holds work the longest. For each station that
 | `release.rework` | Deploys that failed | `share` | lower | 5 | `class`, `agent`, `repo` |
 | `release.queue` | Changes merged and not released | `count` | lower | none | `class`, `agent`, `repo` |
 | `release.queue.oldest` | Changes merged and not released, age of the oldest | `hours` | lower | none | `class`, `agent`, `repo` |
-| `release.held.total` | Hours held at release | `hours` | lower | 5 | `class`, `agent`, `repo` |
+| `release.held.total` | Hours a week held at release | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `release.held.share` | Share of the line's time held at release | `share` | lower | 5 | `class`, `agent`, `repo` |
 | `release.deploys` | Production deploys | `per_week` | higher | none | `repo` |
 

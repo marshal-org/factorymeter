@@ -176,7 +176,7 @@ func build() []Metric {
 				"Hours since "+s.oldest+", for the item that has stood longest in this queue at the end of the period. "+s.queue)
 		}
 		if st.InConstraint {
-			add(s, "held.total", Held, "Hours held at "+s.station, Hours, Down, MinSample,
+			add(s, "held.total", Held, "Hours a week held at "+s.station, Hours, Down, MinSample,
 				"Hours the items that left the "+s.station+" station in the period spent there, wait and work together, per week. Each item is capped at the 90th percentile of the station, so one item that sat for months cannot decide the total. "+exclusive)
 			add(s, "held.share", Held, "Share of the line's time held at "+s.station, Share, Down, MinSample,
 				"The held hours of the "+s.station+" station divided by the held hours of every station that counts for the constraint. The station with the largest share is the constraint.")

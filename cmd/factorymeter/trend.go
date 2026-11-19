@@ -33,10 +33,14 @@ func trendCmd() *cobra.Command {
 	var src source
 	cmd := &cobra.Command{
 		Use:   "trend <owner/repo | owner>",
-		Short: "Show how the numbers of the report changed over time",
-		Long: `trend reads the same history as report, once, and cuts it into periods of
-the same length. It measures each period the way report measures the whole
-window, so every number of the report becomes a line over time.
+		Short: "Show how the numbers of a snapshot changed over time",
+		Long: `trend reads the same history as snapshot, once, and cuts it into periods of
+the same length. It measures each period the way snapshot measures the whole
+window, so every number of the snapshot becomes a line over time.
+
+trend and snapshot read GitHub on every run and keep nothing. "sync" and
+"report" are the way to follow a line week after week: they keep the history
+in a local store and report by station.
 
 The periods are counted back from the end of the window, so each one is
 whole. The trend compares the first third of the periods with the last third
