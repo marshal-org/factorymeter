@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -89,8 +91,12 @@ func TestPrintSync(t *testing.T) {
 		{Repo: "acme/app", Changes: ingest.Count{Added: 2, Changed: 1, Total: 40}, CIRuns: ingest.Count{Added: 5, Total: 90}, Deploys: ingest.Count{Total: 3},
 			From: time.Date(2026, 5, 4, 0, 0, 0, 0, time.UTC), Notes: []string{"A limit."}},
 		{Repo: "acme/gone", Err: errors.New("not found")},
+		{Repo: "acme/half", Err: fmt.Errorf("pull requests: %w", context.Canceled)},
 	}}, 12, 3400*time.Millisecond)
 	got := out.String()
+	if strings.Contains(got, "failed: acme/half") || !strings.Contains(got, "stopped") {
+		t.Errorf("an interrupted repository must read as stopped, not failed:\n%s", got)
+	}
 	for _, want := range []string{"40 (+2, 1 updated)", "90 (+5)", "  3  ", "2026-05-04", "note: acme/app: A limit.", "failed: acme/gone: not found", "12 requests to GitHub in 3s."} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the output lacks %q:\n%s", want, got)

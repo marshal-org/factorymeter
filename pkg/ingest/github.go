@@ -169,6 +169,16 @@ func (g *GitHub) logf(format string, a ...any) {
 	}
 }
 
+// StoppedError is returned when a sync was stopped before its end, by an
+// interrupt or a deadline. Nothing is lost: the store keeps what was read.
+type StoppedError struct{ Cause error }
+
+func (e *StoppedError) Error() string {
+	return "stopped before the end. What was read is stored, and the next sync goes on from there"
+}
+
+func (e *StoppedError) Unwrap() error { return e.Cause }
+
 // Sync reads a repository ("owner/name") or every active repository of an
 // owner ("owner") into the store. One repository failing does not stop the
 // others: the error names how many failed and the result has each one's error.
@@ -215,7 +225,7 @@ func (g *GitHub) Sync(ctx context.Context, target string) (Result, error) {
 	wg.Wait()
 
 	if err := ctx.Err(); err != nil {
-		return res, fmt.Errorf("stopped. What was read is stored, and the next sync goes on from there: %w", err)
+		return res, &StoppedError{Cause: err}
 	}
 	var failed []string
 	var first error
