@@ -95,6 +95,15 @@
         page("overview");
         return;
       }
+      // An anchor inside a page, such as a recommendation, opens its page
+      // and comes into view.
+      var el = id && document.getElementById(id);
+      var host = el && el.closest ? el.closest("main > .page") : null;
+      if (host && host.id !== id) {
+        page(host.id);
+        el.scrollIntoView({ block: "start" });
+        return;
+      }
       var known = all.some(function (s) { return s.id === id; });
       var next = known ? id : "overview";
       if (next !== current) window.scrollTo(0, 0);

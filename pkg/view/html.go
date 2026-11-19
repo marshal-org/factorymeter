@@ -119,11 +119,13 @@ type stationCard struct {
 	StatusLabel string
 	Connected   bool
 	Constraint  bool
-	Out, Wait   fig
-	Held        string
-	Meter       template.HTML
-	Spark       template.HTML
-	Health      health
+	// Next is the station that holds the most after the constraint.
+	Next      bool
+	Out, Wait fig
+	Held      string
+	Meter     template.HTML
+	Spark     template.HTML
+	Health    health
 }
 
 type itemRow struct {
@@ -179,12 +181,38 @@ type stationPane struct {
 	Status, Missing, Needs                string
 	Off, Constraint                       bool
 	Health                                health
-	Cards                                 []metricCard
+	// Invest is the recommendations about this station, or every one for
+	// the whole line.
+	Invest []recLink
+	// Next says which station would hold the line once this one is freed.
+	Next  string
+	Cards []metricCard
 	// Empty names the numbers that have no data in the window.
 	Empty  string
 	Oldest []itemRow
 	Head   []string
 	Weeks  []weekRow
+}
+
+// recLink points from a station to a recommendation on the invest page.
+type recLink struct {
+	Rank         int
+	Title, Freed string
+}
+
+// linkTo is the short form of a recommendation, with its gain when it has one.
+func linkTo(rc recCard) recLink {
+	l := recLink{Rank: rc.Rank, Title: rc.Title}
+	if rc.Sized {
+		l.Freed = rc.Freed
+	}
+	return l
+}
+
+// lead names the constraint and the station next in line, for the line.
+type lead struct {
+	Constraint, ConstraintID, ConstraintHeld string
+	Next, NextID, NextHeld                   string
 }
 
 // tally is one part of the health of the line: how many stations have a grade.
@@ -202,6 +230,7 @@ type htmlPage struct {
 	Health                                []tally
 	HealthInfo                            pop
 	Recs                                  []recCard
+	Lead                                  *lead
 	AgentShare                            string
 	Classes                               grid
 	ClassPlots                            []plotCard
@@ -357,6 +386,34 @@ func buildHTML(r *contract.Report, opt HTMLOptions) *htmlPage {
 			}
 		}
 		p.Stations = append(p.Stations, c)
+	}
+	// The constraint, and the station that would hold the line once it is
+	// freed: the one with the next largest share of the hours.
+	ci, ni := -1, -1
+	for i, st := range r.Stations {
+		if st.Constraint {
+			ci = i
+		}
+	}
+	for i, st := range r.Stations {
+		if i == ci || st.HeldShare == nil || *st.HeldShare <= 0 {
+			continue
+		}
+		if ni < 0 || *st.HeldShare > *r.Stations[ni].HeldShare {
+			ni = i
+		}
+	}
+	if ci >= 0 {
+		c := r.Stations[ci]
+		p.Lead = &lead{Constraint: c.Name, ConstraintID: c.ID}
+		if c.HeldShare != nil {
+			p.Lead.ConstraintHeld = Number(string(line.Share), c.HeldShare)
+		}
+		if ni >= 0 {
+			n := r.Stations[ni]
+			p.Stations[ni].Next = true
+			p.Lead.Next, p.Lead.NextID, p.Lead.NextHeld = n.Name, n.ID, Number(string(line.Share), n.HeldShare)
+		}
 	}
 	for _, k := range []struct{ class, one, many string }{
 		{"bad", "strained", "strained"}, {"warn", "to watch", "to watch"}, {"good", "flowing", "flowing"},
@@ -552,10 +609,21 @@ func buildHTML(r *contract.Report, opt HTMLOptions) *htmlPage {
 		for _, it := range st.Oldest {
 			sp.Oldest = append(sp.Oldest, itemOf(it))
 		}
+		for _, rc := range p.Recs {
+			if rc.StationID == st.ID {
+				sp.Invest = append(sp.Invest, linkTo(rc))
+			}
+		}
+		if p.Lead != nil && st.Constraint && p.Lead.Next != "" {
+			sp.Next = fmt.Sprintf("Once %s holds less, %s is next in line: it holds %s of the hours.", st.Name, p.Lead.Next, p.Lead.NextHeld)
+		}
 		p.Panes = append(p.Panes, sp)
 	}
 	if sp := pane(line.Whole); len(sp.Cards) > 0 {
 		sp.ID, sp.Name, sp.Does = line.Whole, "The whole line", "The numbers of the line from end to end, over the changes merged in each week."
+		for _, rc := range p.Recs {
+			sp.Invest = append(sp.Invest, linkTo(rc))
+		}
 		p.Panes = append(p.Panes, sp)
 	}
 

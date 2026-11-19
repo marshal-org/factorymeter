@@ -53,12 +53,13 @@
 <h2>The line</h2>
 {{if .Health}}<p class="tally" aria-label="Health of the stations">{{range .Health}}<span class="hl {{.Class}}"><span class="hl-i" aria-hidden="true">{{.Icon}}</span>{{.Text}}</span>{{end}}{{template "info" .HealthInfo}}</p>{{end}}
 </div>
+{{with .Lead}}<p class="lead"><span>Constraint: <a href="#station-{{.ConstraintID}}">{{.Constraint}}</a>{{if .ConstraintHeld}}, holds {{.ConstraintHeld}} of the hours{{end}}</span>{{if .Next}}<span>Next in line: <a href="#station-{{.NextID}}">{{.Next}}</a>, holds {{.NextHeld}} of the hours</span>{{end}}{{if $.Recs}}<a class="go" href="#invest">Where to invest ({{len $.Recs}})</a>{{end}}</p>{{end}}
 <p class="note">A change moves from left to right. Pick a station to see its numbers here. Held is the station's share of the hours changes spend on the line. The station that holds the most is the constraint.</p>
 <ol class="line">
 {{range .Stations}}<li class="st h-{{.Health.Class}}{{if .Constraint}} is-constraint{{end}}{{if not .Connected}} is-off{{end}}" data-station="{{.ID}}">
 <a class="st-a" href="#station-{{.ID}}">
 <p class="st-n"><span class="step">{{.Step}}</span>{{.Name}}</p>
-<p class="st-g"><span class="hl {{.Health.Class}}"><span class="hl-i" aria-hidden="true">{{.Health.Icon}}</span>{{.Health.Label}}</span>{{if .Constraint}}<span class="badge">Constraint</span>{{end}}</p>
+<p class="st-g"><span class="hl {{.Health.Class}}"><span class="hl-i" aria-hidden="true">{{.Health.Icon}}</span>{{.Health.Label}}</span>{{if .Constraint}}<span class="badge">Constraint</span>{{end}}{{if .Next}}<span class="badge next">Next</span>{{end}}</p>
 {{if .Connected}}<dl>
 <div><dt>Out a week</dt><dd>{{template "fig" .Out}}</dd></div>
 <div><dt>Wait, median</dt><dd>{{template "fig" .Wait}}</dd></div>
@@ -78,6 +79,8 @@
 <div class="pane-h"><h3>{{.Name}}</h3>{{if .Health.Class}}<span class="hl {{.Health.Class}}"><span class="hl-i" aria-hidden="true">{{.Health.Icon}}</span>{{.Health.Label}}</span>{{end}}{{if .Constraint}}<span class="badge">Constraint</span>{{end}}</div>
 <p>{{.Does}}</p>
 {{if .Health.Reasons}}<ul class="why">{{range .Health.Reasons}}<li>{{.}}</li>{{end}}</ul>{{end}}
+{{if .Next}}<p class="next-l">{{.Next}}</p>{{end}}
+{{if .Invest}}<div class="invest"><h4>Where to invest{{if ne .ID "line"}} here{{end}}</h4><ol class="mini">{{range .Invest}}<li><a href="#rec-{{.Rank}}"><span class="rank sm">{{.Rank}}</span><span>{{.Title}}</span></a>{{if .Freed}}<span class="it-m">{{.Freed}} hours freed a week</span>{{end}}</li>{{end}}</ol><a class="go" href="#invest">The full list, ranked</a></div>{{else if $.Recs}}<p class="note">No recommendation is about this station. <a class="go" href="#invest">Where to invest</a></p>{{end}}
 {{if .Arrives}}<dl class="flow"><div><dt>An item arrives</dt><dd>{{.Arrives}}</dd></div><div><dt>It leaves</dt><dd>{{.Leaves}}</dd></div></dl>{{end}}
 {{if .Missing}}<p class="missing">{{.Missing}}</p>{{end}}
 {{if .Needs}}<div class="needs"><h4>What it needs</h4><p>{{.Needs}}</p></div>{{end}}
@@ -105,7 +108,7 @@
 <h2>Where to invest</h2>
 <p class="note">Ranked by the hours a week each one frees. The size is the gap between the last weeks and this line's own best four weeks, not a benchmark from somewhere else.</p>
 <ol class="recs">
-{{range .Recs}}<li class="rec">
+{{range .Recs}}<li class="rec" id="rec-{{.Rank}}">
 <div class="rec-h">
 <span class="rank">{{.Rank}}</span>
 <div>
