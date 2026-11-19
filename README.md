@@ -88,6 +88,11 @@ Where the time goes
 The full report goes on to list which agents it found, the numbers for the simulator, and the
 limits of what it could see. Every definition is in [docs/metrics.md](docs/metrics.md).
 
+The next version of the report is built on a fixed contract: seven stations, a
+registry of metric ids with exact definitions, and a JSON layout with a schema.
+[docs/contract.md](docs/contract.md) describes it, and `factorymeter metrics`
+prints the registry.
+
 ## Install
 
 With Go:

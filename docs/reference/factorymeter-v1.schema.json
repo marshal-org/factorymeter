@@ -1,0 +1,641 @@
+{
+  "$defs": {
+    "Coverage": {
+      "properties": {
+        "repos": {
+          "description": "One entry per repository in the store. Empty in a summary.",
+          "items": {
+            "$ref": "#/$defs/RepoCoverage"
+          },
+          "type": "array"
+        },
+        "sources": {
+          "description": "One entry per kind of record.",
+          "items": {
+            "$ref": "#/$defs/SourceCoverage"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "repos",
+        "sources"
+      ],
+      "type": "object"
+    },
+    "Evidence": {
+      "properties": {
+        "metric": {
+          "description": "The metric id.",
+          "pattern": "^[a-z]+[.][a-z][a-z0-9_]*([.][a-z][a-z0-9_]*)?$",
+          "type": "string"
+        },
+        "slice": {
+          "$ref": "#/$defs/Slice",
+          "description": "The part of the line the number is about."
+        },
+        "text": {
+          "description": "The number in words.",
+          "type": "string"
+        },
+        "value": {
+          "description": "The value the rule read.",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "versus": {
+          "description": "The value it was compared with: the previous window, the best four weeks or another slice. Null when the rule compared with a fixed threshold.",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "metric",
+        "slice",
+        "value",
+        "versus",
+        "text"
+      ],
+      "type": "object"
+    },
+    "Item": {
+      "properties": {
+        "class": {
+          "description": "Who wrote it. Empty for a ticket.",
+          "enum": [
+            "agent",
+            "human",
+            "automation",
+            ""
+          ],
+          "type": "string"
+        },
+        "hours": {
+          "description": "How long it has stood in the queue, in hours.",
+          "type": "number"
+        },
+        "key": {
+          "description": "The name people use for it, such as owner/repo#12.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "What the item is.",
+          "enum": [
+            "ticket",
+            "change"
+          ],
+          "type": "string"
+        },
+        "title": {
+          "description": "Its title.",
+          "type": "string"
+        },
+        "url": {
+          "description": "Link to it on the source.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "key",
+        "url",
+        "title",
+        "class",
+        "hours"
+      ],
+      "type": "object"
+    },
+    "Period": {
+      "properties": {
+        "from": {
+          "description": "Start, inclusive.",
+          "format": "date-time",
+          "type": "string"
+        },
+        "to": {
+          "description": "End, exclusive.",
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ],
+      "type": "object"
+    },
+    "Point": {
+      "properties": {
+        "n": {
+          "description": "How many items the value is drawn from.",
+          "type": "integer"
+        },
+        "value": {
+          "description": "The value in the period. Null when nothing was counted.",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "value",
+        "n"
+      ],
+      "type": "object"
+    },
+    "Recommendation": {
+      "properties": {
+        "confidence": {
+          "description": "How much data stands behind the recommendation.",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "type": "string"
+        },
+        "evidence": {
+          "description": "The numbers the rule read.",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "type": "array"
+        },
+        "hours_freed": {
+          "description": "Hours of waiting per week that would go away if the station ran as it did in its own best four weeks of the window. Null when that cannot be sized.",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "items": {
+          "description": "The items to look at first. Empty in a summary.",
+          "items": {
+            "$ref": "#/$defs/Item"
+          },
+          "type": "array"
+        },
+        "play_url": {
+          "description": "Link to the playbook page that describes the practice. Empty when there is none.",
+          "type": "string"
+        },
+        "rule": {
+          "description": "The id of the rule that fired, such as review.queue-growing. Rule ids are stable.",
+          "type": "string"
+        },
+        "station": {
+          "description": "The station the recommendation is about.",
+          "type": "string"
+        },
+        "title": {
+          "description": "What to do, in one line.",
+          "type": "string"
+        },
+        "why": {
+          "description": "The reasoning in a sentence or two.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule",
+        "station",
+        "title",
+        "why",
+        "evidence",
+        "hours_freed",
+        "confidence",
+        "play_url",
+        "items"
+      ],
+      "type": "object"
+    },
+    "RepoCoverage": {
+      "properties": {
+        "changes": {
+          "description": "Changes in the store for this repository.",
+          "type": "integer"
+        },
+        "from": {
+          "description": "How far back the store holds this repository.",
+          "format": "date-time",
+          "type": "string"
+        },
+        "private": {
+          "description": "True for a private repository.",
+          "type": "boolean"
+        },
+        "repo": {
+          "description": "The repository, as owner/name.",
+          "type": "string"
+        },
+        "synced_at": {
+          "description": "When the repository was last synced.",
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repo",
+        "private",
+        "from",
+        "synced_at",
+        "changes"
+      ],
+      "type": "object"
+    },
+    "Series": {
+      "properties": {
+        "change": {
+          "description": "How the value moved against the previous one. For a share it is the difference, so 0.05 is five points. For anything else it is relative, so 0.2 is 20 percent more. Null when either end is missing or the previous value is zero.",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "metric": {
+          "description": "The metric id from the registry, such as review.wait.p50.",
+          "pattern": "^[a-z]+[.][a-z][a-z0-9_]*([.][a-z][a-z0-9_]*)?$",
+          "type": "string"
+        },
+        "n": {
+          "description": "How many items the value is drawn from.",
+          "type": "integer"
+        },
+        "points": {
+          "description": "One value per period of the window's periods, oldest first.",
+          "items": {
+            "$ref": "#/$defs/Point"
+          },
+          "type": "array"
+        },
+        "previous": {
+          "description": "The value over the previous window. Null when the store does not reach that far back or nothing was counted.",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "previous_n": {
+          "description": "How many items the previous value is drawn from.",
+          "type": "integer"
+        },
+        "slice": {
+          "$ref": "#/$defs/Slice",
+          "description": "The part of the line the series is about."
+        },
+        "thin": {
+          "description": "True when the value is drawn from fewer items than the metric's minimum sample.",
+          "type": "boolean"
+        },
+        "trend": {
+          "description": "Whether the move is good news, given the direction in which the metric gets better. Flat when the move is too small to call, unknown when either end is missing or thin.",
+          "enum": [
+            "better",
+            "worse",
+            "flat",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        "unit": {
+          "description": "What the values count.",
+          "enum": [
+            "per_week",
+            "hours",
+            "share",
+            "count",
+            "lines"
+          ],
+          "type": "string"
+        },
+        "value": {
+          "description": "The value over the window. Null when nothing was counted.",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "metric",
+        "slice",
+        "unit",
+        "value",
+        "n",
+        "thin",
+        "previous",
+        "previous_n",
+        "change",
+        "trend",
+        "points"
+      ],
+      "type": "object"
+    },
+    "Slice": {
+      "properties": {
+        "agent": {
+          "description": "The id of one agent in the signature registry. Empty for all.",
+          "type": "string"
+        },
+        "class": {
+          "description": "Who wrote the changes. Empty for all of them.",
+          "enum": [
+            "agent",
+            "human",
+            "automation",
+            ""
+          ],
+          "type": "string"
+        },
+        "repo": {
+          "description": "One repository. Empty for all.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "type": "object"
+    },
+    "SourceCoverage": {
+      "properties": {
+        "kind": {
+          "description": "The kind of record.",
+          "enum": [
+            "ticket",
+            "change",
+            "ci_run",
+            "deploy"
+          ],
+          "type": "string"
+        },
+        "note": {
+          "description": "What to know about this source, such as which environment counts as production. Empty when there is nothing to say.",
+          "type": "string"
+        },
+        "records": {
+          "description": "How many records of this kind the window holds.",
+          "type": "integer"
+        },
+        "source": {
+          "description": "Where the records come from, such as github. Empty when nothing is connected.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "source",
+        "records",
+        "note"
+      ],
+      "type": "object"
+    },
+    "Station": {
+      "properties": {
+        "constraint": {
+          "description": "True for the one station named the constraint.",
+          "type": "boolean"
+        },
+        "held_share": {
+          "description": "The station's share of the hours held on the line, between 0 and 1. Null when it was not measured or is left out of the constraint.",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "The station id.",
+          "enum": [
+            "spec",
+            "code",
+            "ci",
+            "verify",
+            "review",
+            "merge",
+            "release"
+          ],
+          "type": "string"
+        },
+        "missing": {
+          "description": "What to connect to measure the station fully. Empty when nothing is missing.",
+          "type": "string"
+        },
+        "name": {
+          "description": "The station name.",
+          "type": "string"
+        },
+        "oldest": {
+          "description": "The items that have stood longest in the station's queue, oldest first. Empty in a summary.",
+          "items": {
+            "$ref": "#/$defs/Item"
+          },
+          "type": "array"
+        },
+        "status": {
+          "description": "Whether the station could be measured.",
+          "enum": [
+            "measured",
+            "partial",
+            "not_connected"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "status",
+        "missing",
+        "constraint",
+        "held_share",
+        "oldest"
+      ],
+      "type": "object"
+    },
+    "Tool": {
+      "properties": {
+        "name": {
+          "description": "Always factorymeter.",
+          "type": "string"
+        },
+        "record_schema": {
+          "description": "The version of the record layout in the store the report was read from.",
+          "type": "integer"
+        },
+        "registry_version": {
+          "description": "The version of the agent signature registry used to tell agents from people.",
+          "type": "string"
+        },
+        "version": {
+          "description": "The version of the program.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "registry_version",
+        "record_schema"
+      ],
+      "type": "object"
+    },
+    "Verdict": {
+      "properties": {
+        "constraint": {
+          "description": "The id of the constraint station. Empty when too few changes merged to name one.",
+          "type": "string"
+        },
+        "detail": {
+          "description": "One or two sentences of evidence behind the headline.",
+          "type": "string"
+        },
+        "headline": {
+          "description": "One sentence that names the constraint and how it is moving.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "headline",
+        "constraint",
+        "detail"
+      ],
+      "type": "object"
+    },
+    "Window": {
+      "properties": {
+        "period_days": {
+          "description": "Length of one period of a history, in days. 7 unless asked otherwise.",
+          "type": "integer"
+        },
+        "periods": {
+          "description": "The periods of every history, oldest first. They can reach further back than the window.",
+          "items": {
+            "$ref": "#/$defs/Period"
+          },
+          "type": "array"
+        },
+        "previous": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Period"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The window of the same length just before this one, which values are compared with. Null when the store does not reach that far back."
+        },
+        "since": {
+          "description": "Start of the window the values are computed over.",
+          "format": "date-time",
+          "type": "string"
+        },
+        "until": {
+          "description": "End of the window.",
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "required": [
+        "since",
+        "until",
+        "period_days",
+        "periods",
+        "previous"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/marshal-org/factorymeter/main/docs/reference/factorymeter-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "What factorymeter report writes as JSON. Inside this version fields are only added, so a reader must ignore a field it does not know.",
+  "properties": {
+    "coverage": {
+      "$ref": "#/$defs/Coverage",
+      "description": "What was loaded and what is missing."
+    },
+    "generated_at": {
+      "description": "When the report was computed.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "limits": {
+      "description": "What the reader should know before trusting a number.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "metrics": {
+      "description": "Every number, each with its weekly history.",
+      "items": {
+        "$ref": "#/$defs/Series"
+      },
+      "type": "array"
+    },
+    "recommendations": {
+      "description": "Where to invest, most valuable first.",
+      "items": {
+        "$ref": "#/$defs/Recommendation"
+      },
+      "type": "array"
+    },
+    "schema": {
+      "description": "Always factorymeter/v1.",
+      "enum": [
+        "factorymeter/v1"
+      ],
+      "type": "string"
+    },
+    "stations": {
+      "description": "The seven stations of the line, in order.",
+      "items": {
+        "$ref": "#/$defs/Station"
+      },
+      "type": "array"
+    },
+    "summary": {
+      "description": "True when every name, title and link was left out, so the file holds station numbers only.",
+      "type": "boolean"
+    },
+    "target": {
+      "description": "The owner or owner/repo that was measured. Empty in a summary.",
+      "type": "string"
+    },
+    "tool": {
+      "$ref": "#/$defs/Tool",
+      "description": "The program that wrote the report."
+    },
+    "verdict": {
+      "$ref": "#/$defs/Verdict",
+      "description": "The one-sentence answer."
+    },
+    "window": {
+      "$ref": "#/$defs/Window",
+      "description": "The time the report covers."
+    }
+  },
+  "required": [
+    "schema",
+    "generated_at",
+    "tool",
+    "target",
+    "summary",
+    "window",
+    "coverage",
+    "verdict",
+    "stations",
+    "metrics",
+    "recommendations",
+    "limits"
+  ],
+  "title": "factorymeter report, version 1",
+  "type": "object"
+}

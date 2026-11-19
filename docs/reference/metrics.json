@@ -1,0 +1,1438 @@
+{
+  "schema": "factorymeter/v1",
+  "kinds": [
+    {
+      "id": "flow",
+      "does": "How many items leave the station each week."
+    },
+    {
+      "id": "wait",
+      "does": "How long an item waits before the station starts on it."
+    },
+    {
+      "id": "work",
+      "does": "How long the station works on an item."
+    },
+    {
+      "id": "rework",
+      "does": "The share of items the station sends back or has to redo."
+    },
+    {
+      "id": "queue",
+      "does": "How many items stand at the station at the end of the period, and how old the oldest is."
+    },
+    {
+      "id": "held",
+      "does": "The hours items spend at the station, wait and work together. The constraint is the station with the most."
+    },
+    {
+      "id": "other",
+      "does": "Numbers that fit none of the five."
+    }
+  ],
+  "units": [
+    {
+      "id": "per_week",
+      "does": "Items per week: the count in the period divided by the length of the period in weeks."
+    },
+    {
+      "id": "hours",
+      "does": "Hours of wall-clock time. Nights and weekends count."
+    },
+    {
+      "id": "share",
+      "does": "A share between 0 and 1. 0.25 is 25 percent."
+    },
+    {
+      "id": "count",
+      "does": "A plain count at one moment."
+    },
+    {
+      "id": "lines",
+      "does": "Lines of code."
+    }
+  ],
+  "rules": [
+    "A definition says \"the period\". For the value of a metric that is the whole window of the report, 13 weeks unless asked otherwise. For one point of its history it is one week.",
+    "A station's numbers are counted when they happen, not when the change merges. A wait counts in the period it ended, and work in the period the item left the station. A change that waited four weeks for review and got it this week counts this week, at the review station, whether or not it has merged yet.",
+    "The numbers about the whole line are measured over the changes merged in the period.",
+    "Queue numbers are not measured over a period. They are the state at the end of it.",
+    "A median, a percentile or a share drawn from fewer than 5 items is still reported, and marked thin. No trend is called on a thin value.",
+    "Every time is wall-clock time. Nights and weekends count, because the work waits through them.",
+    "Changes by automation, such as dependency bumps and release bots, are reported as their own class and are left out of every number about the whole line.",
+    "A metric id never changes meaning. When a definition has to change, the metric gets a new id and the old one stays or is removed in a new contract version."
+  ],
+  "stations": [
+    {
+      "id": "spec",
+      "name": "Spec",
+      "does": "A ticket is written and waits for someone to start on it.",
+      "item": "ticket",
+      "arrives": "The ticket is created.",
+      "leaves": "Work starts: the ticket first moves to a started state, or its first linked change is opened, whichever comes first.",
+      "needs": [
+        "ticket"
+      ],
+      "in_constraint": false,
+      "why": "A backlog holds tickets on purpose, often for months. Counting that as waiting would name spec the constraint in every repository.",
+      "not_observable": {
+        "held": "Spec is left out of the constraint, so its hours are not added up.",
+        "work": "Writing a ticket leaves no start time."
+      }
+    },
+    {
+      "id": "code",
+      "name": "Code",
+      "does": "The change is written.",
+      "item": "change",
+      "arrives": "The first commit of the change is written or the change is opened, whichever is earlier.",
+      "leaves": "The change is marked ready for review. A change opened ready leaves when it is opened.",
+      "needs": [
+        "change"
+      ],
+      "in_constraint": true,
+      "not_observable": {
+        "wait": "Code has no queue of its own. A ticket waiting for someone to start waits at spec."
+      }
+    },
+    {
+      "id": "ci",
+      "name": "CI",
+      "does": "The checks run on each push to a change. One CI round is every run on one commit of a change.",
+      "item": "CI round",
+      "arrives": "The first run on the commit is created.",
+      "leaves": "The last run on the commit finishes.",
+      "needs": [
+        "change",
+        "ci_run"
+      ],
+      "in_constraint": true,
+      "not_observable": {
+        "queue": "A CI round lasts minutes. A count of rounds in flight at the end of a week says nothing about the week."
+      }
+    },
+    {
+      "id": "verify",
+      "name": "Verify",
+      "does": "The change is proved on a running environment before it merges.",
+      "item": "change",
+      "arrives": "A commit of the change is deployed to an environment that is not production.",
+      "leaves": "That deployment reports success.",
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "in_constraint": true,
+      "not_observable": {
+        "queue": "Nothing records that a change is waiting for an environment."
+      }
+    },
+    {
+      "id": "review",
+      "name": "Review",
+      "does": "Another person reads the change and approves it or sends it back.",
+      "item": "change",
+      "arrives": "The change is marked ready for review.",
+      "leaves": "The last approval before the merge. A change that merges after a review with no approval leaves at the merge. A change nobody else reviewed skips the station.",
+      "needs": [
+        "change"
+      ],
+      "in_constraint": true
+    },
+    {
+      "id": "merge",
+      "name": "Merge",
+      "does": "The approved change lands on the main branch.",
+      "item": "change",
+      "arrives": "The change leaves review. A change nobody else reviewed arrives when it is marked ready for review.",
+      "leaves": "The change merges.",
+      "needs": [
+        "change"
+      ],
+      "in_constraint": true,
+      "not_observable": {
+        "work": "A merge is one click. It has no start time apart from its end."
+      }
+    },
+    {
+      "id": "release",
+      "name": "Release",
+      "does": "The merged change reaches production.",
+      "item": "change",
+      "arrives": "The change merges.",
+      "leaves": "The first production deploy of the repository after the merge.",
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "in_constraint": true
+    }
+  ],
+  "metrics": [
+    {
+      "id": "spec.flow",
+      "station": "spec",
+      "kind": "flow",
+      "name": "Tickets started",
+      "unit": "per_week",
+      "good": "up",
+      "min_sample": 0,
+      "slices": [
+        "repo"
+      ],
+      "needs": [
+        "ticket"
+      ],
+      "definition": "Tickets that work started on in the period. Work starts when the ticket first moves to a started state or its first linked change is opened, whichever comes first. The count is divided by the length of the period in weeks.",
+      "since": "v1"
+    },
+    {
+      "id": "spec.wait.p50",
+      "station": "spec",
+      "kind": "wait",
+      "name": "Wait for work to start, median",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "repo"
+      ],
+      "needs": [
+        "ticket"
+      ],
+      "definition": "Hours from a ticket being created to work starting on it, over the tickets that work started on in the period. The median.",
+      "since": "v1"
+    },
+    {
+      "id": "spec.wait.p90",
+      "station": "spec",
+      "kind": "wait",
+      "name": "Wait for work to start, 90th percentile",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "repo"
+      ],
+      "needs": [
+        "ticket"
+      ],
+      "definition": "Hours from a ticket being created to work starting on it, over the tickets that work started on in the period. The 90th percentile: one item in ten waited longer.",
+      "since": "v1"
+    },
+    {
+      "id": "spec.rework",
+      "station": "spec",
+      "kind": "rework",
+      "name": "Tickets reopened",
+      "unit": "share",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "repo"
+      ],
+      "needs": [
+        "ticket"
+      ],
+      "definition": "Share of the tickets finished in the period that had been finished before and were opened again.",
+      "since": "v1"
+    },
+    {
+      "id": "spec.queue",
+      "station": "spec",
+      "kind": "queue",
+      "name": "Tickets not started",
+      "unit": "count",
+      "good": "down",
+      "min_sample": 0,
+      "slices": [
+        "repo"
+      ],
+      "needs": [
+        "ticket"
+      ],
+      "definition": "Tickets that are open and that nobody has started, at the end of the period. Cancelled tickets are left out.",
+      "since": "v1"
+    },
+    {
+      "id": "spec.queue.oldest",
+      "station": "spec",
+      "kind": "queue",
+      "name": "Tickets not started, age of the oldest",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 0,
+      "slices": [
+        "repo"
+      ],
+      "needs": [
+        "ticket"
+      ],
+      "definition": "Hours since it was created, for the item that has stood longest in this queue at the end of the period. Tickets that are open and that nobody has started, at the end of the period. Cancelled tickets are left out.",
+      "since": "v1"
+    },
+    {
+      "id": "code.flow",
+      "station": "code",
+      "kind": "flow",
+      "name": "Changes made ready",
+      "unit": "per_week",
+      "good": "up",
+      "min_sample": 0,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Changes marked ready for review in the period. A change opened ready counts when it is opened. The count is divided by the length of the period in weeks.",
+      "since": "v1"
+    },
+    {
+      "id": "code.work.p50",
+      "station": "code",
+      "kind": "work",
+      "name": "Time to write a change, median",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours from the start of a change to it being marked ready for review, over the changes marked ready in the period. The start is the first commit or the opening of the change, whichever is earlier. The median.",
+      "since": "v1"
+    },
+    {
+      "id": "code.work.p90",
+      "station": "code",
+      "kind": "work",
+      "name": "Time to write a change, 90th percentile",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours from the start of a change to it being marked ready for review, over the changes marked ready in the period. The start is the first commit or the opening of the change, whichever is earlier. The 90th percentile: one item in ten took longer.",
+      "since": "v1"
+    },
+    {
+      "id": "code.rework",
+      "station": "code",
+      "kind": "rework",
+      "name": "Changes abandoned",
+      "unit": "share",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Share of the changes closed in the period that were closed without merging.",
+      "since": "v1"
+    },
+    {
+      "id": "code.queue",
+      "station": "code",
+      "kind": "queue",
+      "name": "Changes in draft",
+      "unit": "count",
+      "good": "down",
+      "min_sample": 0,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Changes that are open and still a draft at the end of the period.",
+      "since": "v1"
+    },
+    {
+      "id": "code.queue.oldest",
+      "station": "code",
+      "kind": "queue",
+      "name": "Changes in draft, age of the oldest",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 0,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours since it was opened, for the item that has stood longest in this queue at the end of the period. Changes that are open and still a draft at the end of the period.",
+      "since": "v1"
+    },
+    {
+      "id": "code.held.total",
+      "station": "code",
+      "kind": "held",
+      "name": "Hours held at code",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours the items that left the code station in the period spent there, wait and work together, per week. Each item is capped at the 90th percentile of the station, so one item that sat for months cannot decide the total. Time with a CI run in flight is counted at ci and taken out of the station the change stood at, so no hour is counted twice.",
+      "since": "v1"
+    },
+    {
+      "id": "code.held.share",
+      "station": "code",
+      "kind": "held",
+      "name": "Share of the line's time held at code",
+      "unit": "share",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "The held hours of the code station divided by the held hours of every station that counts for the constraint. The station with the largest share is the constraint.",
+      "since": "v1"
+    },
+    {
+      "id": "ci.flow",
+      "station": "ci",
+      "kind": "flow",
+      "name": "CI rounds",
+      "unit": "per_week",
+      "good": "up",
+      "min_sample": 0,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "ci_run"
+      ],
+      "definition": "CI rounds that finished in the period. A CI round is every run on one commit of a change. Skipped and cancelled runs are left out. The count is divided by the length of the period in weeks.",
+      "since": "v1"
+    },
+    {
+      "id": "ci.wait.p50",
+      "station": "ci",
+      "kind": "wait",
+      "name": "Wait for a runner, median",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "ci_run"
+      ],
+      "definition": "Hours from the first run of a CI round being created to the first run starting, over the rounds that finished in the period. The median.",
+      "since": "v1"
+    },
+    {
+      "id": "ci.wait.p90",
+      "station": "ci",
+      "kind": "wait",
+      "name": "Wait for a runner, 90th percentile",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "ci_run"
+      ],
+      "definition": "Hours from the first run of a CI round being created to the first run starting, over the rounds that finished in the period. The 90th percentile: one item in ten waited longer.",
+      "since": "v1"
+    },
+    {
+      "id": "ci.work.p50",
+      "station": "ci",
+      "kind": "work",
+      "name": "CI round time, median",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "ci_run"
+      ],
+      "definition": "Hours with at least one run in flight, from the first run of a CI round starting to the last one finishing, over the rounds that finished in the period. The median.",
+      "since": "v1"
+    },
+    {
+      "id": "ci.work.p90",
+      "station": "ci",
+      "kind": "work",
+      "name": "CI round time, 90th percentile",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "ci_run"
+      ],
+      "definition": "Hours with at least one run in flight, from the first run of a CI round starting to the last one finishing, over the rounds that finished in the period. The 90th percentile: one item in ten took longer.",
+      "since": "v1"
+    },
+    {
+      "id": "ci.rework",
+      "station": "ci",
+      "kind": "rework",
+      "name": "CI rounds that failed",
+      "unit": "share",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "ci_run"
+      ],
+      "definition": "Share of the CI rounds finished in the period in which a run failed, timed out or was run again.",
+      "since": "v1"
+    },
+    {
+      "id": "ci.held.total",
+      "station": "ci",
+      "kind": "held",
+      "name": "Hours held at ci",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "ci_run"
+      ],
+      "definition": "Hours the items that left the ci station in the period spent there, wait and work together, per week. Each item is capped at the 90th percentile of the station, so one item that sat for months cannot decide the total. Time with a CI run in flight is counted at ci and taken out of the station the change stood at, so no hour is counted twice.",
+      "since": "v1"
+    },
+    {
+      "id": "ci.held.share",
+      "station": "ci",
+      "kind": "held",
+      "name": "Share of the line's time held at ci",
+      "unit": "share",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "ci_run"
+      ],
+      "definition": "The held hours of the ci station divided by the held hours of every station that counts for the constraint. The station with the largest share is the constraint.",
+      "since": "v1"
+    },
+    {
+      "id": "verify.flow",
+      "station": "verify",
+      "kind": "flow",
+      "name": "Changes verified",
+      "unit": "per_week",
+      "good": "up",
+      "min_sample": 0,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "definition": "Changes whose first deployment to an environment that is not production reported success in the period. The count is divided by the length of the period in weeks.",
+      "since": "v1"
+    },
+    {
+      "id": "verify.wait.p50",
+      "station": "verify",
+      "kind": "wait",
+      "name": "Wait for an environment, median",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "definition": "Hours from a commit of a change being written to its deployment to an environment that is not production being created, over the deployments created in the period. The median.",
+      "since": "v1"
+    },
+    {
+      "id": "verify.wait.p90",
+      "station": "verify",
+      "kind": "wait",
+      "name": "Wait for an environment, 90th percentile",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "definition": "Hours from a commit of a change being written to its deployment to an environment that is not production being created, over the deployments created in the period. The 90th percentile: one item in ten waited longer.",
+      "since": "v1"
+    },
+    {
+      "id": "verify.work.p50",
+      "station": "verify",
+      "kind": "work",
+      "name": "Time to bring the change up, median",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "definition": "Hours from such a deployment being created to it reporting success, over the deployments that reported success in the period. The median.",
+      "since": "v1"
+    },
+    {
+      "id": "verify.work.p90",
+      "station": "verify",
+      "kind": "work",
+      "name": "Time to bring the change up, 90th percentile",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "definition": "Hours from such a deployment being created to it reporting success, over the deployments that reported success in the period. The 90th percentile: one item in ten took longer.",
+      "since": "v1"
+    },
+    {
+      "id": "verify.rework",
+      "station": "verify",
+      "kind": "rework",
+      "name": "Verify deployments that failed",
+      "unit": "share",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "definition": "Share of the deployments of changes to an environment that is not production, finished in the period, that reported a failure or an error.",
+      "since": "v1"
+    },
+    {
+      "id": "verify.held.total",
+      "station": "verify",
+      "kind": "held",
+      "name": "Hours held at verify",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "definition": "Hours the items that left the verify station in the period spent there, wait and work together, per week. Each item is capped at the 90th percentile of the station, so one item that sat for months cannot decide the total. Time with a CI run in flight is counted at ci and taken out of the station the change stood at, so no hour is counted twice.",
+      "since": "v1"
+    },
+    {
+      "id": "verify.held.share",
+      "station": "verify",
+      "kind": "held",
+      "name": "Share of the line's time held at verify",
+      "unit": "share",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "definition": "The held hours of the verify station divided by the held hours of every station that counts for the constraint. The station with the largest share is the constraint.",
+      "since": "v1"
+    },
+    {
+      "id": "review.flow",
+      "station": "review",
+      "kind": "flow",
+      "name": "Changes reviewed",
+      "unit": "per_week",
+      "good": "up",
+      "min_sample": 0,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Merged changes that left review in the period. A change leaves review at its last approval before the merge, or at the merge when it was reviewed and never approved. A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count. The count is divided by the length of the period in weeks.",
+      "since": "v1"
+    },
+    {
+      "id": "review.wait.p50",
+      "station": "review",
+      "kind": "wait",
+      "name": "Wait for first review, median",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours from a change being marked ready for review to its first review, over the changes that got their first review in the period. A review that lands while the change is a draft gives a wait of zero. A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count. The median.",
+      "since": "v1"
+    },
+    {
+      "id": "review.wait.p90",
+      "station": "review",
+      "kind": "wait",
+      "name": "Wait for first review, 90th percentile",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours from a change being marked ready for review to its first review, over the changes that got their first review in the period. A review that lands while the change is a draft gives a wait of zero. A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count. The 90th percentile: one item in ten waited longer.",
+      "since": "v1"
+    },
+    {
+      "id": "review.work.p50",
+      "station": "review",
+      "kind": "work",
+      "name": "First review to approval, median",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours from the first review of a change to it leaving review, over the merged changes that left review in the period. A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count. The median.",
+      "since": "v1"
+    },
+    {
+      "id": "review.work.p90",
+      "station": "review",
+      "kind": "work",
+      "name": "First review to approval, 90th percentile",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours from the first review of a change to it leaving review, over the merged changes that left review in the period. A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count. The 90th percentile: one item in ten took longer.",
+      "since": "v1"
+    },
+    {
+      "id": "review.rework",
+      "station": "review",
+      "kind": "rework",
+      "name": "Changes sent back in review",
+      "unit": "share",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Share of the merged changes that left review in the period on which a reviewer requested changes, or which got a new commit after the first review. Merge commits do not count.",
+      "since": "v1"
+    },
+    {
+      "id": "review.queue",
+      "station": "review",
+      "kind": "queue",
+      "name": "Changes waiting for first review",
+      "unit": "count",
+      "good": "down",
+      "min_sample": 0,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Changes that are open, ready for review and without a review at the end of the period. A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count.",
+      "since": "v1"
+    },
+    {
+      "id": "review.queue.oldest",
+      "station": "review",
+      "kind": "queue",
+      "name": "Changes waiting for first review, age of the oldest",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 0,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours since it was marked ready for review, for the item that has stood longest in this queue at the end of the period. Changes that are open, ready for review and without a review at the end of the period. A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count.",
+      "since": "v1"
+    },
+    {
+      "id": "review.held.total",
+      "station": "review",
+      "kind": "held",
+      "name": "Hours held at review",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours the items that left the review station in the period spent there, wait and work together, per week. Each item is capped at the 90th percentile of the station, so one item that sat for months cannot decide the total. Time with a CI run in flight is counted at ci and taken out of the station the change stood at, so no hour is counted twice.",
+      "since": "v1"
+    },
+    {
+      "id": "review.held.share",
+      "station": "review",
+      "kind": "held",
+      "name": "Share of the line's time held at review",
+      "unit": "share",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "The held hours of the review station divided by the held hours of every station that counts for the constraint. The station with the largest share is the constraint.",
+      "since": "v1"
+    },
+    {
+      "id": "review.skipped",
+      "station": "review",
+      "kind": "other",
+      "name": "Changes merged with no review",
+      "unit": "share",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Share of the changes merged in the period that no other person reviewed before the merge. A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count.",
+      "since": "v1"
+    },
+    {
+      "id": "merge.flow",
+      "station": "merge",
+      "kind": "flow",
+      "name": "Changes merged",
+      "unit": "per_week",
+      "good": "up",
+      "min_sample": 0,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Changes merged in the period. The count is divided by the length of the period in weeks.",
+      "since": "v1"
+    },
+    {
+      "id": "merge.wait.p50",
+      "station": "merge",
+      "kind": "wait",
+      "name": "Wait to merge, median",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours from a change arriving at merge to it merging, over the changes merged in the period. A change arrives when it leaves review. A change nobody else reviewed arrives when it is marked ready for review. The median.",
+      "since": "v1"
+    },
+    {
+      "id": "merge.wait.p90",
+      "station": "merge",
+      "kind": "wait",
+      "name": "Wait to merge, 90th percentile",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours from a change arriving at merge to it merging, over the changes merged in the period. A change arrives when it leaves review. A change nobody else reviewed arrives when it is marked ready for review. The 90th percentile: one item in ten waited longer.",
+      "since": "v1"
+    },
+    {
+      "id": "merge.rework",
+      "station": "merge",
+      "kind": "rework",
+      "name": "Merges reverted",
+      "unit": "share",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Share of the changes merged in the period that a later change reverted. A change reverts another when its description says so in the words the code host writes for a revert.",
+      "since": "v1"
+    },
+    {
+      "id": "merge.queue",
+      "station": "merge",
+      "kind": "queue",
+      "name": "Changes approved and not merged",
+      "unit": "count",
+      "good": "down",
+      "min_sample": 0,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Changes that are open and approved at the end of the period, with no request for changes after the last approval.",
+      "since": "v1"
+    },
+    {
+      "id": "merge.queue.oldest",
+      "station": "merge",
+      "kind": "queue",
+      "name": "Changes approved and not merged, age of the oldest",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 0,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours since its last approval, for the item that has stood longest in this queue at the end of the period. Changes that are open and approved at the end of the period, with no request for changes after the last approval.",
+      "since": "v1"
+    },
+    {
+      "id": "merge.held.total",
+      "station": "merge",
+      "kind": "held",
+      "name": "Hours held at merge",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours the items that left the merge station in the period spent there, wait and work together, per week. Each item is capped at the 90th percentile of the station, so one item that sat for months cannot decide the total. Time with a CI run in flight is counted at ci and taken out of the station the change stood at, so no hour is counted twice.",
+      "since": "v1"
+    },
+    {
+      "id": "merge.held.share",
+      "station": "merge",
+      "kind": "held",
+      "name": "Share of the line's time held at merge",
+      "unit": "share",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "The held hours of the merge station divided by the held hours of every station that counts for the constraint. The station with the largest share is the constraint.",
+      "since": "v1"
+    },
+    {
+      "id": "release.flow",
+      "station": "release",
+      "kind": "flow",
+      "name": "Changes released",
+      "unit": "per_week",
+      "good": "up",
+      "min_sample": 0,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "definition": "Merged changes that reached production in the period. Without a list of the commits in each deploy, the first production deploy of the repository after the merge is taken as the one that shipped it. The count is divided by the length of the period in weeks.",
+      "since": "v1"
+    },
+    {
+      "id": "release.wait.p50",
+      "station": "release",
+      "kind": "wait",
+      "name": "Wait for a release, median",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "definition": "Hours from a change merging to the start of the production deploy that shipped it, over the changes that reached production in the period. Without a list of the commits in each deploy, the first production deploy of the repository after the merge is taken as the one that shipped it. The median.",
+      "since": "v1"
+    },
+    {
+      "id": "release.wait.p90",
+      "station": "release",
+      "kind": "wait",
+      "name": "Wait for a release, 90th percentile",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "definition": "Hours from a change merging to the start of the production deploy that shipped it, over the changes that reached production in the period. Without a list of the commits in each deploy, the first production deploy of the repository after the merge is taken as the one that shipped it. The 90th percentile: one item in ten waited longer.",
+      "since": "v1"
+    },
+    {
+      "id": "release.work.p50",
+      "station": "release",
+      "kind": "work",
+      "name": "Deploy time, median",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "definition": "Hours from a production deploy being created to it reporting success, over the production deploys that reported success in the period. The median.",
+      "since": "v1"
+    },
+    {
+      "id": "release.work.p90",
+      "station": "release",
+      "kind": "work",
+      "name": "Deploy time, 90th percentile",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "definition": "Hours from a production deploy being created to it reporting success, over the production deploys that reported success in the period. The 90th percentile: one item in ten took longer.",
+      "since": "v1"
+    },
+    {
+      "id": "release.rework",
+      "station": "release",
+      "kind": "rework",
+      "name": "Deploys that failed",
+      "unit": "share",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "definition": "Share of the production deploys finished in the period that reported a failure or an error.",
+      "since": "v1"
+    },
+    {
+      "id": "release.queue",
+      "station": "release",
+      "kind": "queue",
+      "name": "Changes merged and not released",
+      "unit": "count",
+      "good": "down",
+      "min_sample": 0,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "definition": "Changes that are merged and that no production deploy has followed, at the end of the period.",
+      "since": "v1"
+    },
+    {
+      "id": "release.queue.oldest",
+      "station": "release",
+      "kind": "queue",
+      "name": "Changes merged and not released, age of the oldest",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 0,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "definition": "Hours since it merged, for the item that has stood longest in this queue at the end of the period. Changes that are merged and that no production deploy has followed, at the end of the period.",
+      "since": "v1"
+    },
+    {
+      "id": "release.held.total",
+      "station": "release",
+      "kind": "held",
+      "name": "Hours held at release",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "definition": "Hours the items that left the release station in the period spent there, wait and work together, per week. Each item is capped at the 90th percentile of the station, so one item that sat for months cannot decide the total. Time with a CI run in flight is counted at ci and taken out of the station the change stood at, so no hour is counted twice.",
+      "since": "v1"
+    },
+    {
+      "id": "release.held.share",
+      "station": "release",
+      "kind": "held",
+      "name": "Share of the line's time held at release",
+      "unit": "share",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "definition": "The held hours of the release station divided by the held hours of every station that counts for the constraint. The station with the largest share is the constraint.",
+      "since": "v1"
+    },
+    {
+      "id": "release.deploys",
+      "station": "release",
+      "kind": "other",
+      "name": "Production deploys",
+      "unit": "per_week",
+      "good": "up",
+      "min_sample": 0,
+      "slices": [
+        "repo"
+      ],
+      "needs": [
+        "deploy"
+      ],
+      "definition": "Production deploys created in the period, per week. A deploy is a deployment to an environment whose name says production, or a published release when the repository has no such deployment.",
+      "since": "v1"
+    },
+    {
+      "id": "line.flow",
+      "station": "line",
+      "kind": "flow",
+      "name": "Changes merged",
+      "unit": "per_week",
+      "good": "up",
+      "min_sample": 0,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Changes merged in the period, per week. For the whole line this counts changes by agents and by people. Automation is left out.",
+      "since": "v1"
+    },
+    {
+      "id": "line.lead.p50",
+      "station": "line",
+      "kind": "other",
+      "name": "Open to merge, median",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours from a change being opened to it merging, over the changes merged in the period. The median.",
+      "since": "v1"
+    },
+    {
+      "id": "line.lead.p90",
+      "station": "line",
+      "kind": "other",
+      "name": "Open to merge, 90th percentile",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours from a change being opened to it merging, over the changes merged in the period. The 90th percentile: one change in ten took longer.",
+      "since": "v1"
+    },
+    {
+      "id": "line.delivery.p50",
+      "station": "line",
+      "kind": "other",
+      "name": "Start to production, median",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change",
+        "deploy"
+      ],
+      "definition": "Hours from the start of a change to the production deploy that shipped it, over the changes that reached production in the period. The start is the first commit or the opening of the change, whichever is earlier. The median. Without a list of the commits in each deploy, the first production deploy of the repository after the merge is taken as the one that shipped it.",
+      "since": "v1"
+    },
+    {
+      "id": "line.agent_share",
+      "station": "line",
+      "kind": "other",
+      "name": "Disclosed agent share",
+      "unit": "share",
+      "good": "neither",
+      "min_sample": 5,
+      "slices": [
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Changes by agents divided by changes by agents and by people, over the changes merged in the period. Automation is left out of both sides. It is a floor: an agent that leaves no trace counts as a person.",
+      "since": "v1"
+    },
+    {
+      "id": "line.size.p50",
+      "station": "line",
+      "kind": "other",
+      "name": "Lines changed, median",
+      "unit": "lines",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Lines added plus lines deleted, over the changes merged in the period. The median.",
+      "since": "v1"
+    }
+  ]
+}
