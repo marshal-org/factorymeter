@@ -245,6 +245,17 @@ func TestHTMLRecommendationsAndSummary(t *testing.T) {
 		`<a href="https://example.invalid/13" rel="noreferrer noopener">acme/app#13</a>`,
 		`<a href="https://example.invalid/play" rel="noreferrer noopener">The practice, in the playbook</a>`,
 		`<p class="rec-m"><a href="#station-spec">Spec</a> <span class="sep">`,
+		// The line names the constraint, the station next in line, and the
+		// way to the full list.
+		`Constraint: <a href="#station-review">Review</a>, holds 60% of the hours`,
+		`Next in line: <a href="#station-merge">Merge</a>, holds 40% of the hours`,
+		`<a class="go" href="#invest">Where to invest (3)</a>`,
+		`<span class="badge next">Next</span>`,
+		"Once Review holds less, Merge is next in line: it holds 40% of the hours.",
+		// Each station lists what to invest in there, and links to it.
+		`<li class="rec" id="rec-1">`,
+		`<h4>Where to invest here</h4><ol class="mini"><li><a href="#rec-1"><span class="rank sm">1</span><span>Answer reviews sooner</span></a><span class="it-m">12 hours freed a week</span></li></ol>`,
+		`<li><a href="#rec-2"><span class="rank sm">2</span><span>Merge sooner</span></a></li>`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the page lacks %q", want)

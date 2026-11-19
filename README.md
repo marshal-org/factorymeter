@@ -245,6 +245,8 @@ factorymeter serve my-org          # then open http://127.0.0.1:7377
    mark and a word. Pick a station and its numbers open right below the line: a chart per number
    with up to 26 weeks of history, the reasons for its grade, and, for a station that is not
    connected, what it needs. A median and its 90th percentile share one chart.
+   Above the line, the page names the constraint and the station next in line. Each station
+   lists the recommendations about it, with a link to the full ranked list.
 2. **Where to invest**: the recommendations, ranked by the hours a week each one frees.
 3. **Agents and people**, side by side, then by agent, and for an owner by repository.
 4. **Coverage**: what was loaded, and the limits of what it could see.
