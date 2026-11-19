@@ -41,8 +41,8 @@ const (
 
 // Actor is an account on a source.
 type Actor struct {
-	Login string `json:"login" doc:"The account name on the source. A GitHub bot keeps its [bot] suffix."`
-	Kind  string `json:"kind" doc:"What the source says the account is." enum:"user,bot"`
+	Login string `json:"login" parquet:"login" doc:"The account name on the source. A GitHub bot keeps its [bot] suffix."`
+	Kind  string `json:"kind" parquet:"kind" doc:"What the source says the account is." enum:"user,bot"`
 }
 
 // Change states.
@@ -54,52 +54,52 @@ const (
 
 // Change is a pull request or a merge request.
 type Change struct {
-	Source       string     `json:"source" doc:"Where the record came from." enum:"github"`
-	ID           string     `json:"id" doc:"Stable id, unique among changes: source:owner/repo#number."`
-	Repo         string     `json:"repo" doc:"The repository, as owner/name."`
-	Number       int        `json:"number" doc:"The number of the change in its repository."`
-	URL          string     `json:"url" doc:"Link to the change on the source."`
-	Title        string     `json:"title" doc:"The title."`
-	Body         string     `json:"body" doc:"The description. It is read for agent signatures and for ticket keys."`
-	Author       Actor      `json:"author" doc:"The account that opened the change."`
-	HeadRef      string     `json:"head_ref" doc:"The branch the change comes from."`
-	BaseRef      string     `json:"base_ref" doc:"The branch the change goes to."`
-	State        string     `json:"state" doc:"Where the change stands now." enum:"open,closed,merged"`
-	Draft        bool       `json:"draft" doc:"True while the change is a draft."`
-	CreatedAt    time.Time  `json:"created_at" doc:"When the change was opened."`
-	UpdatedAt    time.Time  `json:"updated_at" doc:"When the source last saw the change move. The sync resumes from here."`
-	ReadyAt      *time.Time `json:"ready_at" doc:"When the change first asked for review. Null while it has only ever been a draft."`
-	MergedAt     *time.Time `json:"merged_at" doc:"When the change merged. Null when it has not."`
-	ClosedAt     *time.Time `json:"closed_at" doc:"When the change closed, merged or not. Null while it is open."`
-	Additions    int        `json:"additions" doc:"Lines added."`
-	Deletions    int        `json:"deletions" doc:"Lines deleted."`
-	ChangedFiles int        `json:"changed_files" doc:"Files touched."`
-	CommitCount  int        `json:"commit_count" doc:"Commits on the change. It can be larger than the list of commits, which holds the first 100."`
-	Commits      []Commit   `json:"commits" doc:"The commits of the change, oldest first."`
-	Reviews      []Review   `json:"reviews" doc:"The submitted reviews, oldest first."`
+	Source       string     `json:"source" parquet:"source" doc:"Where the record came from." enum:"github"`
+	ID           string     `json:"id" parquet:"id" doc:"Stable id, unique among changes: source:owner/repo#number."`
+	Repo         string     `json:"repo" parquet:"repo" doc:"The repository, as owner/name."`
+	Number       int        `json:"number" parquet:"number" doc:"The number of the change in its repository."`
+	URL          string     `json:"url" parquet:"url" doc:"Link to the change on the source."`
+	Title        string     `json:"title" parquet:"title" doc:"The title."`
+	Body         string     `json:"body" parquet:"body" doc:"The description. It is read for agent signatures and for ticket keys."`
+	Author       Actor      `json:"author" parquet:"author" doc:"The account that opened the change."`
+	HeadRef      string     `json:"head_ref" parquet:"head_ref" doc:"The branch the change comes from."`
+	BaseRef      string     `json:"base_ref" parquet:"base_ref" doc:"The branch the change goes to."`
+	State        string     `json:"state" parquet:"state" doc:"Where the change stands now." enum:"open,closed,merged"`
+	Draft        bool       `json:"draft" parquet:"draft" doc:"True while the change is a draft."`
+	CreatedAt    time.Time  `json:"created_at" parquet:"created_at,timestamp(microsecond)" doc:"When the change was opened."`
+	UpdatedAt    time.Time  `json:"updated_at" parquet:"updated_at,timestamp(microsecond)" doc:"When the source last saw the change move. The sync resumes from here."`
+	ReadyAt      *time.Time `json:"ready_at" parquet:"ready_at,optional,timestamp(microsecond)" doc:"When the change first asked for review. Null while it has only ever been a draft."`
+	MergedAt     *time.Time `json:"merged_at" parquet:"merged_at,optional,timestamp(microsecond)" doc:"When the change merged. Null when it has not."`
+	ClosedAt     *time.Time `json:"closed_at" parquet:"closed_at,optional,timestamp(microsecond)" doc:"When the change closed, merged or not. Null while it is open."`
+	Additions    int        `json:"additions" parquet:"additions" doc:"Lines added."`
+	Deletions    int        `json:"deletions" parquet:"deletions" doc:"Lines deleted."`
+	ChangedFiles int        `json:"changed_files" parquet:"changed_files" doc:"Files touched."`
+	CommitCount  int        `json:"commit_count" parquet:"commit_count" doc:"Commits on the change. It can be larger than the list of commits, which holds the first 100."`
+	Commits      []Commit   `json:"commits" parquet:"commits,list" doc:"The commits of the change, oldest first."`
+	Reviews      []Review   `json:"reviews" parquet:"reviews,list" doc:"The submitted reviews, oldest first."`
 }
 
 // Commit is one commit of a change.
 type Commit struct {
-	SHA         string         `json:"sha" doc:"The commit id."`
-	AuthoredAt  time.Time      `json:"authored_at" doc:"When the commit was written."`
-	CommittedAt time.Time      `json:"committed_at" doc:"When the commit was last applied. A rebase moves it."`
-	Parents     int            `json:"parents" doc:"How many parents the commit has. Two or more make it a merge commit."`
-	Authors     []CommitAuthor `json:"authors" doc:"The author and every co-author."`
-	Trailers    []Trailer      `json:"trailers" doc:"The trailer lines of the commit message, such as Co-Authored-By."`
+	SHA         string         `json:"sha" parquet:"sha" doc:"The commit id."`
+	AuthoredAt  time.Time      `json:"authored_at" parquet:"authored_at,timestamp(microsecond)" doc:"When the commit was written."`
+	CommittedAt time.Time      `json:"committed_at" parquet:"committed_at,timestamp(microsecond)" doc:"When the commit was last applied. A rebase moves it."`
+	Parents     int            `json:"parents" parquet:"parents" doc:"How many parents the commit has. Two or more make it a merge commit."`
+	Authors     []CommitAuthor `json:"authors" parquet:"authors,list" doc:"The author and every co-author."`
+	Trailers    []Trailer      `json:"trailers" parquet:"trailers,list" doc:"The trailer lines of the commit message, such as Co-Authored-By."`
 }
 
 // CommitAuthor is an author or a co-author of a commit.
 type CommitAuthor struct {
-	Login string `json:"login" doc:"The account the source matched the author to. Empty when it matched none."`
-	Email string `json:"email" doc:"The email on the commit."`
-	Name  string `json:"name" doc:"The name on the commit."`
+	Login string `json:"login" parquet:"login" doc:"The account the source matched the author to. Empty when it matched none."`
+	Email string `json:"email" parquet:"email" doc:"The email on the commit."`
+	Name  string `json:"name" parquet:"name" doc:"The name on the commit."`
 }
 
 // Trailer is one "Key: value" line at the end of a commit message.
 type Trailer struct {
-	Key   string `json:"key" doc:"The trailer name, as written."`
-	Value string `json:"value" doc:"The trailer value."`
+	Key   string `json:"key" parquet:"key" doc:"The trailer name, as written."`
+	Value string `json:"value" parquet:"value" doc:"The trailer value."`
 }
 
 // Review states.
@@ -112,25 +112,25 @@ const (
 
 // Review is one submitted review of a change.
 type Review struct {
-	Author      Actor     `json:"author" doc:"The account that wrote the review."`
-	State       string    `json:"state" doc:"What the review said." enum:"approved,changes_requested,commented,dismissed"`
-	SubmittedAt time.Time `json:"submitted_at" doc:"When the review was submitted."`
+	Author      Actor     `json:"author" parquet:"author" doc:"The account that wrote the review."`
+	State       string    `json:"state" parquet:"state" doc:"What the review said." enum:"approved,changes_requested,commented,dismissed"`
+	SubmittedAt time.Time `json:"submitted_at" parquet:"submitted_at,timestamp(microsecond)" doc:"When the review was submitted."`
 }
 
 // CIRun is one run of a CI workflow on one commit.
 type CIRun struct {
-	Source     string    `json:"source" doc:"Where the record came from." enum:"github"`
-	ID         string    `json:"id" doc:"Stable id, unique among CI runs: source:owner/repo/run/attempt."`
-	Repo       string    `json:"repo" doc:"The repository, as owner/name."`
-	Workflow   string    `json:"workflow" doc:"The name of the workflow."`
-	Event      string    `json:"event" doc:"What started the run, in the source's words, such as pull_request or push."`
-	SHA        string    `json:"sha" doc:"The commit the run ran on. It ties the run to a change."`
-	Attempt    int       `json:"attempt" doc:"1 for the first run, more for a run that was started again."`
-	Status     string    `json:"status" doc:"Whether the run has finished, in the source's words."`
-	Conclusion string    `json:"conclusion" doc:"How the run ended, in the source's words, such as success or failure. Empty while it runs."`
-	CreatedAt  time.Time `json:"created_at" doc:"When the run was created."`
-	StartedAt  time.Time `json:"started_at" doc:"When this attempt started."`
-	UpdatedAt  time.Time `json:"updated_at" doc:"When the run last changed. For a finished run this is when it finished."`
+	Source     string    `json:"source" parquet:"source" doc:"Where the record came from." enum:"github"`
+	ID         string    `json:"id" parquet:"id" doc:"Stable id, unique among CI runs: source:owner/repo/run/attempt."`
+	Repo       string    `json:"repo" parquet:"repo" doc:"The repository, as owner/name."`
+	Workflow   string    `json:"workflow" parquet:"workflow" doc:"The name of the workflow."`
+	Event      string    `json:"event" parquet:"event" doc:"What started the run, in the source's words, such as pull_request or push."`
+	SHA        string    `json:"sha" parquet:"sha" doc:"The commit the run ran on. It ties the run to a change."`
+	Attempt    int       `json:"attempt" parquet:"attempt" doc:"1 for the first run, more for a run that was started again."`
+	Status     string    `json:"status" parquet:"status" doc:"Whether the run has finished, in the source's words."`
+	Conclusion string    `json:"conclusion" parquet:"conclusion" doc:"How the run ended, in the source's words, such as success or failure. Empty while it runs."`
+	CreatedAt  time.Time `json:"created_at" parquet:"created_at,timestamp(microsecond)" doc:"When the run was created."`
+	StartedAt  time.Time `json:"started_at" parquet:"started_at,timestamp(microsecond)" doc:"When this attempt started."`
+	UpdatedAt  time.Time `json:"updated_at" parquet:"updated_at,timestamp(microsecond)" doc:"When the run last changed. For a finished run this is when it finished."`
 }
 
 // Deploy outcomes.
@@ -143,17 +143,17 @@ const (
 
 // Deploy is one deployment to an environment, or one published release.
 type Deploy struct {
-	Source      string     `json:"source" doc:"Where the record came from." enum:"github"`
-	ID          string     `json:"id" doc:"Stable id, unique among deploys: source:owner/repo/deployment/number or source:owner/repo/release/tag."`
-	Repo        string     `json:"repo" doc:"The repository, as owner/name."`
-	Via         string     `json:"via" doc:"What kind of event this is on the source." enum:"deployment,release"`
-	Environment string     `json:"environment" doc:"The environment name. Empty for a release."`
-	Production  bool       `json:"production" doc:"True when the environment is production. A release always is."`
-	Ref         string     `json:"ref" doc:"The branch or tag that was deployed."`
-	SHA         string     `json:"sha" doc:"The commit that was deployed, when the source gives it."`
-	CreatedAt   time.Time  `json:"created_at" doc:"When the deploy started."`
-	FinishedAt  *time.Time `json:"finished_at" doc:"When the deploy reported its outcome. Null when the source gives no status."`
-	Outcome     string     `json:"outcome" doc:"How the deploy ended." enum:"success,failure,running,unknown"`
+	Source      string     `json:"source" parquet:"source" doc:"Where the record came from." enum:"github"`
+	ID          string     `json:"id" parquet:"id" doc:"Stable id, unique among deploys: source:owner/repo/deployment/number or source:owner/repo/release/tag."`
+	Repo        string     `json:"repo" parquet:"repo" doc:"The repository, as owner/name."`
+	Via         string     `json:"via" parquet:"via" doc:"What kind of event this is on the source." enum:"deployment,release"`
+	Environment string     `json:"environment" parquet:"environment" doc:"The environment name. Empty for a release."`
+	Production  bool       `json:"production" parquet:"production" doc:"True when the environment is production. A release always is."`
+	Ref         string     `json:"ref" parquet:"ref" doc:"The branch or tag that was deployed."`
+	SHA         string     `json:"sha" parquet:"sha" doc:"The commit that was deployed, when the source gives it."`
+	CreatedAt   time.Time  `json:"created_at" parquet:"created_at,timestamp(microsecond)" doc:"When the deploy started."`
+	FinishedAt  *time.Time `json:"finished_at" parquet:"finished_at,optional,timestamp(microsecond)" doc:"When the deploy reported its outcome. Null when the source gives no status."`
+	Outcome     string     `json:"outcome" parquet:"outcome" doc:"How the deploy ended." enum:"success,failure,running,unknown"`
 }
 
 // Ticket states. Every source maps its own workflow onto these five.
@@ -167,23 +167,23 @@ const (
 
 // Ticket is an issue on GitHub, Linear or Jira.
 type Ticket struct {
-	Source    string     `json:"source" doc:"Where the record came from." enum:"github,linear,jira"`
-	ID        string     `json:"id" doc:"Stable id, unique among tickets: source:key."`
-	Key       string     `json:"key" doc:"The name people use for the ticket: owner/repo#12 on GitHub, ENG-123 on Linear or Jira."`
-	Project   string     `json:"project" doc:"The repository, team or project the ticket belongs to."`
-	URL       string     `json:"url" doc:"Link to the ticket on the source."`
-	Title     string     `json:"title" doc:"The title."`
-	Type      string     `json:"type" doc:"The kind of ticket in the source's words, such as bug or feature. Empty when the source has none."`
-	Labels    []string   `json:"labels" doc:"The labels on the ticket."`
-	Author    Actor      `json:"author" doc:"The account that created the ticket."`
-	State     string     `json:"state" doc:"Where the ticket stands now, mapped onto five states." enum:"backlog,unstarted,started,done,cancelled"`
-	RawState  string     `json:"raw_state" doc:"The state in the source's own words."`
-	CreatedAt time.Time  `json:"created_at" doc:"When the ticket was created."`
-	UpdatedAt time.Time  `json:"updated_at" doc:"When the source last saw the ticket move. The sync resumes from here."`
-	StartedAt *time.Time `json:"started_at" doc:"When the ticket first moved to a started state. Null when it never did, or when the source keeps no history."`
-	DoneAt    *time.Time `json:"done_at" doc:"When the ticket was last finished. Null when it is not done."`
-	ClosedAt  *time.Time `json:"closed_at" doc:"When the ticket closed, done or cancelled. Null while it is open."`
-	Reopened  int        `json:"reopened" doc:"How many times the ticket went from done back to an open state."`
+	Source    string     `json:"source" parquet:"source" doc:"Where the record came from." enum:"github,linear,jira"`
+	ID        string     `json:"id" parquet:"id" doc:"Stable id, unique among tickets: source:key."`
+	Key       string     `json:"key" parquet:"key" doc:"The name people use for the ticket: owner/repo#12 on GitHub, ENG-123 on Linear or Jira."`
+	Project   string     `json:"project" parquet:"project" doc:"The repository, team or project the ticket belongs to."`
+	URL       string     `json:"url" parquet:"url" doc:"Link to the ticket on the source."`
+	Title     string     `json:"title" parquet:"title" doc:"The title."`
+	Type      string     `json:"type" parquet:"type" doc:"The kind of ticket in the source's words, such as bug or feature. Empty when the source has none."`
+	Labels    []string   `json:"labels" parquet:"labels,list" doc:"The labels on the ticket."`
+	Author    Actor      `json:"author" parquet:"author" doc:"The account that created the ticket."`
+	State     string     `json:"state" parquet:"state" doc:"Where the ticket stands now, mapped onto five states." enum:"backlog,unstarted,started,done,cancelled"`
+	RawState  string     `json:"raw_state" parquet:"raw_state" doc:"The state in the source's own words."`
+	CreatedAt time.Time  `json:"created_at" parquet:"created_at,timestamp(microsecond)" doc:"When the ticket was created."`
+	UpdatedAt time.Time  `json:"updated_at" parquet:"updated_at,timestamp(microsecond)" doc:"When the source last saw the ticket move. The sync resumes from here."`
+	StartedAt *time.Time `json:"started_at" parquet:"started_at,optional,timestamp(microsecond)" doc:"When the ticket first moved to a started state. Null when it never did, or when the source keeps no history."`
+	DoneAt    *time.Time `json:"done_at" parquet:"done_at,optional,timestamp(microsecond)" doc:"When the ticket was last finished. Null when it is not done."`
+	ClosedAt  *time.Time `json:"closed_at" parquet:"closed_at,optional,timestamp(microsecond)" doc:"When the ticket closed, done or cancelled. Null while it is open."`
+	Reopened  int        `json:"reopened" parquet:"reopened" doc:"How many times the ticket went from done back to an open state."`
 }
 
 // Link kinds.
@@ -198,12 +198,12 @@ const (
 
 // Link ties two records together.
 type Link struct {
-	Kind     string `json:"kind" doc:"What the link means." enum:"closes,mentions,reverts"`
-	From     string `json:"from" doc:"The id of the change the link starts at."`
-	FromKind string `json:"from_kind" doc:"The kind of the record the link starts at." enum:"change"`
-	To       string `json:"to" doc:"The id of the record the link points at."`
-	ToKind   string `json:"to_kind" doc:"The kind of the record the link points at." enum:"ticket,change"`
-	Found    string `json:"found" doc:"Where the link was read." enum:"source,body,title,branch"`
+	Kind     string `json:"kind" parquet:"kind" doc:"What the link means." enum:"closes,mentions,reverts"`
+	From     string `json:"from" parquet:"from" doc:"The id of the change the link starts at."`
+	FromKind string `json:"from_kind" parquet:"from_kind" doc:"The kind of the record the link starts at." enum:"change"`
+	To       string `json:"to" parquet:"to" doc:"The id of the record the link points at."`
+	ToKind   string `json:"to_kind" parquet:"to_kind" doc:"The kind of the record the link points at." enum:"ticket,change"`
+	Found    string `json:"found" parquet:"found" doc:"Where the link was read." enum:"source,body,title,branch"`
 }
 
 // ChangeID builds the id of a change.
