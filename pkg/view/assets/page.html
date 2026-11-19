@@ -102,6 +102,14 @@
 </table></div></details>{{end}}
 </section>
 {{end}}</div>
+{{if .LightsOut}}<aside class="sim">
+<div>
+<p class="sim-k">Simulate it</p>
+<h2>Play this line forward in Lights Out</h2>
+<p>Lights Out is the simulator of The Software Factory. This link opens it with the numbers of this line filled in: changes a week, CI time, wait for review, deploys and rework. The numbers ride after the # in the link, and a browser never sends that part to a server.</p>
+</div>
+<a class="sim-a" href="{{.LightsOut}}" rel="noreferrer noopener">Open Lights Out</a>
+</aside>{{end}}
 </section>
 
 {{if .Recs}}<section id="invest" class="page">

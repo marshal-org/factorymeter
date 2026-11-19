@@ -34,6 +34,9 @@ func trendCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "trend <owner/repo | owner>",
 		Short: "Show how the numbers of a snapshot changed over time",
+		// The first generation is kept for the scripts that call it, and left
+		// out of the help: sync, then report or serve, is the way in.
+		Hidden: true,
 		Long: `trend reads the same history as snapshot, once, and cuts it into periods of
 the same length. It measures each period the way snapshot measures the whole
 window, so every number of the snapshot becomes a line over time.

@@ -436,6 +436,11 @@ func build(r *contract.Report) *page {
 		p.head(2, "Limits")
 		p.list(r.Limits)
 	}
+	if u := LightsOut(r); u != "" {
+		p.head(2, "Simulate it")
+		p.para("Lights Out, the simulator of The Software Factory, plays this line forward with these numbers: " + u)
+		p.para("The numbers ride after the # in the link. A browser never sends that part to a server.")
+	}
 	return p
 }
 
