@@ -50,7 +50,8 @@ func (k *Collector) logf(format string, a ...any) {
 	}
 }
 
-const prFields = `
+// prCore is what every read of a pull request asks for.
+const prCore = `
 fragment PRFields on PullRequest {
   number url title body state isDraft createdAt updatedAt mergedAt closedAt
   additions deletions changedFiles headRefName baseRefName
@@ -71,7 +72,18 @@ fragment PRFields on PullRequest {
       ... on ConvertToDraftEvent { createdAt }
     }
   }
-}`
+`
+
+// prCloses asks for the issues a pull request closes. A token that cannot
+// read issues may be refused the whole query over it, so only a sync that
+// reads tickets asks.
+const prCloses = `  closingIssuesReferences(first: 20) { nodes { number repository { nameWithOwner } } }
+`
+
+const (
+	prFields       = prCore + "}"
+	prFieldsLinked = prCore + prCloses + "}"
+)
 
 const listQuery = `
 query($owner: String!, $name: String!, $n: Int!, $after: String) {
@@ -147,6 +159,15 @@ type gqlPR struct {
 			CreatedAt time.Time `json:"createdAt"`
 		} `json:"nodes"`
 	} `json:"timelineItems"`
+	// ClosingIssues are the issues GitHub closes when the pull request merges.
+	ClosingIssues struct {
+		Nodes []struct {
+			Number     int `json:"number"`
+			Repository struct {
+				NameWithOwner string `json:"nameWithOwner"`
+			} `json:"repository"`
+		} `json:"nodes"`
+	} `json:"closingIssuesReferences"`
 }
 
 func actor(a *gqlActor) model.Actor {

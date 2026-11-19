@@ -36,6 +36,9 @@ var engines = map[string]func(*adviser, line.Rule) *contract.Recommendation{
 	"review.queue-growing":      (*adviser).reviewQueueGrowing,
 	"merge.approved-waiting":    (*adviser).mergeApprovedWaiting,
 	"code.stale-drafts":         (*adviser).codeStaleDrafts,
+	"spec.reopened":             (*adviser).specReopened,
+	"spec.stale-tickets":        (*adviser).specStaleTickets,
+	"spec.backlog-thin":         (*adviser).specBacklogThin,
 	"review.agents-wait-longer": (*adviser).reviewAgentsWaitLonger,
 	"code.agent-changes-large":  (*adviser).codeAgentChangesLarge,
 }
@@ -502,6 +505,55 @@ func (a *adviser) codeStaleDrafts(r line.Rule) *contract.Recommendation {
 		len(list), line.StaleDraftDays, sayHours(a.w.until.Sub(list[0].from).Hours()))
 	a.cite(rec, r.Reads...)
 	a.point(rec, list)
+	return rec
+}
+
+func (a *adviser) specReopened(r line.Rule) *contract.Recommendation {
+	s, ok := a.whole["spec.rework"]
+	if !ok || s.Value == nil || s.N < line.MinSample || *s.Value < line.Reopened {
+		return nil
+	}
+	rec := a.start(r)
+	rec.Confidence = grade(s.N)
+	rec.Why = fmt.Sprintf("%s of the %s finished in the window had been finished before and were opened again. A ticket that comes back was closed before the work was right, or before anyone agreed on what done means.",
+		capital(percent(*s.Value)), count(s.N, "ticket"))
+	a.cite(rec, r.Reads...)
+	return rec
+}
+
+func (a *adviser) specStaleTickets(r line.Rule) *contract.Recommendation {
+	if a.status[line.Spec].status == contract.StatusNotConnected {
+		return nil
+	}
+	list := a.waiting("spec.queue", line.StaleTicketDays*day)
+	if len(list) < line.StaleTicketMin {
+		return nil
+	}
+	rec := a.start(r)
+	rec.Why = fmt.Sprintf("%d tickets have been open for more than %d days and nobody has started them. The oldest was created %s ago. A list of work nobody will do hides the work that is ready, from people and from agents.",
+		len(list), line.StaleTicketDays, sayHours(a.w.until.Sub(list[0].from).Hours()))
+	a.cite(rec, r.Reads...)
+	a.point(rec, list)
+	return rec
+}
+
+func (a *adviser) specBacklogThin(r line.Rule) *contract.Recommendation {
+	if a.status[line.Spec].status == contract.StatusNotConnected {
+		return nil
+	}
+	s, ok := a.whole["spec.flow"]
+	if !ok || s.Value == nil || s.N < line.MinSample {
+		return nil
+	}
+	ready := len(standing(a.l.staysOf("spec.queue", sel{}), a.w.until))
+	if float64(ready) >= *s.Value*line.BacklogWeeks {
+		return nil
+	}
+	rec := a.start(r)
+	rec.Confidence = grade(s.N)
+	rec.Why = fmt.Sprintf("%s open and not started at the end of the window. The line started %.1f tickets a week. That is less than %s of work ready to start. When the tickets run out the line stands still, whatever the stations after it can do.",
+		capital(plural(ready, "1 ticket is", fmt.Sprintf("%d tickets are", ready))), *s.Value, plural(line.BacklogWeeks, "one week", fmt.Sprintf("%d weeks", line.BacklogWeeks)))
+	a.cite(rec, r.Reads...)
 	return rec
 }
 

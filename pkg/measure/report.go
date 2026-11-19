@@ -346,7 +346,7 @@ func (l *Line) status(summary bool) map[string]stationState {
 
 	out[line.Spec] = stationState{status: contract.StatusMeasured}
 	if len(l.sources[record.KindTicket]) == 0 {
-		out[line.Spec] = stationState{contract.StatusNotConnected, "No tickets are in the store. Spec is measured from a ticket source."}
+		out[line.Spec] = stationState{contract.StatusNotConnected, "No tickets are in the store. Spec is measured from tickets, such as the issues of a repository."}
 	}
 
 	part := func(none string, some string, has func(*repoInfo) bool) stationState {
@@ -645,6 +645,10 @@ func (l *Line) coverage(o Options, w window, status map[string]stationState, lim
 		sort.Strings(src)
 		sc := contract.SourceCoverage{Kind: kind, Source: strings.Join(src, ", "), Records: inWindow(kind)}
 		switch kind {
+		case record.KindTicket:
+			if l.sources[kind][record.GitHub] {
+				sc.Note = "A GitHub issue has no started state. It starts when the first pull request that closes it is opened."
+			}
 		case record.KindCIRun:
 			if unjoined > 0 {
 				sc.Note = fmt.Sprintf("%d of the %d runs in the store are on commits of no change, such as runs on the main branch. They are left out.", unjoined, runs)
@@ -689,6 +693,9 @@ func (l *Line) coverage(o Options, w window, status map[string]stationState, lim
 	limits = append(limits,
 		"The agent share is a floor. A change counts as written by an agent only when it carries a signature the registry knows.",
 		"Hours are hours on the clock. Nights and weekends count.")
+	if l.sources[record.KindTicket][record.GitHub] {
+		limits = append(limits, "A GitHub issue closed with no pull request that closes it never counts as started. A link from a pull request to an issue stays in the store when it is later taken off on GitHub.")
+	}
 	if status[line.Code].status != contract.StatusNotConnected {
 		limits = append(limits, "Writing time starts at the first commit of a change. Work before that commit is not seen, so a change opened right after its first commit shows almost none.")
 	}

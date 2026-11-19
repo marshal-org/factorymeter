@@ -21,6 +21,8 @@ See [What is built](contract.md#what-is-built).
 |---|---|---|
 | Changes | Pull requests with their commits, reviews and draft events | Every pull request updated since the floor, and every one still open |
 | CI runs | GitHub Actions workflow runs | Runs created since the floor |
+| Tickets | Issues | Every issue updated since the floor, and every one still open |
+| Links | The issues each pull request closes, as GitHub lists them | With the pull requests |
 | Deploys | Deployments with their statuses, and published releases | Created since the floor |
 
 The floor is `--since`, 26 weeks by default. It is cut to a whole day. A later
@@ -33,16 +35,34 @@ metric works on history that is already stored.
 
 ## What a later sync costs
 
-A sync of a repository where nothing happened makes about five requests and
+A sync of a repository where nothing happened makes about six requests and
 writes no file.
 
 - **Pull requests.** They are read newest update first, down to the newest
   update the store has seen. An edited, reviewed, merged or closed pull request
   has a new update time, so it is read again and replaces the stored one.
+- **Issues.** They are read oldest update first, from the newest update the
+  store has seen. An issue that was edited, labelled, closed or opened again
+  has a new update time, so it is read again and replaces the stored one.
 - **CI runs.** The last three days are read again, because a run that was in
   progress has finished since. Older runs are not read again.
 - **Deploys.** The last seven days of deployments are read again, for the same
   reason. Releases are few and are read in full.
+
+## Tickets and links
+
+On GitHub a ticket is an issue. A link ties a pull request to an issue it
+closes: a closing word in the description, or a link made by hand on GitHub.
+The link is what lets the report say when work on a ticket started.
+
+A store written by a version that did not read links gets its window read once
+more by the first sync that does. That sync compares the pull requests with
+what is stored and writes the links. It happens once.
+
+`--skip-tickets` reads no issues and no links. A token that cannot read issues
+needs it, because GitHub may refuse a page of pull requests that asks which
+issues they close. A later sync without the flag reads the window once more
+for the links, as above.
 
 ## A sync can stop at any time
 
@@ -73,7 +93,12 @@ with an error.
   went between two syncs is not.
 - **Releases.** Drafts and prereleases are not deploys. A release counts as a
   production deploy at the time it was published.
-- **Deleted pull requests** stay in the store.
+- **Links.** At most 20 issues are read per pull request. A link that is later
+  taken off on GitHub stays in the store. A link to an issue in a repository
+  that is not synced is stored, and the ticket it points at is not.
+- **Issues.** The type of an issue is not read. A closed issue is done, or
+  cancelled when GitHub says it was closed as not planned or as a duplicate.
+- **Deleted pull requests and deleted issues** stay in the store.
 
 ## The layout
 
@@ -84,9 +109,12 @@ store.json                                     what the store holds
 changes/github/<owner>__<repo>/2026-11.parquet
 ci_runs/github/<owner>__<repo>/2026-11.parquet
 deploys/github/<owner>__<repo>/2026-11.parquet
+tickets/github/<owner>__<repo>/2026-11.parquet
+links/github/<owner>__<repo>/all.parquet
 ```
 
-A record lives in the file of the month it was created in, and never moves. A
+A record lives in the file of the month it was created in, and never moves.
+Links have no time of their own and share one file. A
 sync rewrites only the months it changed, and each file is replaced in one
 step, so a crash leaves the old file or the new one.
 
@@ -107,5 +135,5 @@ factorymeter itself needs no database. The binary reads and writes the files.
 
 Everything. A sync talks to the GitHub API with your read-only token and writes
 to the store directory. A store of a private repository holds its pull request
-titles, bodies, commit authors and branch names, so treat the directory like
+titles, bodies, commit authors, branch names and issue titles, so treat the directory like
 the repository itself.

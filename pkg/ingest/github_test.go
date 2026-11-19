@@ -133,7 +133,7 @@ func TestALaterSyncReadsOnlyWhatChanged(t *testing.T) {
 	r := small(h)
 	dir := t.TempDir()
 	s := openStore(t, dir)
-	g := syncer(h, s, Options{SkipCI: true, SkipDeploys: true})
+	g := syncer(h, s, Options{SkipCI: true, SkipDeploys: true, SkipTickets: true})
 	if _, err := g.Sync(context.Background(), "acme/app"); err != nil {
 		t.Fatal(err)
 	}
@@ -206,7 +206,7 @@ func TestAStoppedSyncGoesOnFromWhereItStopped(t *testing.T) {
 			<-r.Context().Done()
 		}
 	}
-	opt := Options{PageSize: 5, Checkpoint: 2, SkipCI: true, SkipDeploys: true}
+	opt := Options{PageSize: 5, Checkpoint: 2, SkipCI: true, SkipDeploys: true, SkipTickets: true}
 	_, err := syncer(h, s, opt).Sync(ctx, "acme/app")
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v, want a cancel", err)
@@ -278,7 +278,7 @@ func TestAnEarlierSinceReadsTheMissingPart(t *testing.T) {
 	h := newHub(t)
 	big(h, 60)
 	s := openStore(t, t.TempDir())
-	opt := Options{PageSize: 10, SkipCI: true, SkipDeploys: true, Since: day(40)}
+	opt := Options{PageSize: 10, SkipCI: true, SkipDeploys: true, SkipTickets: true, Since: day(40)}
 	if _, err := syncer(h, s, opt).Sync(context.Background(), "acme/app"); err != nil {
 		t.Fatal(err)
 	}

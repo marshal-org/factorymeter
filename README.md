@@ -51,7 +51,7 @@ Speeding up any other station changes little.
 
 This is the top of a real report. It was run on
 [`marshal-org/runlease`](https://github.com/marshal-org/runlease) on 2026-11-19, from a store that
-held 73 changes, 319 CI runs and 55 deploys.
+held 73 changes, 319 CI runs, 55 deploys and 6 issues.
 
 ```text
 DELIVERY LINE: MARSHAL-ORG/RUNLEASE
@@ -66,7 +66,7 @@ Over the 13 weeks to 2026-11-19, changes stood 12 hours a week at release and 2.
 THE LINE
 
   Station               Status         Out a week   Wait  Work  Rework  Queue    Held  Out, by week
-  Spec                  not connected
+  Spec                  measured            0.2 ▲   7m ~          0% ~   2 ▲!          ▁▁▁▁▁▁▁▁▅▁▁▁▁▁▁▁▁▁▁▁▅▁▁▁▁█
   Code                  measured            3.8 ▲           0m   6% ▲!      0  13% ▲!  ▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█
   CI                    measured            8.0 ▲      -    6m      9%             5%  ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█
   Verify                not connected
@@ -76,7 +76,6 @@ THE LINE
 
 Wait and work are medians. Held is the station's share of the hours changes spend on the line. ▲ and ▼ show a move against the weeks before, ! a move for the worse, ~ a value drawn from fewer than 5 items.
 
-  * Spec: No tickets are in the store. Spec is measured from a ticket source.
   * Verify: Fewer than 5 deployments to an environment that is not production were found on a commit of a change before it merged.
   * Review: No change in the store was reviewed by another person. A change that waits here may be waiting to merge.
   * Release: Published releases stand in for production deploys in marshal-org/runlease.
@@ -142,8 +141,8 @@ factorymeter looks for a token in `GITHUB_TOKEN`, then `GH_TOKEN`, then asks the
 
 For a private repository, make a
 [fine-grained token](https://github.com/settings/personal-access-tokens/new) with **read-only**
-access to: Metadata, Contents, Pull requests, Actions and Deployments. It needs no write
-permission of any kind. A public repository needs no permissions at all, only a token for the
+access to: Metadata, Contents, Pull requests, Issues, Actions and Deployments. It needs no write
+permission of any kind. A token that cannot read issues works with `sync --skip-tickets`. A public repository needs no permissions at all, only a token for the
 rate limit.
 
 The client refuses to send a GraphQL mutation and only sends `GET` requests to the REST API, so
@@ -274,7 +273,9 @@ The report prints the limits that apply every time. They are not fine print.
 - **A branch prefix alone is not proof.** People type `claude/` and `codex/` by hand.
 - **Times are hours on the clock.** Nights and weekends count.
 - **Writing time starts at the first commit of a change.** Work before that commit is not seen.
-- **Tickets are not read yet.** The `spec` station is not connected until a ticket source is.
+- **A ticket is a GitHub issue.** An issue has no started state, so it starts when the first pull
+  request that closes it is opened. An issue closed with no such pull request never counts as
+  started. Linear and Jira are not read yet.
 - **CI means GitHub Actions.** Other CI systems are not read.
 - **A pull request is agent or human as a whole.** There is no line-level attribution.
 - **Work that skips pull requests is not measured.**

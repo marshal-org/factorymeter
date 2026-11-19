@@ -152,6 +152,7 @@ func TestRuleIDsThatMustNotChange(t *testing.T) {
 		"code.slow", "ci.slow", "verify.slow", "review.slow", "merge.slow", "release.slow",
 		"verify.missing", "ci.failing", "ci.agents-fail-more", "merge.reverted", "code.abandoned",
 		"review.queue-growing", "merge.approved-waiting", "code.stale-drafts", "review.agents-wait-longer", "code.agent-changes-large",
+		"spec.reopened", "spec.stale-tickets", "spec.backlog-thin",
 	}
 	for _, id := range ids {
 		if _, ok := RuleByID(id); !ok {

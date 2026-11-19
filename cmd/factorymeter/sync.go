@@ -34,8 +34,8 @@ func syncCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync <owner/repo | owner>",
 		Short: "Read what changed on GitHub into the local store",
-		Long: `sync reads pull requests, reviews, commits, GitHub Actions runs, deployments
-and releases into a store on this machine.
+		Long: `sync reads pull requests, reviews, commits, issues, GitHub Actions runs,
+deployments and releases into a store on this machine.
 
 The first sync of a repository reads its history back to --since, 26 weeks
 by default. Every later sync reads only what changed since the one before, so
@@ -90,6 +90,7 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 	f.IntVar(&opt.MaxRuns, "max-runs", 100000, "workflow runs read per repository in one sync")
 	f.BoolVar(&opt.SkipCI, "skip-ci", false, "do not read GitHub Actions runs")
 	f.BoolVar(&opt.SkipDeploys, "skip-deploys", false, "do not read deployments and releases")
+	f.BoolVar(&opt.SkipTickets, "skip-tickets", false, "do not read issues")
 	f.BoolVar(&opt.IncludeForks, "include-forks", false, "with an owner: include forks")
 	f.BoolVar(&opt.IncludeArchived, "include-archived", false, "with an owner: include archived repositories")
 	f.BoolVar(&quiet, "quiet", false, "no progress on standard error")
@@ -117,7 +118,7 @@ func printSync(w io.Writer, res ingest.Result, calls int, took time.Duration) {
 		return
 	}
 	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(tw, "REPOSITORY\tCHANGES\tCI RUNS\tDEPLOYS\tFROM\t")
+	fmt.Fprintln(tw, "REPOSITORY\tCHANGES\tCI RUNS\tDEPLOYS\tTICKETS\tFROM\t")
 	for _, r := range res.Repos {
 		from := "-"
 		if !r.From.IsZero() {
@@ -130,7 +131,7 @@ func printSync(w io.Writer, res ingest.Result, calls int, took time.Duration) {
 		case r.Err != nil:
 			state = "failed"
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n", r.Repo, delta(r.Changes), delta(r.CIRuns), delta(r.Deploys), from, state)
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", r.Repo, delta(r.Changes), delta(r.CIRuns), delta(r.Deploys), delta(r.Tickets), from, state)
 	}
 	tw.Flush()
 	for _, r := range res.Repos {
@@ -225,7 +226,7 @@ only. It does not need a token and makes no request.`,
 			}
 			fmt.Fprintf(w, "%s: %d repositories, %s, in %s\n", out.Owner, len(out.Scopes), size(out.Bytes), out.Dir)
 			tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
-			fmt.Fprintln(tw, "REPOSITORY\tCHANGES\tCI RUNS\tDEPLOYS\tFROM\tSYNCED\t")
+			fmt.Fprintln(tw, "REPOSITORY\tCHANGES\tCI RUNS\tDEPLOYS\tTICKETS\tFROM\tSYNCED\t")
 			for _, si := range out.Scopes {
 				from, synced := "-", "not finished"
 				if !si.From.IsZero() {
@@ -234,7 +235,7 @@ only. It does not need a token and makes no request.`,
 				if !si.SyncedAt.IsZero() {
 					synced = si.SyncedAt.Format("2006-01-02 15:04") + " UTC"
 				}
-				fmt.Fprintf(tw, "%s\t%d\t%d\t%d\t%s\t%s\t\n", si.Name, si.Records["changes"], si.Records["ci_runs"], si.Records["deploys"], from, synced)
+				fmt.Fprintf(tw, "%s\t%d\t%d\t%d\t%d\t%s\t%s\t\n", si.Name, si.Records["changes"], si.Records["ci_runs"], si.Records["deploys"], si.Records["tickets"], from, synced)
 			}
 			tw.Flush()
 			for _, si := range out.Scopes {

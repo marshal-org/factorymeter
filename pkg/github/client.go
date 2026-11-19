@@ -29,6 +29,9 @@ var ErrNotFound = errors.New("not found")
 // ErrBadCursor is returned when GitHub does not accept a paging cursor.
 var ErrBadCursor = errors.New("bad cursor")
 
+// ErrForbidden marks a query the token is not allowed to make.
+var ErrForbidden = errors.New("github refused the query")
+
 // Client talks to one GitHub host.
 type Client struct {
 	Token string
@@ -266,7 +269,7 @@ func (c *Client) GraphQL(ctx context.Context, query string, vars map[string]any,
 		case "INVALID_CURSOR_ARGUMENTS":
 			return fmt.Errorf("%w: %s", ErrBadCursor, e.Message)
 		case "FORBIDDEN", "INSUFFICIENT_SCOPES":
-			return fmt.Errorf("github refused the query: %s", e.Message)
+			return fmt.Errorf("%w: %s", ErrForbidden, e.Message)
 		default:
 			// Timeouts and "Something went wrong" arrive as 200 with errors.
 			return fmt.Errorf("%w: %s", ErrServer, e.Message)

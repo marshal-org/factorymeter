@@ -71,7 +71,7 @@ func TestRulesCommand(t *testing.T) {
 		t.Errorf("markdown is not the reference page: %v", err)
 	}
 	for args, want := range map[string]string{
-		"spec":                     "is not a rule id",
+		"whole":                    "is not a rule id",
 		"review.nothing":           "is not a rule id",
 		"ci --format markdown":     "prints the whole reference",
 		"--format yaml":            "unknown format",

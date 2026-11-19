@@ -113,6 +113,72 @@ func same(a, b []float64) bool {
 	return true
 }
 
+// What the spec station writes down for tickets that do not walk the plain
+// path: created, started, done.
+func TestTicketsAtTheSpecStation(t *testing.T) {
+	at := func(days float64) time.Time { return end.Add(time.Duration(days * float64(day))) }
+	ptr := func(v time.Time) *time.Time { return &v }
+
+	b := NewBuilder(registry(t))
+	rb := b.Repo(RepoScope{Name: repo, From: end.Add(-26 * week), SyncedAt: end})
+	link := func(n int, key string) {
+		rb.Link(&record.Link{Kind: record.LinkCloses, From: record.ChangeID(record.GitHub, repo, n), FromKind: record.KindChange,
+			To: record.TicketID(record.GitHub, key), ToKind: record.KindTicket})
+	}
+	// Change 1 was opened a day before the ticket that describes it.
+	c := change(1, at(-5))
+	rb.Change(&c)
+	link(1, repo+"#13")
+	// Change 2 was opened a day after its ticket, which was then dropped.
+	c = change(2, at(-3))
+	rb.Change(&c)
+	link(2, repo+"#14")
+	// A link to a ticket in a repository the store does not hold.
+	link(2, "acme/lib#9")
+	rb.Done()
+
+	ticket := func(n int, state string, created time.Time, done, closed *time.Time, reopened int) {
+		key := fmt.Sprintf("%s#%d", repo, n)
+		b.Ticket(&record.Ticket{Source: record.GitHub, ID: record.TicketID(record.GitHub, key), Key: key, Project: repo,
+			Title: "A ticket", State: state, CreatedAt: created, DoneAt: done, ClosedAt: closed, Reopened: reopened})
+	}
+	ticket(11, record.TicketCancelled, at(-10), nil, ptr(at(-9)), 0)   // a duplicate nobody started
+	ticket(12, record.TicketDone, at(-8), ptr(at(-6)), ptr(at(-6)), 0) // closed by hand, no pull request
+	ticket(13, record.TicketUnstarted, at(-4), nil, nil, 0)            // written up after the work began
+	ticket(14, record.TicketCancelled, at(-4), nil, ptr(at(-2)), 0)    // started, then dropped
+	ticket(15, record.TicketUnstarted, at(-2), nil, nil, 0)            // waits
+	ticket(16, record.TicketDone, at(-7), ptr(at(-1)), ptr(at(-1)), 2) // came back twice
+	l := b.Line()
+
+	want := map[string][]float64{
+		// 13 started when it was created, not before. 14 waited a day.
+		"spec.flow": {1, 1}, "spec.wait": {0, 24},
+		// 12 and 16 were finished. 16 had been finished before.
+		"spec.rework": {0, 1},
+	}
+	for stream, w := range want {
+		if got := vals(l.obs[stream]); !same(got, w) {
+			t.Errorf("%s = %v, want %v", stream, got, w)
+		}
+	}
+	// 11 never stood in the queue and 13 stood in it for no time. 12 and 16
+	// left it when they were closed, never having started.
+	stays := [][2]float64{{-8, -6}, {-4, -3}, {-2, 0}, {-7, -1}}
+	got := l.stays["spec.queue"]
+	if len(got) != len(stays) {
+		t.Fatalf("spec.queue = %+v, want %d stays", got, len(stays))
+	}
+	for i, w := range stays {
+		to := at(w[1])
+		if w[1] == 0 {
+			to = time.Time{} // still standing
+		}
+		if !got[i].from.Equal(at(w[0])) || !got[i].to.Equal(to) {
+			t.Errorf("stay %d = %+v, want from %v to %v days", i, got[i], w[0], w[1])
+		}
+	}
+}
+
 // TestStationsOfOneChange walks one change down the whole line and checks
 // what each station wrote down about it.
 //
@@ -746,7 +812,7 @@ func TestStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string][2]string{
-		line.Spec:    {"not_connected", "No tickets are in the store. Spec is measured from a ticket source."},
+		line.Spec:    {"not_connected", "No tickets are in the store. Spec is measured from tickets, such as the issues of a repository."},
 		line.Code:    {"measured", ""},
 		line.CI:      {"partial", "No CI run joined a change in acme/lib."},
 		line.Verify:  {"not_connected", "Fewer than 5 deployments to an environment that is not production were found on a commit of a change before it merged."},

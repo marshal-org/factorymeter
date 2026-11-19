@@ -699,3 +699,120 @@ func TestQuietRules(t *testing.T) {
 		}
 	}
 }
+
+// ticketed is a line where six tickets were started and finished in the last
+// two weeks, one of them for the second time. open lists how long ago each
+// ticket that nobody has started was created.
+func ticketed(t *testing.T, done int, summary bool, open ...time.Duration) *contract.Report {
+	t.Helper()
+	b := NewBuilder(registry(t))
+	rb := b.Repo(RepoScope{Name: repo, From: end.Add(-26 * week), SyncedAt: end})
+	id := func(n int) string { return record.TicketID(record.GitHub, fmt.Sprintf("%s#%d", repo, n)) }
+	for i := 1; i <= done; i++ {
+		c := change(i, end.Add(-time.Duration(i+1)*day), review(record.ReviewApproved, end.Add(-time.Duration(i)*day-h)), merged(end.Add(-time.Duration(i)*day)))
+		rb.Change(&c)
+		rb.Link(&record.Link{Kind: record.LinkCloses, From: c.ID, FromKind: record.KindChange, To: id(50 + i), ToKind: record.KindTicket})
+	}
+	rb.Done()
+	ticket := func(n int, tk record.Ticket) {
+		tk.Source, tk.ID, tk.Key, tk.Project = record.GitHub, id(n), fmt.Sprintf("%s#%d", repo, n), repo
+		tk.URL, tk.Title = fmt.Sprintf("https://example.invalid/issues/%d", n), fmt.Sprintf("Ticket %d", n)
+		b.Ticket(&tk)
+	}
+	for i := 1; i <= done; i++ {
+		at := end.Add(-time.Duration(i) * day)
+		tk := record.Ticket{State: record.TicketDone, CreatedAt: end.Add(-time.Duration(i+2) * day), DoneAt: &at, ClosedAt: &at}
+		if i == 3 {
+			tk.Reopened = 1
+		}
+		ticket(50+i, tk)
+	}
+	for i, d := range open {
+		ticket(101+i, record.Ticket{State: record.TicketUnstarted, CreatedAt: end.Add(-d)})
+	}
+	r, err := b.Line().Report(Options{Target: repo, Summary: summary, Now: end})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+// specFired is the spec rules among the recommendations, in order.
+func specFired(r *contract.Report) string {
+	var ids []string
+	for _, rec := range r.Recommendations {
+		if rec.Station == line.Spec {
+			ids = append(ids, rec.Rule)
+		}
+	}
+	return strings.Join(ids, " ")
+}
+
+func TestSpecRulesReadTheTickets(t *testing.T) {
+	r := ticketed(t, 6, false, 200*day, 150*day, 120*day, 100*day, 95*day, 30*day)
+	keeps(t, r)
+	// Six tickets wait, more than the line starts in a week, so the tickets
+	// ready to start are not thin.
+	if got := specFired(r); got != "spec.reopened spec.stale-tickets" {
+		t.Fatalf("spec rules fired: %s. All: %s", got, fired(r))
+	}
+	re := advice(t, r, "spec.reopened")
+	want := "17 percent of the 6 tickets finished in the window had been finished before and were opened again. " +
+		"A ticket that comes back was closed before the work was right, or before anyone agreed on what done means."
+	if re.Why != want || re.HoursFreed != nil || re.Confidence != contract.ConfidenceLow || reads(re) != "spec.rework" || len(re.Items) != 0 {
+		t.Errorf("reopened: freed %s, %s, reads %s:\n got %s\nwant %s", num(re.HoursFreed), re.Confidence, reads(re), re.Why, want)
+	}
+	st := advice(t, r, "spec.stale-tickets")
+	// Five were created more than 90 days ago. The one from 30 days ago is
+	// not counted, and stands in the queue all the same.
+	want = "5 tickets have been open for more than 90 days and nobody has started them. The oldest was created 200.0 days ago. " +
+		"A list of work nobody will do hides the work that is ready, from people and from agents."
+	if st.Why != want || st.Confidence != contract.ConfidenceHigh || st.PlayURL != "" || reads(st) != "spec.queue spec.queue.oldest" {
+		t.Errorf("stale: %s, reads %s:\n got %s\nwant %s", st.Confidence, reads(st), st.Why, want)
+	}
+	if got := keys(st.Items); got != "acme/app#101:4800 acme/app#102:3600 acme/app#103:2880 acme/app#104:2400 acme/app#105:2280" {
+		t.Errorf("stale items: %s", got)
+	}
+	if e := st.Evidence[0]; num(e.Value) != "6" || !strings.HasPrefix(e.Text, "Tickets not started: 6.") {
+		t.Errorf("stale evidence: %+v", e)
+	}
+	if it := st.Items[0]; it.Kind != record.KindTicket || it.URL != "https://example.invalid/issues/101" || it.Title != "Ticket 101" || it.Class != "" {
+		t.Errorf("item: %+v", it)
+	}
+
+	// A summary counts the tickets and names none.
+	sum := advice(t, ticketed(t, 6, true, 200*day, 150*day, 120*day, 100*day, 95*day), "spec.stale-tickets")
+	if sum.Items == nil || len(sum.Items) != 0 || !strings.HasPrefix(sum.Why, "5 tickets have been open") {
+		t.Errorf("summary: %+v", sum)
+	}
+}
+
+func TestSpecBacklogThin(t *testing.T) {
+	// Six tickets started in 13 weeks and none waits.
+	r := ticketed(t, 6, false)
+	keeps(t, r)
+	if got := specFired(r); got != "spec.reopened spec.backlog-thin" {
+		t.Fatalf("spec rules fired: %s. All: %s", got, fired(r))
+	}
+	th := advice(t, r, "spec.backlog-thin")
+	want := "0 tickets are open and not started at the end of the window. The line started 0.5 tickets a week. That is less than one week of work ready to start. " +
+		"When the tickets run out the line stands still, whatever the stations after it can do."
+	if th.Why != want || th.HoursFreed != nil || th.Confidence != contract.ConfidenceLow || reads(th) != "spec.queue spec.flow" ||
+		th.PlayURL != "https://thesoftwarefactory.site/playbook/keep-the-line-fed/" {
+		t.Errorf("thin: %s, reads %s, %s:\n got %s\nwant %s", th.Confidence, reads(th), th.PlayURL, th.Why, want)
+	}
+
+	// One ticket ready is more than the half a ticket the line starts in a week.
+	if got := specFired(ticketed(t, 6, false, 2*day)); got != "spec.reopened" {
+		t.Errorf("with one ticket ready: %s", got)
+	}
+	// Four tickets started is too few to know the pace, and too few to
+	// trust a share of them.
+	if got := specFired(ticketed(t, 4, false)); got != "" {
+		t.Errorf("with four tickets: %s", got)
+	}
+	// A line with no ticket source is told nothing about tickets.
+	if got := specFired(ticketed(t, 0, false)); got != "" {
+		t.Errorf("with no tickets: %s", got)
+	}
+}
