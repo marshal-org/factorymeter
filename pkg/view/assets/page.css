@@ -311,6 +311,15 @@ td:last-child:not(.num) { white-space: normal; min-width: 24ch; }
 .tip-n, .tip-m { color: var(--ink2); }
 .tip-m { margin-left: auto; padding-left: 10px; font-size: 12px; }
 
+/* The way to the simulator: a stage of the lights-out room. */
+.sim { margin-top: 28px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 32px; background: #171c1a; color: #e9ece4; border-left: 8px solid #e0a21a; border-radius: 4px; padding: 22px 26px; }
+.sim > div { max-width: 72ch; display: grid; gap: 6px; }
+.sim h2 { font-size: 22px; }
+.sim p { color: #c3c9c0; }
+.sim-k { font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; text-transform: uppercase; letter-spacing: .08em; color: #ffb347 !important; }
+.sim-a { background: #ffb347; color: #171c1a; font-weight: 650; text-decoration: none; padding: 11px 18px; border-radius: 4px; white-space: nowrap; }
+.sim-a:hover { background: #ffc46b; }
+.sim-a:focus-visible { outline-color: #ffb347; }
 .foot { padding-top: 40px; padding-bottom: 40px; color: var(--ink2); font-size: 13px; }
 
 @media (max-width: 1080px) {

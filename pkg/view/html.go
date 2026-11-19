@@ -242,6 +242,8 @@ type htmlPage struct {
 	Sources                               [][]string
 	Limits                                []string
 	Tool, Generated                       string
+	// LightsOut is the link to the simulator, filled in with this line.
+	LightsOut string
 }
 
 // safeURL keeps a link only when it is plain https. A report can come from a
@@ -331,6 +333,7 @@ func buildHTML(r *contract.Report, opt HTMLOptions) *htmlPage {
 		Title: "Delivery line", Target: r.Target, Headline: r.Verdict.Headline, Detail: r.Verdict.Detail,
 		CSP: CSP(), CSS: template.CSS(pageCSS), JS: template.JS(pageJS), Nav: opt.Nav, Summary: r.Summary, Limits: r.Limits,
 		HealthInfo: pop{ID: "health-rule", Lines: []string{HealthRule}},
+		LightsOut:  safeURL(LightsOut(r)),
 	}
 	if r.Target != "" {
 		p.Title += ": " + r.Target

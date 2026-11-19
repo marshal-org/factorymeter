@@ -86,7 +86,7 @@ func TestHTML(t *testing.T) {
 		// A page in a file cannot ask for another window, repository or format.
 		`class="seg"`, `class="menu"`, "report.json", "By repository",
 		// Nothing is styled in place, and nothing loads.
-		" style=", `href="http`, " src=", "<link", "<img", "<iframe",
+		" style=", " src=", "<link", "<img", "<iframe",
 	} {
 		if strings.Contains(out, not) {
 			t.Errorf("the page holds %q", not)
@@ -97,6 +97,10 @@ func TestHTML(t *testing.T) {
 	}
 	if n := strings.Count(out, "<script"); n != 1 {
 		t.Errorf("the page holds %d scripts", n)
+	}
+	// The one link out is the simulator, and only a click follows it.
+	if n := strings.Count(out, `href="http`); n != 1 || !strings.Contains(out, `<a class="sim-a" href="https://thesoftwarefactory.site/lights-out/`) {
+		t.Errorf("the page holds %d links out, want the one to the simulator", n)
 	}
 	// The sections come in the order of the line.
 	last := -1
@@ -183,8 +187,10 @@ func TestHTMLHostile(t *testing.T) {
 	if want := `<a href="https://example.invalid/5" rel="noreferrer noopener">good</a>`; !strings.Contains(out, want) {
 		t.Errorf("the page lacks %q", want)
 	}
-	if n := strings.Count(out, `href="https://`); n != 1 {
-		t.Errorf("the page holds %d outside links, want 1", n)
+	// Besides the link to the simulator, which the page builds from its own
+	// address and numbers, no other link from the report gets through.
+	if n := strings.Count(out, `href="https://`) - strings.Count(out, `href="https://thesoftwarefactory.site/lights-out/?`); n != 1 {
+		t.Errorf("the page holds %d outside links from the report, want 1", n)
 	}
 	// What was text is still there to read.
 	if !strings.Contains(out, html.EscapeString("<script>alert(1)</script>")) {

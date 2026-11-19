@@ -52,16 +52,20 @@ func main() {
 	root := &cobra.Command{
 		Use:   "factorymeter",
 		Short: "Measure your software delivery line, split by agent and human pull requests",
-		Long: `factorymeter reads a GitHub repository's or owner's history and reports how the
-delivery line performs: throughput, wait for first review, CI time, rework and
-merge rate, each split by agent-written and human-written pull requests. It
-names the stage where work waits the longest.
+		Long: `factorymeter reads a GitHub repository's or owner's history and shows its
+delivery line: seven stations from spec to release, how much leaves each a
+week, how long changes wait, and how often they go back. It names the station
+that holds the line, the one next in line, and where to invest, with agents
+next to people.
+
+  factorymeter sync my-org      read the history into a store on this machine
+  factorymeter serve my-org     see the line as a page in the browser
+  factorymeter report my-org    print it, or write it as Markdown, JSON or HTML
 
 It only reads. It needs a token that can read the repository, taken from
 GITHUB_TOKEN or GH_TOKEN, or from "gh auth token" when the GitHub CLI is
-logged in. "sync --linear" also reads the tickets of a Linear workspace, with
-the key in LINEAR_API_KEY. Nothing is sent anywhere except to the GitHub API
-and, when you ask for it, the Linear API.`,
+logged in. "sync --linear" and "sync --jira" also read tickets, with keys from
+the environment. Nothing is sent anywhere except to the API it reads.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Version:       version,

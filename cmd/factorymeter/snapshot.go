@@ -169,6 +169,9 @@ func snapshotCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "snapshot <owner/repo | owner>",
 		Short: "Read a window straight from GitHub and print the first-generation report",
+		// The first generation is kept for the scripts that call it, and left
+		// out of the help: sync, then report or serve, is the way in.
+		Hidden: true,
 		Long: `snapshot reads pull requests, reviews, commits, GitHub Actions runs and
 deployments over a time window from GitHub and prints the first-generation
 report. It keeps nothing. "sync" and "report" are the way to measure a line
