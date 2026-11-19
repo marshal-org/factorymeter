@@ -720,6 +720,10 @@ func (b *Builder) Ticket(t *record.Ticket) {
 	if at, ok := b.linked[t.ID]; ok && (start.IsZero() || at.Before(start)) {
 		start = at
 	}
+	// A ticket written up after the work began did not wait.
+	if !start.IsZero() && start.Before(t.CreatedAt) {
+		start = t.CreatedAt
+	}
 	if !start.IsZero() {
 		l.add("spec.flow", start, 1, k)
 		l.add("spec.wait", start, hours(start.Sub(t.CreatedAt)), k)
@@ -729,6 +733,11 @@ func (b *Builder) Ticket(t *record.Ticket) {
 	}
 	until := start
 	if until.IsZero() {
+		// A ticket nobody started and nobody will, such as a duplicate, was
+		// never work waiting for the line.
+		if t.State == record.TicketCancelled {
+			return
+		}
 		until = val(t.ClosedAt)
 	}
 	l.stand("spec.queue", t.CreatedAt, until, k, it)

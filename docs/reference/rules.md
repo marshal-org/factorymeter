@@ -2,7 +2,7 @@
 
 # Recommendations reference
 
-Contract `factorymeter/v1`. 16 rules.
+Contract `factorymeter/v1`. 19 rules.
 
 A report says where to invest. Every recommendation in it comes from one of the rules listed here. The same list is in [`metrics.json`](metrics.json) under `recommendation_rules`, and `factorymeter rules` prints it.
 
@@ -35,6 +35,9 @@ A report says where to invest. Every recommendation in it comes from one of the 
 | [`review.queue-growing`](#rule-review-queue-growing) | Review | Clear the review queue | no |
 | [`merge.approved-waiting`](#rule-merge-approved-waiting) | Merge | Merge the changes that are already approved | no |
 | [`code.stale-drafts`](#rule-code-stale-drafts) | Code | Finish or close the drafts that stopped moving | no |
+| [`spec.reopened`](#rule-spec-reopened) | Spec | Find out why finished tickets are opened again | no |
+| [`spec.stale-tickets`](#rule-spec-stale-tickets) | Spec | Close or schedule the tickets nobody has started | no |
+| [`spec.backlog-thin`](#rule-spec-backlog-thin) | Spec | Write up more work that is ready to start | no |
 | [`review.agents-wait-longer`](#rule-review-agents-wait-longer) | Review | Find out why changes by agents wait longer for review | no |
 | [`code.agent-changes-large`](#rule-code-agent-changes-large) | Code | Have agents ship smaller changes | no |
 
@@ -161,6 +164,32 @@ A report says where to invest. Every recommendation in it comes from one of the 
 - Fires when: At least 3 changes have been a draft for more than 14 days at the end of the window.
 - Reads: `code.queue`, `code.queue.oldest`.
 - Hours freed: not sized.
+
+## Find out why finished tickets are opened again
+
+<a id="rule-spec-reopened"></a>Rule `spec.reopened`. Station: Spec.
+
+- Fires when: At least 10 percent of the tickets finished in the window had been finished before and were opened again. The share is drawn from at least 5 tickets.
+- Reads: `spec.rework`.
+- Hours freed: not sized.
+- Practice: [decide up front](https://thesoftwarefactory.site/playbook/decide-up-front/)
+
+## Close or schedule the tickets nobody has started
+
+<a id="rule-spec-stale-tickets"></a>Rule `spec.stale-tickets`. Station: Spec.
+
+- Fires when: At least 5 tickets have been open for more than 90 days at the end of the window with no work started on them.
+- Reads: `spec.queue`, `spec.queue.oldest`.
+- Hours freed: not sized.
+
+## Write up more work that is ready to start
+
+<a id="rule-spec-backlog-thin"></a>Rule `spec.backlog-thin`. Station: Spec.
+
+- Fires when: Fewer tickets are open and not started at the end of the window than the line starts in one week. The pace is drawn from at least 5 tickets started in the window.
+- Reads: `spec.queue`, `spec.flow`.
+- Hours freed: not sized.
+- Practice: [keep the line fed](https://thesoftwarefactory.site/playbook/keep-the-line-fed/)
 
 ## Find out why changes by agents wait longer for review
 

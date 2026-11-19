@@ -50,6 +50,16 @@ const (
 	// times that of people and at least AgentWaitHours more.
 	AgentWaitRatio = 1.5
 	AgentWaitHours = 1.0
+	// Reopened is the share of finished tickets that had been finished
+	// before and were opened again.
+	Reopened = 0.1
+	// A ticket nobody started is stale after StaleTicketDays. It takes
+	// StaleTicketMin of them.
+	StaleTicketDays = 90
+	StaleTicketMin  = 5
+	// The tickets ready to start are thin when they are fewer than the line
+	// starts in BacklogWeeks.
+	BacklogWeeks = 1
 	// A recommendation drawn from HighSample items or more is high
 	// confidence, from MediumSample or more medium, below that low.
 	HighSample   = 30
@@ -99,6 +109,13 @@ const (
 )
 
 func pct(v float64) string { return fmt.Sprintf("%.0f percent", v*100) }
+
+func weeksWord(n int) string {
+	if n == 1 {
+		return "one week"
+	}
+	return fmt.Sprintf("%d weeks", n)
+}
 
 // slow builds the rule every station that can be the constraint has.
 func slow(station, title, play string, reads ...string) Rule {
@@ -163,6 +180,21 @@ var Rules = stamp([]Rule{
 		ID: "code.stale-drafts", Station: Code, Title: "Finish or close the drafts that stopped moving",
 		Reads: []string{"code.queue", "code.queue.oldest"},
 		Fires: fmt.Sprintf("At least %d changes have been a draft for more than %d days at the end of the window.", StaleDraftMin, StaleDraftDays),
+	},
+	{
+		ID: "spec.reopened", Station: Spec, Title: "Find out why finished tickets are opened again", Play: "decide-up-front",
+		Reads: []string{"spec.rework"},
+		Fires: fmt.Sprintf("At least %s of the tickets finished in the window had been finished before and were opened again. The share is drawn from at least %d tickets.", pct(Reopened), MinSample),
+	},
+	{
+		ID: "spec.stale-tickets", Station: Spec, Title: "Close or schedule the tickets nobody has started",
+		Reads: []string{"spec.queue", "spec.queue.oldest"},
+		Fires: fmt.Sprintf("At least %d tickets have been open for more than %d days at the end of the window with no work started on them.", StaleTicketMin, StaleTicketDays),
+	},
+	{
+		ID: "spec.backlog-thin", Station: Spec, Title: "Write up more work that is ready to start", Play: "keep-the-line-fed",
+		Reads: []string{"spec.queue", "spec.flow"},
+		Fires: fmt.Sprintf("Fewer tickets are open and not started at the end of the window than the line starts in %s. The pace is drawn from at least %d tickets started in the window.", weeksWord(BacklogWeeks), MinSample),
 	},
 	{
 		ID: "review.agents-wait-longer", Station: Review, Title: "Find out why changes by agents wait longer for review", Play: "trust-is-earned-with-evidence",

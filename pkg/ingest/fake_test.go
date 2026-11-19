@@ -31,6 +31,19 @@ type pr struct {
 	title            string
 	created, updated time.Time
 	shas             []string
+	// closes are the issues the pull request closes, as "owner/name#7".
+	closes []string
+}
+
+type issue struct {
+	number           int
+	state            string // OPEN or CLOSED
+	reason           string // COMPLETED, NOT_PLANNED, DUPLICATE or empty
+	title            string
+	created, updated time.Time
+	closed           time.Time
+	reopened         int
+	labels           []string
 }
 
 type ciRun struct {
@@ -59,20 +72,25 @@ type repo struct {
 	name     string
 	missing  bool
 	prs      []*pr
+	issues   []*issue
 	runs     []ciRun
 	deploys  []deployment
 	releases []release
 }
 
 type call struct {
-	// kind is "prs", "deploys", "repos" or "runs".
+	// kind is "prs", "issues", "deploys", "repos" or "runs".
 	kind string
 	repo string
-	// after is the cursor a pull request page was asked from.
+	// after is the cursor a page of pull requests or issues was asked from.
 	after string
 	open  bool
 	asc   bool
 	size  int
+	// links is set when a pull request page asked for the issues it closes.
+	links bool
+	// since is the update time an issues request starts at.
+	since string
 	// event and created are the filters of a runs request.
 	event   string
 	created string
@@ -92,7 +110,16 @@ type fakeHub struct {
 	// onPage runs before a pull request page is answered, with the number of
 	// such pages asked for so far. It may block until the request is cancelled.
 	onPage func(n int, r *http.Request)
-	srv    *httptest.Server
+	// onIssues does the same for a page of issues.
+	onIssues func(n int, r *http.Request)
+	// issuesErr, when set, is the error type every issues request gets.
+	issuesErr string
+	// noIssues makes the token one that cannot read issues: an issues request
+	// is refused, and so is a pull request page that asks what it closes.
+	noIssues bool
+	// maxIssues makes GitHub time out on a bigger page of issues. Zero is no limit.
+	maxIssues int
+	srv       *httptest.Server
 }
 
 func newHub(t *testing.T) *fakeHub {
@@ -121,6 +148,16 @@ func (r *repo) pr(n int, state string, created, updated time.Time, shas ...strin
 	p := &pr{number: n, state: state, title: fmt.Sprintf("change %d", n), created: created, updated: updated, shas: shas}
 	r.prs = append(r.prs, p)
 	return p
+}
+
+// issue adds an issue. A closed one was closed at its last update.
+func (r *repo) issue(n int, state, reason string, created, updated time.Time, labels ...string) *issue {
+	i := &issue{number: n, state: state, reason: reason, title: fmt.Sprintf("ticket %d", n), created: created, updated: updated, labels: labels}
+	if state == "CLOSED" {
+		i.closed = updated
+	}
+	r.issues = append(r.issues, i)
+	return i
 }
 
 // take returns the calls made so far and forgets them.
@@ -200,7 +237,8 @@ func (h *fakeHub) graphql(query string, vars map[string]any, req *http.Request) 
 		return obj{"data": obj{"repositoryOwner": obj{"repositories": obj{"pageInfo": obj{"hasNextPage": false}, "nodes": nodes}}}}
 
 	case strings.Contains(query, "pullRequests("):
-		c := call{kind: "prs", repo: str(vars["owner"]) + "/" + str(vars["name"]), after: str(vars["after"]), asc: vars["dir"] == "ASC"}
+		c := call{kind: "prs", repo: str(vars["owner"]) + "/" + str(vars["name"]), after: str(vars["after"]), asc: vars["dir"] == "ASC",
+			links: strings.Contains(query, "closingIssuesReferences")}
 		if n, ok := vars["n"].(float64); ok {
 			c.size = int(n)
 		}
@@ -216,7 +254,29 @@ func (h *fakeHub) graphql(query string, vars map[string]any, req *http.Request) 
 		}
 		h.mu.Lock()
 		defer h.mu.Unlock()
+		if h.noIssues && c.links {
+			return gqlErr("FORBIDDEN", "Resource not accessible by personal access token")
+		}
 		return h.page(c, vars)
+
+	case strings.Contains(query, "issues(first"):
+		c := call{kind: "issues", repo: str(vars["owner"]) + "/" + str(vars["name"]), after: str(vars["after"]), since: str(vars["since"]), asc: true}
+		if n, ok := vars["n"].(float64); ok {
+			c.size = int(n)
+		}
+		if st, ok := vars["states"].([]any); ok && len(st) == 1 && st[0] == "OPEN" {
+			c.open = true
+		}
+		h.calls = append(h.calls, c)
+		n := len(of(h.calls, "issues"))
+		hook := h.onIssues
+		h.mu.Unlock()
+		if hook != nil {
+			hook(n, req)
+		}
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		return h.issuePage(c, vars)
 
 	case strings.Contains(query, "deployments("):
 		h.calls = append(h.calls, call{kind: "deploys", repo: str(vars["owner"]) + "/" + str(vars["name"])})
@@ -252,6 +312,86 @@ func (h *fakeHub) graphql(query string, vars map[string]any, req *http.Request) 
 	h.mu.Unlock()
 	h.t.Errorf("unexpected query: %s", query)
 	return obj{}
+}
+
+// issuePage answers one page of issues, least recently updated first. The
+// caller holds the lock.
+func (h *fakeHub) issuePage(c call, vars map[string]any) any {
+	if h.noIssues {
+		return gqlErr("FORBIDDEN", "Resource not accessible by personal access token")
+	}
+	if h.issuesErr != "" {
+		return gqlErr(h.issuesErr, "Resource not accessible by personal access token")
+	}
+	r := h.find(vars)
+	if r == nil {
+		return obj{"data": obj{"repository": nil}}
+	}
+	if h.maxIssues > 0 && c.size > h.maxIssues {
+		return obj{"errors": []obj{{"message": "Something went wrong while executing your query. This may be the result of a timeout."}}}
+	}
+	var since time.Time
+	if c.since != "" {
+		t, err := time.Parse(time.RFC3339, c.since)
+		if err != nil {
+			h.t.Errorf("since=%q is not a time", c.since)
+		}
+		since = t
+	}
+	less := func(a, b *issue) bool {
+		if !a.updated.Equal(b.updated) {
+			return a.updated.Before(b.updated)
+		}
+		return a.number < b.number
+	}
+	var list []*issue
+	for _, i := range r.issues {
+		// The filter takes in the issue updated at the very time it names.
+		if c.open && i.state != "OPEN" || i.updated.Before(since) {
+			continue
+		}
+		list = append(list, i)
+	}
+	sort.Slice(list, func(i, j int) bool { return less(list[i], list[j]) })
+	if c.after != "" {
+		at, n, ok := parseCursor(c.after)
+		if !ok {
+			return gqlErr("INVALID_CURSOR_ARGUMENTS", "`"+c.after+"` does not appear to be a valid cursor.")
+		}
+		mark := &issue{number: n, updated: time.Unix(0, at)}
+		rest := list[:0:0]
+		for _, i := range list {
+			if less(mark, i) {
+				rest = append(rest, i)
+			}
+		}
+		list = rest
+	}
+	more := len(list) > c.size
+	if more {
+		list = list[:c.size]
+	}
+	nodes := []obj{}
+	end := ""
+	for _, i := range list {
+		labels := []obj{}
+		for _, l := range i.labels {
+			labels = append(labels, obj{"name": l})
+		}
+		n := obj{"number": i.number, "url": fmt.Sprintf("https://github.com/%s/issues/%d", r.name, i.number), "title": i.title,
+			"state": i.state, "createdAt": ts(i.created), "updatedAt": ts(i.updated), "author": obj{"__typename": "User", "login": "dev"},
+			"labels": obj{"nodes": labels}, "timelineItems": obj{"totalCount": i.reopened}}
+		if i.reason != "" {
+			n["stateReason"] = i.reason
+		}
+		if !i.closed.IsZero() {
+			n["closedAt"] = ts(i.closed)
+		}
+		nodes = append(nodes, n)
+		end = fmt.Sprintf("v2:%d:%d", i.updated.UnixNano(), i.number)
+	}
+	return obj{"data": obj{"repository": obj{"nameWithOwner": r.name,
+		"issues": obj{"pageInfo": obj{"hasNextPage": more, "endCursor": end}, "nodes": nodes}}}}
 }
 
 // page answers one pull request page. The caller holds the lock.
@@ -312,11 +452,27 @@ func (h *fakeHub) page(c call, vars map[string]any) any {
 		nodes = append(nodes, obj{"number": p.number, "url": fmt.Sprintf("https://github.com/%s/pull/%d", r.name, p.number),
 			"title": p.title, "state": p.state, "createdAt": ts(p.created), "updatedAt": ts(p.updated),
 			"headRefName": "fix/x", "baseRefName": "main", "author": obj{"__typename": "User", "login": "dev"},
-			"commits": obj{"totalCount": len(p.shas), "nodes": commits}, "reviews": obj{"nodes": []obj{}}, "timelineItems": obj{"nodes": []obj{}}})
+			"commits": obj{"totalCount": len(p.shas), "nodes": commits}, "reviews": obj{"nodes": []obj{}}, "timelineItems": obj{"nodes": []obj{}},
+			"closingIssuesReferences": obj{"nodes": closing(p.closes)}})
+		if !c.links {
+			// GitHub answers what was asked and no more.
+			delete(nodes[len(nodes)-1], "closingIssuesReferences")
+		}
 		end = cursor(p)
 	}
 	return obj{"data": obj{"repository": obj{"nameWithOwner": r.name, "isPrivate": true,
 		"pullRequests": obj{"pageInfo": obj{"hasNextPage": more, "endCursor": end}, "nodes": nodes}}}}
+}
+
+// closing spells the issues a pull request closes as GitHub does.
+func closing(keys []string) []obj {
+	out := []obj{}
+	for _, k := range keys {
+		repo, num, _ := strings.Cut(k, "#")
+		n, _ := strconv.Atoi(num)
+		out = append(out, obj{"number": n, "repository": obj{"nameWithOwner": repo}})
+	}
+	return out
 }
 
 func (h *fakeHub) rest(req *http.Request) any {

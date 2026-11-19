@@ -52,9 +52,10 @@ type Options struct {
 	// MaxRuns caps the workflow runs read per repository in one sync. The
 	// next sync goes on below the cap.
 	MaxRuns int
-	// SkipCI and SkipDeploys leave those records out.
+	// SkipCI, SkipDeploys and SkipTickets leave those records out.
 	SkipCI      bool
 	SkipDeploys bool
+	SkipTickets bool
 	// IncludeForks and IncludeArchived widen an owner sync.
 	IncludeForks    bool
 	IncludeArchived bool
@@ -101,6 +102,10 @@ type RepoResult struct {
 	Changes Count
 	CIRuns  Count
 	Deploys Count
+	// Tickets are the repository's issues. Links tie its changes to the
+	// tickets they close.
+	Tickets Count
+	Links   Count
 	// From is the time the store holds the repository's changes from.
 	From time.Time
 	// First is set when this was the repository's first finished sync.
@@ -142,7 +147,20 @@ type state struct {
 		Open bool `json:"open"`
 		// Cut is set once a change had more commits than one read returns.
 		Cut bool `json:"cut"`
+		// Links is set once the stored changes carry the tickets they close.
+		// A store written before links were read has it unset, and the next
+		// sync reads its window once more.
+		Links bool `json:"links"`
 	} `json:"changes"`
+	Tickets struct {
+		// Floor is the update time the stored tickets go back to.
+		Floor time.Time `json:"floor"`
+		// High is the update time the read has reached. The next sync reads
+		// the tickets updated since.
+		High time.Time `json:"high"`
+		// Open is set once the open tickets last touched before Floor are stored.
+		Open bool `json:"open"`
+	} `json:"tickets"`
 	CI struct {
 		// Mode is which runs carry the repository's CI: "pull_request" when
 		// runs of pull request events do, "all" when only runs of other
@@ -259,8 +277,13 @@ type repoSync struct {
 	// target is the floor this sync reads back to.
 	target time.Time
 	size   int
+	// issues is the page size of the issue reads. It shrinks the same way.
+	issues int
 	res    RepoResult
 	notes  []string
+	// links are the ticket links of the changes read and not stored yet, by
+	// the id of the change.
+	links map[string][]record.Link
 }
 
 func (r *repoSync) logf(format string, a ...any) {
@@ -284,7 +307,8 @@ func (r *repoSync) run(ctx context.Context) RepoResult {
 	for _, t := range []struct {
 		name string
 		c    *Count
-	}{{store.Changes.Name, &r.res.Changes}, {store.CIRuns.Name, &r.res.CIRuns}, {store.Deploys.Name, &r.res.Deploys}} {
+	}{{store.Changes.Name, &r.res.Changes}, {store.CIRuns.Name, &r.res.CIRuns}, {store.Deploys.Name, &r.res.Deploys},
+		{store.Tickets.Name, &r.res.Tickets}, {store.Links.Name, &r.res.Links}} {
 		if n, cerr := r.g.S.Count(t.name, record.GitHub, r.name); cerr == nil {
 			t.c.Total = n
 		}
@@ -315,14 +339,26 @@ func (r *repoSync) sync(ctx context.Context) error {
 	first := sc.SyncedAt.IsZero()
 
 	if err := r.changes(ctx); err != nil {
+		if errors.Is(err, github.ErrForbidden) && !r.o.SkipTickets {
+			// The query asks for the issues each pull request closes.
+			return fmt.Errorf("pull requests: %w. If the token cannot read issues, give it read-only access to Issues, or pass --skip-tickets", err)
+		}
 		return fmt.Errorf("pull requests: %w", err)
 	}
 	if r.st.Changes.Cut {
 		r.notes = append(r.notes, "Some pull requests have more than 100 commits. Only the first 100 were read.")
 	}
-	// CI runs and deploys are extra depth. A repository without Actions, or a
-	// token that cannot read them, still gets its changes stored. The state
-	// does not move, so the next sync tries again.
+	// Tickets, CI runs and deploys are extra depth. A repository without
+	// Actions, or a token that cannot read them, still gets its changes
+	// stored. The state does not move, so the next sync tries again.
+	if !r.o.SkipTickets {
+		if err := r.tickets(ctx); err != nil {
+			if ctx.Err() != nil {
+				return err
+			}
+			r.notes = append(r.notes, "Issues could not be read: "+err.Error())
+		}
+	}
 	if !r.o.SkipCI {
 		if err := r.ci(ctx); err != nil {
 			if ctx.Err() != nil {
@@ -347,7 +383,7 @@ func (r *repoSync) sync(ctx context.Context) error {
 // page reads one page of changes. A page of big pull requests can time out on
 // GitHub's side, and a smaller page from the same cursor usually goes through.
 func (r *repoSync) page(ctx context.Context, q collector.PageQuery) (collector.Page, error) {
-	q.Repo = r.name
+	q.Repo, q.NoLinks = r.name, r.o.SkipTickets
 	for {
 		q.Size = r.size
 		p, err := r.k.ChangesPage(ctx, q)
@@ -367,19 +403,52 @@ func (r *repoSync) page(ctx context.Context, q collector.PageQuery) (collector.P
 		if p.Cut {
 			r.st.Changes.Cut = true
 		}
+		if len(p.Links) > 0 && r.links == nil {
+			r.links = map[string][]record.Link{}
+		}
+		for _, l := range p.Links {
+			r.links[l.From] = append(r.links[l.From], l)
+		}
 		return p, nil
 	}
 }
 
+// put stores changes and, with them, the links to the tickets they close. A
+// link is never stored without its change.
 func (r *repoSync) put(rows []record.Change) error {
 	added, changed, err := store.Changes.Put(r.g.S, record.GitHub, r.name, rows)
 	r.res.Changes.Added += added
 	r.res.Changes.Changed += changed
+	if err != nil {
+		return err
+	}
+	var links []record.Link
+	for i := range rows {
+		links = append(links, r.links[rows[i].ID]...)
+		delete(r.links, rows[i].ID)
+	}
+	added, changed, err = store.Links.Put(r.g.S, record.GitHub, r.name, links)
+	r.res.Links.Added += added
+	r.res.Links.Changed += changed
 	return err
 }
 
 func (r *repoSync) changes(ctx context.Context) error {
 	c := &r.st.Changes
+	// What is left over belongs to changes outside the window.
+	defer func() { r.links = nil }()
+	switch {
+	case r.o.SkipTickets:
+		// This sync stores changes without their links. The next one that
+		// reads tickets reads the window once more for them.
+		c.Links = false
+	case c.Floor.IsZero() && c.Cursor == "" && c.High.IsZero():
+		// Nothing is stored yet, so every change comes with its links.
+		c.Links = true
+	case !c.Links:
+		// The stale open changes were stored without links too.
+		c.Open = false
+	}
 	if c.Floor.IsZero() || r.target.Before(c.Floor) {
 		if err := r.scan(ctx); err != nil {
 			return err
@@ -475,10 +544,16 @@ func (r *repoSync) scan(ctx context.Context) error {
 }
 
 // head reads the changes updated since the last sync: from the top down to the
-// newest update time the store has seen.
+// newest update time the store has seen. A store whose changes were written
+// before links were read gets its whole window read once more. The changes are
+// only compared with what is stored, and their links are written.
 func (r *repoSync) head(ctx context.Context) error {
 	c := &r.st.Changes
 	high, top, after := c.High, c.High, ""
+	if !c.Links && !r.o.SkipTickets {
+		high = c.Floor
+		r.logf("reading the window once more for the tickets its pull requests close")
+	}
 	var buf []record.Change
 	for pages := 1; ; pages++ {
 		p, err := r.page(ctx, collector.PageQuery{After: after})
@@ -515,7 +590,7 @@ func (r *repoSync) head(ctx context.Context) error {
 	if err := r.put(buf); err != nil {
 		return err
 	}
-	c.High = top
+	c.High, c.Links = top, !r.o.SkipTickets
 	return r.save()
 }
 
@@ -553,6 +628,117 @@ func (r *repoSync) open(ctx context.Context) error {
 	}
 	c.Open = true
 	return r.save()
+}
+
+// tickets stores the repository's issues: the ones updated since the floor,
+// and the open ones nobody touched since before it, which the queue in front
+// of the spec station needs. Issues are read from the least recently updated
+// up, so the place a read has reached is an update time. A read that stops
+// goes on from that time, and so does the next sync.
+func (r *repoSync) tickets(ctx context.Context) error {
+	t := &r.st.Tickets
+	reached := func(at time.Time) error {
+		if at.After(t.High) {
+			t.High = at
+		}
+		return r.save()
+	}
+	switch {
+	case t.Floor.IsZero():
+		t.Floor, t.High = r.target, r.target
+	case r.target.Before(t.Floor):
+		// An earlier floor was asked for. The issues updated since the old
+		// floor are stored, so read the stretch below it.
+		if _, err := r.ticketRange(ctx, r.target, t.Floor, false, nil); err != nil {
+			return err
+		}
+		t.Floor = r.target
+		if err := r.save(); err != nil {
+			return err
+		}
+	}
+	if _, err := r.ticketRange(ctx, t.High, time.Time{}, false, reached); err != nil {
+		return err
+	}
+	if c := r.res.Tickets; c.Added+c.Changed > 0 {
+		r.logf("%d issues new, %d updated", c.Added, c.Changed)
+	}
+	if !t.Open {
+		n, err := r.ticketRange(ctx, time.Time{}, t.Floor, true, nil)
+		if err != nil {
+			return err
+		}
+		if n > 0 {
+			r.logf("%d open issues last touched before %s", n, t.Floor.Format("2006-01-02"))
+		}
+		t.Open = true
+	}
+	return r.save()
+}
+
+// ticketRange reads issues from the least recently updated up, starting at
+// since, and stores them. With before set it stops at the first issue updated
+// at or after it. reached is told the update time the stored issues go up to,
+// every few pages and at the end. It reports how many issues it stored.
+func (r *repoSync) ticketRange(ctx context.Context, since, before time.Time, openOnly bool, reached func(time.Time) error) (int, error) {
+	if r.issues == 0 {
+		// An issue is light next to a pull request with its commits and reviews.
+		r.issues = min(4*r.o.PageSize, 100)
+	}
+	after, n := "", 0
+	var buf []record.Ticket
+	flush := func() error {
+		if len(buf) == 0 {
+			return nil
+		}
+		added, changed, err := store.Tickets.Put(r.g.S, record.GitHub, r.name, buf)
+		r.res.Tickets.Added += added
+		r.res.Tickets.Changed += changed
+		if err != nil {
+			return err
+		}
+		last := buf[len(buf)-1].UpdatedAt
+		n += len(buf)
+		buf = buf[:0]
+		if reached != nil {
+			return reached(last)
+		}
+		return nil
+	}
+	for pages := 1; ; pages++ {
+		p, err := r.k.TicketsPage(ctx, collector.TicketQuery{Repo: r.name, After: after, Size: r.issues, Since: since, OpenOnly: openOnly})
+		if errors.Is(err, github.ErrServer) && r.issues > 1 && ctx.Err() == nil {
+			r.issues = (r.issues + 1) / 2
+			r.logf("github timed out on a page of issues, retrying with %d per page", r.issues)
+			pages--
+			continue
+		}
+		if err != nil {
+			// The issues read so far are good, so keep them. The next sync
+			// goes on from the update time they reach.
+			if ferr := flush(); ferr != nil && ctx.Err() == nil {
+				return n, ferr
+			}
+			return n, err
+		}
+		done := false
+		for _, t := range p.Tickets {
+			if !before.IsZero() && !t.UpdatedAt.Before(before) {
+				done = true
+				break
+			}
+			buf = append(buf, t)
+		}
+		if done || !p.More {
+			return n, flush()
+		}
+		after = p.End
+		if pages%r.o.Checkpoint == 0 {
+			if err := flush(); err != nil {
+				return n, err
+			}
+		}
+	}
 }
 
 func monthStart(t time.Time) time.Time {

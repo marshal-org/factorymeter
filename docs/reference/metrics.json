@@ -1630,6 +1630,44 @@
       "since": "v1"
     },
     {
+      "id": "spec.reopened",
+      "station": "spec",
+      "title": "Find out why finished tickets are opened again",
+      "fires": "At least 10 percent of the tickets finished in the window had been finished before and were opened again. The share is drawn from at least 5 tickets.",
+      "reads": [
+        "spec.rework"
+      ],
+      "sized": "",
+      "play": "decide-up-front",
+      "since": "v1"
+    },
+    {
+      "id": "spec.stale-tickets",
+      "station": "spec",
+      "title": "Close or schedule the tickets nobody has started",
+      "fires": "At least 5 tickets have been open for more than 90 days at the end of the window with no work started on them.",
+      "reads": [
+        "spec.queue",
+        "spec.queue.oldest"
+      ],
+      "sized": "",
+      "play": "",
+      "since": "v1"
+    },
+    {
+      "id": "spec.backlog-thin",
+      "station": "spec",
+      "title": "Write up more work that is ready to start",
+      "fires": "Fewer tickets are open and not started at the end of the window than the line starts in one week. The pace is drawn from at least 5 tickets started in the window.",
+      "reads": [
+        "spec.queue",
+        "spec.flow"
+      ],
+      "sized": "",
+      "play": "keep-the-line-fed",
+      "since": "v1"
+    },
+    {
       "id": "review.agents-wait-longer",
       "station": "review",
       "title": "Find out why changes by agents wait longer for review",

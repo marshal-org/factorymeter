@@ -55,8 +55,8 @@ says why, instead of reporting a guess.
 4. **A number says how much stands behind it.** Every value carries the count
    of items it is drawn from, and is marked thin under the metric's minimum
    sample.
-5. **A station that is not connected says so.** With no ticket source, `spec`
-   is reported as `not_connected`. It is not reported as zero.
+5. **A station that is not connected says so.** With no tickets in the store,
+   `spec` is reported as `not_connected`. It is not reported as zero.
 6. **Breaking changes get a new version.** They would ship as
    `factorymeter/v2`, with `v1` still written for a while.
 7. **A rule id names the same recommendation.** `review.slow` is the same
@@ -113,7 +113,9 @@ points of `<station>.held.total` do not add up to the value of the window.
 the reason in `missing`. Its numbers are `null`, never zero. Four cases come
 up on GitHub alone:
 
-- `spec` is not connected until a ticket source is.
+- `spec` is not connected while the store holds no tickets. On GitHub a ticket
+  is an issue. An issue has no started state, so it starts when the first pull
+  request that closes it is opened.
 - `verify` counts a deployment to an environment that is not production, made
   from a commit of a change before the change merged. Deployments of the
   branch a change merges into, and GitHub Pages, do not count. With fewer than
@@ -173,7 +175,8 @@ measured. It is never reported as zero.
 | `factorymeter report`: `factorymeter/v1` from the store, by station, with weekly history | Built |
 | Recommendations: rules with stable ids, sized against the line's own best four weeks, [reference/rules.md](reference/rules.md) | Built |
 | A local page: `factorymeter serve`, and the same page as one file: `factorymeter report --html` | Built |
-| Tickets from GitHub Issues, deploy and verify depth | Next |
+| Tickets from GitHub Issues, the links from changes to the tickets they close, and the rules of the spec station | Built |
+| CI and release depth: failing workflows by name, merge queue runs, deploys matched by commit | Next |
 | The store kept between runs of the GitHub Action | After that |
 | Tickets from Linear and Jira | After that |
 
