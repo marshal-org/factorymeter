@@ -1,5 +1,5 @@
 name: factorymeter
-description: Measure your delivery line, split by agent and human pull requests, and name the stage where work waits.
+description: Measure your delivery line station by station, split by agent and human pull requests, and name the station where work waits.
 author: Marshal
 branding:
   icon: activity
@@ -11,11 +11,13 @@ branding:
 #   permissions:
 #     contents: read
 #     pull-requests: read
+#     issues: read
 #     actions: read
 #     deployments: read
 #
-# The report goes to the job summary and to a build artifact. Nothing is sent
-# anywhere except to the GitHub API.
+# The report goes to the job summary and to a build artifact. The store, which
+# is what makes the next run quick, goes to a second build artifact of the same
+# repository. Nothing is sent anywhere except to the GitHub API.
 
 inputs:
   target:
@@ -23,9 +25,13 @@ inputs:
     required: false
     default: ${{ github.repository }}
   since:
-    description: "Start of the window: days (30d), weeks (12w) or a date (2026-01-31)."
+    description: "The window the report covers, in whole weeks: 13w or 26w."
     required: false
-    default: 30d
+    default: 13w
+  history:
+    description: "How far back the first run reads: weeks (26w), days (180d) or a date (2026-01-31). The report compares the window with the one before it, so give at least twice the window."
+    required: false
+    default: 26w
   token:
     description: A token that can read the target. The job's own token is enough for the repository the workflow runs in.
     required: false
@@ -35,39 +41,56 @@ inputs:
     required: false
     default: "true"
   artifact:
-    description: Upload the HTML report and the JSON export as a build artifact.
+    description: Upload the HTML page, the JSON export and the Markdown report as a build artifact.
     required: false
     default: "true"
   artifact-name:
-    description: Name of the build artifact.
+    description: Name of the build artifact that holds the report.
     required: false
     default: factorymeter-report
+  store:
+    description: Keep the store between runs as a build artifact, so a run reads only what changed since the one before. With false, every run reads the whole history and nothing is kept.
+    required: false
+    default: "true"
+  store-artifact-name:
+    description: Name of the build artifact that holds the store. The owner of the target is added to it.
+    required: false
+    default: factorymeter-store
 
 outputs:
   headline:
     description: The one-sentence result.
     value: ${{ steps.report.outputs.headline }}
   constraint:
-    description: The stage where work waits the longest, or empty when the window has too little to name one.
+    description: The station that holds the most of the hours changes spend on the line, such as review or release. Empty when the window has too little to name one.
     value: ${{ steps.report.outputs.constraint }}
   constraint-share:
-    description: The share of open-to-merge time the constraint holds, from 0 to 1.
+    description: The share of those hours the constraint holds, from 0 to 1.
     value: ${{ steps.report.outputs.constraint-share }}
-  disclosed-agent-share:
-    description: The share of merged pull requests that disclosed an agent, from 0 to 1. Empty when nothing merged.
-    value: ${{ steps.report.outputs.disclosed-agent-share }}
-  lights-out-url:
-    description: A link that opens the Lights Out simulator with the measured numbers.
-    value: ${{ steps.report.outputs.lights-out-url }}
+  agent-share:
+    description: The share of the changes merged by agents and people that an agent wrote, from 0 to 1. A floor. Empty when nothing merged.
+    value: ${{ steps.report.outputs.agent-share }}
+  recommendation:
+    description: The title of the first recommendation, or empty when there is none.
+    value: ${{ steps.report.outputs.recommendation }}
+  restored:
+    description: Whether the run started from the store of an earlier run, true or false.
+    value: ${{ steps.restore.outputs.restored }}
+  requests:
+    description: The number of requests the sync made to GitHub.
+    value: ${{ steps.sync.outputs.requests }}
   html:
     description: Path of the one-page HTML report on the runner.
     value: ${{ steps.report.outputs.html }}
   json:
-    description: Path of the JSON export on the runner.
+    description: Path of the factorymeter/v1 JSON export on the runner.
     value: ${{ steps.report.outputs.json }}
   markdown:
     description: Path of the Markdown report on the runner.
     value: ${{ steps.report.outputs.markdown }}
+  store:
+    description: Path of the store on the runner.
+    value: ${{ steps.report.outputs.store }}
 
 runs:
   using: composite
@@ -91,39 +114,52 @@ runs:
           -ldflags "-s -w -X main.version=${version:-dev}" \
           -o "$RUNNER_TEMP/factorymeter" ./cmd/factorymeter
 
-    # Inputs reach the script through the environment, never through the
-    # script text, so an input cannot run as shell.
-    - name: Measure
-      id: report
+    # Every step below runs scripts/action.sh. Inputs reach it through the
+    # environment, never through the script text, so an input cannot run as
+    # shell.
+
+    # The store comes from an artifact of this repository, so this step uses
+    # the job's own token. The token input is for the target and stays out.
+    - name: Restore the store
+      id: restore
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        FM_TARGET: ${{ inputs.target }}
+        FM_STORE: ${{ inputs.store }}
+        FM_STORE_NAME: ${{ inputs.store-artifact-name }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/action.sh" restore
+
+    - name: Sync
+      id: sync
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.token }}
         FM_TARGET: ${{ inputs.target }}
+        FM_HISTORY: ${{ inputs.history }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/action.sh" sync
+
+    # Runs after a sync that failed or was stopped too. Such a sync keeps what
+    # it stored, and the next run goes on from there.
+    - name: Decide what may leave the runner
+      id: share
+      if: always()
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        FM_TARGET: ${{ inputs.target }}
+        FM_STORE: ${{ inputs.store }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/action.sh" share
+
+    - name: Report
+      id: report
+      shell: bash
+      env:
+        FM_TARGET: ${{ inputs.target }}
         FM_SINCE: ${{ inputs.since }}
         FM_SUMMARY: ${{ inputs.summary }}
-      run: |
-        set -euo pipefail
-        out="$RUNNER_TEMP/factorymeter-report"
-        mkdir -p "$out"
-        "$RUNNER_TEMP/factorymeter" snapshot "$FM_TARGET" --since "$FM_SINCE" \
-          --format markdown --html "$out/factorymeter.html" --json "$out/factorymeter.json" \
-          > "$out/factorymeter.md"
-        if [ "$FM_SUMMARY" = "true" ]; then
-          cat "$out/factorymeter.md" >> "$GITHUB_STEP_SUMMARY"
-        fi
-        # One line per output. Line breaks are removed so a value cannot add
-        # an output of its own.
-        one() { jq -r "$1 // \"\" | tostring | gsub(\"[\\r\\n]\"; \" \")" "$out/factorymeter.json"; }
-        {
-          echo "headline=$(one .headline)"
-          echo "constraint=$(one .constraint.stage)"
-          echo "constraint-share=$(one .constraint.share_of_open_to_merge)"
-          echo "disclosed-agent-share=$(one .disclosed_agent_share)"
-          echo "lights-out-url=$(one .lights_out.url)"
-          echo "html=$out/factorymeter.html"
-          echo "json=$out/factorymeter.json"
-          echo "markdown=$out/factorymeter.md"
-        } >> "$GITHUB_OUTPUT"
+        FM_NAMES: ${{ steps.share.outputs.names }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/action.sh" report
 
     - name: Upload the report
       if: inputs.artifact == 'true'
@@ -134,4 +170,14 @@ runs:
           ${{ runner.temp }}/factorymeter-report/factorymeter.html
           ${{ runner.temp }}/factorymeter-report/factorymeter.json
           ${{ runner.temp }}/factorymeter-report/factorymeter.md
+        if-no-files-found: error
+
+    - name: Save the store
+      if: always() && steps.share.outputs.save == 'true'
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: ${{ steps.restore.outputs.name }}
+        path: |
+          ${{ runner.temp }}/factorymeter-store
+          !${{ runner.temp }}/factorymeter-store/store.lock
         if-no-files-found: error

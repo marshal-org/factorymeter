@@ -291,10 +291,13 @@ It has not been tested against GitHub Enterprise Server. It reads `GITHUB_API_UR
 
 ## Run it on a schedule
 
-factorymeter is also a GitHub Action. It writes a report to the job summary and uploads the
-HTML and JSON as a build artifact. It asks for read permissions only. The Action still runs
-`snapshot`. It moves to `sync` and `report`, with the store kept between runs, in a later
-release.
+factorymeter is also a GitHub Action. Each run syncs the store, writes the report to the job
+summary, and uploads the HTML page, the JSON and the Markdown as a build artifact. It asks for
+read permissions only.
+
+The Action keeps the store between runs as a second build artifact. The first run reads 26
+weeks of history. Every run after it starts from the store the run before saved and reads only
+what changed, so a weekly run takes a few requests.
 
 ```yaml
 name: factorymeter
@@ -306,6 +309,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  issues: read
   actions: read
   deployments: read
 
@@ -315,21 +319,41 @@ jobs:
     steps:
       - uses: marshal-org/factorymeter@v0.1.0   # or pin a commit SHA
         with:
-          since: 30d
+          since: 13w
 ```
 
 | Input | Default | Meaning |
 |---|---|---|
 | `target` | the repository the workflow runs in | `owner/repo`, or an owner for all of its active repositories |
-| `since` | `30d` | start of the window |
+| `since` | `13w` | the window the report covers, in whole weeks |
+| `history` | `26w` | how far back the first run reads. The report compares the window with the one before it, so give at least twice the window |
 | `token` | the job's own token | a token that can read the target. An owner-wide report needs your own read-only token |
 | `summary` | `true` | write the report to the job summary |
 | `artifact` | `true` | upload the HTML, JSON and Markdown as a build artifact |
-| `artifact-name` | `factorymeter-report` | name of the artifact |
+| `artifact-name` | `factorymeter-report` | name of the artifact that holds the report |
+| `store` | `true` | keep the store between runs. With `false` every run reads the whole history and nothing is kept |
+| `store-artifact-name` | `factorymeter-store` | name of the artifact that holds the store. The owner of the target is added to it |
 
-Outputs: `headline`, `constraint`, `constraint-share`, `disclosed-agent-share`, `lights-out-url`,
-and the paths `html`, `json` and `markdown`. `constraint` and `constraint-share` are empty when fewer
-than 5 pull requests merged in the window.
+Outputs: `headline`, `constraint`, `constraint-share`, `agent-share`, `recommendation`,
+`restored`, `requests`, and the paths `html`, `json`, `markdown` and `store`. `constraint` and
+`constraint-share` are empty when the window has too little to name a constraint.
+
+What to know about the store artifact:
+
+- **It is as private as your repository.** Anyone who can read the repository the workflow runs
+  in can download its artifacts. The store of a private repository holds its pull request
+  titles and logins. So when the workflow runs in a public repository and the target has a
+  private repository in it, the Action does not save the store, writes the report without
+  names, and says so in a warning.
+- **It is only taken from a run of your own repository.** A pull request from a fork can upload
+  an artifact under any name. The Action never restores one of those.
+- **A run that stopped still saves what it read.** The next run goes on from there.
+- **GitHub deletes artifacts after 90 days, or sooner if your settings say so.** After that the
+  next run reads the whole history again. Nothing else is lost.
+- **To start over,** delete the artifact, or run once with `store: false`.
+
+The job needs `actions: read` to find the store, and the GitHub CLI, which GitHub's own runners
+have. Without either, the run still works: it reads the whole history and prints a warning.
 
 The Action builds the binary from the commit you pinned, so the code that runs is the code you
 can read.
@@ -349,7 +373,8 @@ server, so opening the link shares nothing.
 - It is not a hosted service. There is no account and no dashboard to log in to.
 - It sends no telemetry.
 - It does not name people. The report holds counts and times, not authors or reviewers. The
-  store on your machine does hold the logins GitHub returned, and it stays on your machine.
+  store does hold the logins GitHub returned. It stays on your machine, or, when the Action
+  runs, in a build artifact of your own repository.
 
 ## Contributing
 

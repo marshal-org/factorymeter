@@ -191,8 +191,8 @@ measured. It is never reported as zero.
 | A local page: `factorymeter serve`, and the same page as one file: `factorymeter report --html` | Built |
 | Tickets from GitHub Issues, the links from changes to the tickets they close, and the rules of the spec station | Built |
 | CI and release depth: failing workflows by name, merge queue runs, deploys matched by commit | Built |
-| The store kept between runs of the GitHub Action | Next |
-| Tickets from Linear and Jira | After that |
+| The store kept between runs of the GitHub Action, [store.md](store.md#the-store-in-the-github-action) | Built |
+| Tickets from Linear and Jira | Next |
 
 `snapshot` and `trend` are the first generation. They read GitHub on every run,
 and [metrics.md](metrics.md) describes what they print.

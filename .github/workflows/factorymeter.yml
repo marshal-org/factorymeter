@@ -1,7 +1,8 @@
 name: factorymeter
 
 # Measures this repository with the Action in this repository, once a week
-# and on demand. The report is in the job summary and in the build artifact.
+# and on demand. The report is in the job summary and in a build artifact. The
+# store is in a second build artifact, and the next run starts from it.
 #
 # Read permissions only. This workflow cannot change anything.
 
@@ -15,14 +16,15 @@ on:
         required: false
         type: string
       since:
-        description: Start of the window, such as 30d or 12w.
+        description: The window in whole weeks, such as 13w or 26w.
         required: false
-        default: 30d
+        default: 13w
         type: string
 
 permissions:
   contents: read
   pull-requests: read
+  issues: read
   actions: read
   deployments: read
 
@@ -43,11 +45,15 @@ jobs:
         id: fm
         with:
           target: ${{ inputs.target || github.repository }}
-          since: ${{ inputs.since || '30d' }}
+          since: ${{ inputs.since || '13w' }}
       - name: Headline
         env:
           HEADLINE: ${{ steps.fm.outputs.headline }}
           CONSTRAINT: ${{ steps.fm.outputs.constraint }}
+          RESTORED: ${{ steps.fm.outputs.restored }}
+          REQUESTS: ${{ steps.fm.outputs.requests }}
         run: |
           echo "headline: $HEADLINE"
           echo "constraint: ${CONSTRAINT:-none}"
+          echo "started from a saved store: $RESTORED"
+          echo "requests to GitHub: $REQUESTS"
