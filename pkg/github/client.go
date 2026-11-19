@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -24,6 +25,9 @@ var ErrServer = errors.New("github server error")
 // ErrNotFound marks a 404, or a GraphQL NOT_FOUND. A token without access to a
 // private repository also gets this.
 var ErrNotFound = errors.New("not found")
+
+// ErrBadCursor is returned when GitHub does not accept a paging cursor.
+var ErrBadCursor = errors.New("bad cursor")
 
 // Client talks to one GitHub host.
 type Client struct {
@@ -41,9 +45,11 @@ type Client struct {
 	// UserAgent is sent with every request.
 	UserAgent string
 
-	// Calls counts HTTP requests sent, including retries.
+	// Calls counts HTTP requests sent, including retries. Read it when no
+	// request is in flight.
 	Calls int
 
+	mu    sync.Mutex
 	sleep func(context.Context, time.Duration) error
 }
 
@@ -95,7 +101,9 @@ func (c *Client) do(ctx context.Context, mk func() (*http.Request, error)) ([]by
 		if c.Token != "" {
 			req.Header.Set("Authorization", "Bearer "+c.Token)
 		}
+		c.mu.Lock()
 		c.Calls++
+		c.mu.Unlock()
 		resp, err := c.HTTP.Do(req)
 		if err != nil {
 			if ctx.Err() != nil {
@@ -255,6 +263,8 @@ func (c *Client) GraphQL(ctx context.Context, query string, vars map[string]any,
 			}
 		case "NOT_FOUND":
 			return fmt.Errorf("%w: %s", ErrNotFound, e.Message)
+		case "INVALID_CURSOR_ARGUMENTS":
+			return fmt.Errorf("%w: %s", ErrBadCursor, e.Message)
 		case "FORBIDDEN", "INSUFFICIENT_SCOPES":
 			return fmt.Errorf("github refused the query: %s", e.Message)
 		default:

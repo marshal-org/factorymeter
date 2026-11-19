@@ -171,6 +171,21 @@ group. Like the report, it is one file with no scripts and no outside assets.
 The change is measured between the first third and the last third of the periods, so one odd
 week does not decide it. [docs/metrics.md](docs/metrics.md#the-trend) has the rules.
 
+## Keep the history on disk
+
+A report reads the whole window from GitHub each time. `sync` reads it once into a store on
+your machine, and after that only what changed.
+
+```bash
+factorymeter sync owner/repo      # the first sync reads 26 weeks; a later one reads what changed
+factorymeter sync my-org          # every active repository of an owner
+factorymeter store info my-org    # what the store holds
+```
+
+The store is a directory of Parquet files. A sync that is stopped goes on where it left off.
+`report` and `trend` move to the store in the next release. [docs/store.md](docs/store.md) has
+the details.
+
 ## How agents are detected
 
 Every rule is in one open file: [`signatures/registry.yaml`](signatures/registry.yaml). Version 1

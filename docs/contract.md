@@ -92,8 +92,8 @@ measured. It is never reported as zero.
 | Part | State |
 |---|---|
 | Stations, metric registry, record types, report types, generated reference, JSON Schema | Built |
-| Store and incremental sync | Next |
-| `report` writing `factorymeter/v1`, with weekly history | After the store |
+| Store and incremental sync: `factorymeter sync`, [store.md](store.md) | Built |
+| `report` writing `factorymeter/v1` from the store, with weekly history | Next |
 | Recommendations | After the report |
 | Tickets from GitHub Issues, Linear and Jira | After the report |
 
