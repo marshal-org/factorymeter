@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime/debug"
 	"strings"
 	"syscall"
 
@@ -20,11 +21,33 @@ import (
 	"github.com/marshal-org/factorymeter/pkg/linear"
 )
 
-// version is set at build time with -ldflags "-X main.version=...".
+// version is set at build time with -ldflags "-X main.version=...". A build
+// by "go install" of a release has no such flag and takes the version of the
+// module it was built from.
 var version = "dev"
 
+func init() {
+	if version != "dev" {
+		return
+	}
+	if bi, ok := debug.ReadBuildInfo(); ok {
+		version = released(bi.Main.Version, version)
+	}
+}
+
+// released is the version of the module when that is a release, such as
+// v0.1.0, else the fallback. A build from a checkout is not a release.
+func released(module, fallback string) string {
+	if strings.HasPrefix(module, "v") && !strings.ContainsAny(module, "-+") {
+		return module
+	}
+	return fallback
+}
+
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	// A closed terminal stops a sync the same way Ctrl-C does: what was read
+	// is stored and the lock on the store is let go.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer stop()
 	root := &cobra.Command{
 		Use:   "factorymeter",
@@ -45,10 +68,18 @@ and, when you ask for it, the Linear API.`,
 	}
 	root.AddCommand(reportCmd(), serveCmd(), syncCmd(), snapshotCmd(), trendCmd(), storeCmd(), classifyCmd(), signaturesCmd(), metricsCmd(), rulesCmd(), contractCmd())
 	if err := root.ExecuteContext(ctx); err != nil {
-		fmt.Fprintln(os.Stderr, "factorymeter:", err)
+		if !errors.As(err, new(toldErr)) {
+			fmt.Fprintln(os.Stderr, "factorymeter:", err)
+		}
 		os.Exit(1)
 	}
 }
+
+// toldErr is an error the screen has already told the person. The run still
+// ends as a failure. The error is not printed a second time.
+type toldErr struct{ error }
+
+func (s toldErr) Unwrap() error { return s.error }
 
 // token finds a GitHub token without ever printing it.
 func token() (string, error) {

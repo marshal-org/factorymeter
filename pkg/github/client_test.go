@@ -159,6 +159,32 @@ func TestErrors(t *testing.T) {
 	}
 }
 
+// GitHub has answered a rate limit with a type the client did not know. The
+// message tells too. With points left in the budget it is a call for a slower
+// pace, so the wait is short and grows, and the query is asked again.
+func TestGraphQLRateLimitIsKnownByItsMessage(t *testing.T) {
+	replies := []string{
+		`{"errors":[{"type":"RATE_LIMIT","code":"graphql_rate_limit","message":"API rate limit already exceeded for user ID 1."}]}`,
+		`{"errors":[{"message":"You have exceeded a secondary rate limit."}]}`,
+		`{"data":{"v":9}}`,
+	}
+	c, slept := fake(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/rate_limit" {
+			fmt.Fprintf(w, `{"resources":{"graphql":{"remaining":4000,"reset":%d}}}`, time.Now().Add(50*time.Minute).Unix())
+			return
+		}
+		io.WriteString(w, replies[0])
+		replies = replies[1:]
+	})
+	var out struct{ V int }
+	if err := c.GraphQL(context.Background(), "{ v }", nil, &out); err != nil || out.V != 9 {
+		t.Fatalf("got %v %v", out, err)
+	}
+	if len(*slept) != 2 || (*slept)[0] != time.Minute || (*slept)[1] != 2*time.Minute {
+		t.Errorf("the waits must be short and grow, not run to the reset: %v", *slept)
+	}
+}
+
 func TestCancelStopsTheWait(t *testing.T) {
 	c, _ := fake(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Retry-After", "5")
@@ -225,5 +251,66 @@ func TestGraphQL(t *testing.T) {
 	}
 	if err := ask(`<html>502</html>`); !errors.Is(err, ErrServer) {
 		t.Errorf("a body that is not JSON: %v", err)
+	}
+}
+
+// A display that listens gets the wait as a length of time, for REST and for
+// GraphQL, and the line for a log is then not written as well.
+func TestAWaitForARateLimitIsToldToADisplay(t *testing.T) {
+	n := 0
+	c, slept := fake(t, func(w http.ResponseWriter, r *http.Request) {
+		n++
+		switch {
+		case n == 1:
+			w.Header().Set("Retry-After", "7")
+			w.WriteHeader(http.StatusForbidden)
+			io.WriteString(w, `{"message":"You have exceeded a secondary rate limit."}`)
+		case n == 2:
+			io.WriteString(w, `{"ok":true}`)
+		case r.URL.Path == "/rate_limit":
+			fmt.Fprintf(w, `{"resources":{"graphql":{"remaining":4000,"reset":%d}}}`, time.Now().Add(50*time.Minute).Unix())
+		case n == 3:
+			io.WriteString(w, `{"errors":[{"type":"RATE_LIMITED","message":"slow down"}]}`)
+		default:
+			io.WriteString(w, `{"data":{"v":9}}`)
+		}
+	})
+	var told []time.Duration
+	var logged []string
+	c.Waiting = func(d time.Duration) { told = append(told, d) }
+	c.Logf = func(f string, a ...any) { logged = append(logged, fmt.Sprintf(f, a...)) }
+	if _, err := c.REST(context.Background(), "/x", nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	var out struct{ V int }
+	if err := c.GraphQL(context.Background(), "query { v }", nil, &out); err != nil || out.V != 9 {
+		t.Fatalf("got %v %v", out, err)
+	}
+	if len(told) != 2 || len(*slept) != 2 || told[0] != 8*time.Second || told[0] != (*slept)[0] || told[1] != (*slept)[1] || told[1] <= 0 {
+		t.Errorf("told %v, slept %v: every wait must be told as it is slept", told, *slept)
+	}
+	if len(logged) != 0 {
+		t.Errorf("a wait that was told was logged too: %q", logged)
+	}
+}
+
+// A request that gets no answer is tried again, and the wait for it is said
+// once, not once for each try.
+func TestNoAnswerIsSaidOnce(t *testing.T) {
+	c, slept := fake(t, func(w http.ResponseWriter, r *http.Request) {})
+	c.BaseURL = "http://127.0.0.1:1"
+	var logged []string
+	c.Logf = func(f string, a ...any) { logged = append(logged, fmt.Sprintf(f, a...)) }
+	// Nothing listens there. That is no server error: a smaller page would
+	// not be answered either, so the reader must not try one.
+	_, err := c.REST(context.Background(), "/x", nil, nil)
+	if !errors.Is(err, ErrUnreachable) || errors.Is(err, ErrServer) {
+		t.Fatalf("got %v, want it to say that GitHub cannot be reached", err)
+	}
+	if len(*slept) != maxAttempts {
+		t.Errorf("slept %v, want one wait for each of %d tries", *slept, maxAttempts)
+	}
+	if len(logged) != 1 || logged[0] != "GitHub does not answer. Trying again for about a minute" {
+		t.Errorf("logged %q, want the one line", logged)
 	}
 }

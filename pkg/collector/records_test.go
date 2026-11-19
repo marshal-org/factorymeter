@@ -71,7 +71,7 @@ func TestAPullRequestBecomesAChange(t *testing.T) {
 func TestChangesPage(t *testing.T) {
 	s := &server{graphql: func(r gqlReq) any {
 		return obj{"data": obj{"repository": obj{"nameWithOwner": "Acme/App", "isPrivate": true, "pullRequests": obj{
-			"pageInfo": obj{"hasNextPage": true, "endCursor": "c2"}, "nodes": []obj{node(1, day(1), day(2), "a")}}}}}
+			"totalCount": 41, "pageInfo": obj{"hasNextPage": true, "endCursor": "c2"}, "nodes": []obj{node(1, day(1), day(2), "a")}}}}}
 	}}
 	k := s.collector(t, Options{})
 	p, err := k.ChangesPage(context.Background(), PageQuery{Repo: "acme/app", After: "c1", Size: 10, OpenOnly: true, OldestFirst: true})
@@ -85,6 +85,11 @@ func TestChangesPage(t *testing.T) {
 	// Records carry the name as GitHub spells it.
 	if p.Repo != "Acme/App" || !p.Private || !p.More || p.End != "c2" || len(p.Changes) != 1 || p.Changes[0].ID != "github:Acme/App#1" || p.Cut {
 		t.Errorf("page: %+v", p)
+	}
+	// The page says how many pull requests the whole list holds, so a
+	// display can tell how far a read is.
+	if p.Total != 41 {
+		t.Errorf("total = %d, want the 41 GitHub counted", p.Total)
 	}
 	if _, err = k.ChangesPage(context.Background(), PageQuery{Repo: "acme/app", Size: 10}); err != nil {
 		t.Fatal(err)

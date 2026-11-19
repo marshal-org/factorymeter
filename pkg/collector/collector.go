@@ -432,7 +432,7 @@ func (k *Collector) ciRuns(ctx context.Context, rd *model.RepoData) error {
 	// that only build on push have none of those, so fall back to every event.
 	for _, events := range [][]string{{"pull_request", "pull_request_target"}, {""}} {
 		for _, ev := range events {
-			if err := k.runsRange(ctx, rd.Repo, ev, from, k.Opt.Until, max, &read, &truncated, attach); err != nil {
+			if err := k.runsRange(ctx, rd.Repo, ev, from, k.Opt.Until, max, &read, &truncated, nil, attach); err != nil {
 				return err
 			}
 		}
@@ -453,7 +453,10 @@ func (k *Collector) ciRuns(ctx context.Context, rd *model.RepoData) error {
 // runsRange lists runs created between from and to. The API returns at most
 // 1,000 results for one filter, so a range with more is split in half until
 // each half fits. Newer halves go first so a cap drops the oldest runs.
-func (k *Collector) runsRange(ctx context.Context, repo, event string, from, to time.Time, max int, read *int, truncated *bool, attach func([]restRun)) error {
+//
+// whole, when set, is told once how many runs the stretch holds, before the
+// first of them is attached.
+func (k *Collector) runsRange(ctx context.Context, repo, event string, from, to time.Time, max int, read *int, truncated *bool, whole func(int), attach func([]restRun)) error {
 	if *read >= max {
 		*truncated = true
 		return nil
@@ -472,12 +475,15 @@ func (k *Collector) runsRange(ctx context.Context, repo, event string, from, to 
 	if _, err := k.C.REST(ctx, "/repos/"+repo+"/actions/runs", q, &page); err != nil {
 		return err
 	}
+	if whole != nil {
+		whole(page.TotalCount)
+	}
 	if page.TotalCount > 1000 && to.Sub(from) > time.Minute {
 		mid := from.Add(to.Sub(from) / 2)
-		if err := k.runsRange(ctx, repo, event, mid.Add(time.Second), to, max, read, truncated, attach); err != nil {
+		if err := k.runsRange(ctx, repo, event, mid.Add(time.Second), to, max, read, truncated, nil, attach); err != nil {
 			return err
 		}
-		return k.runsRange(ctx, repo, event, from, mid, max, read, truncated, attach)
+		return k.runsRange(ctx, repo, event, from, mid, max, read, truncated, nil, attach)
 	}
 	attach(page.WorkflowRuns)
 	for p := 2; len(page.WorkflowRuns) == 100 && p <= 10; p++ {

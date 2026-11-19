@@ -69,6 +69,11 @@ type Scope struct {
 	SyncedAt time.Time `json:"synced_at"`
 	// Notes are limits the last sync ran into, in plain sentences.
 	Notes []string `json:"notes"`
+	// Took is how long the last finished sync of this scope took, in seconds.
+	// TookFull is set when that sync read the whole window and not only what
+	// changed. A display uses the two to say how long the next sync may take.
+	Took     float64 `json:"took_seconds,omitempty"`
+	TookFull bool    `json:"took_full,omitempty"`
 	// State belongs to the source adapter. It holds what the adapter needs to
 	// read only what changed next time.
 	State json.RawMessage `json:"state"`

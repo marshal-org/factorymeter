@@ -241,3 +241,32 @@ func TestQueryRetriesAServerErrorThenAnswers(t *testing.T) {
 		t.Errorf("slept %v", *slept)
 	}
 }
+
+// A display that listens gets the wait as a length of time, and the line for
+// a log is then not written as well.
+func TestAWaitForARateLimitIsToldToADisplay(t *testing.T) {
+	n := 0
+	c, slept := fake(t, func(w http.ResponseWriter, _ *http.Request) {
+		if n++; n == 1 {
+			w.Header().Set("Retry-After", "7")
+			w.WriteHeader(429)
+			fmt.Fprint(w, `{"errors":[{"message":"Rate limit exceeded","extensions":{"code":"RATELIMITED"}}]}`)
+			return
+		}
+		fmt.Fprint(w, `{"data":{"organization":{"urlKey":"acme"}}}`)
+	})
+	var told []time.Duration
+	var lines []string
+	c.Waiting = func(d time.Duration) { told = append(told, d) }
+	c.Logf = func(f string, a ...any) { lines = append(lines, fmt.Sprintf(f, a...)) }
+	var out org
+	if err := c.Query(context.Background(), orgQuery, nil, &out); err != nil {
+		t.Fatal(err)
+	}
+	if len(told) != 1 || told[0] != 8*time.Second || len(*slept) != 1 || (*slept)[0] != told[0] {
+		t.Errorf("told %v, slept %v", told, *slept)
+	}
+	if len(lines) != 0 {
+		t.Errorf("a wait that was told was logged too: %q", lines)
+	}
+}
