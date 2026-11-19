@@ -493,7 +493,7 @@ func TestRulesThatCompareAgentsWithPeople(t *testing.T) {
 		t.Errorf("ci.agents-fail-more: %s:\n got %s\nwant %s", g.Confidence, g.Why, want)
 	}
 	if e := g.Evidence[0]; e.Slice.Class != "agent" || num(e.Value) != "0.5" || num(e.Versus) != "0" ||
-		e.Text != "CI rounds that failed: 50 percent for agents, from 6. 0 percent for people, from 6." {
+		e.Text != "CI rounds that failed: 50 percent for agents, over 6 items. 0 percent for people, over 6 items." {
 		t.Errorf("ci.agents-fail-more evidence: %+v", e)
 	}
 	w := advice(t, r, "review.agents-wait-longer")

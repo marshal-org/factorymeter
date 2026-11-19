@@ -214,7 +214,7 @@ func (a *adviser) classes(id string) (agent, human float64, n int, e contract.Ev
 		return 0, 0, 0, e, false
 	}
 	e = contract.Evidence{Metric: id, Slice: contract.Slice{Class: classNames[classAgent]}, Value: rounded(av), Versus: rounded(hv),
-		Text: fmt.Sprintf("%s: %s for agents, from %d. %s for people, from %d.", m.Name, say(m, *av), an, say(m, *hv), hn)}
+		Text: fmt.Sprintf("%s: %s for agents, over %d items. %s for people, over %d items.", m.Name, say(m, *av), an, say(m, *hv), hn)}
 	return *av, *hv, min(an, hn), e, true
 }
 

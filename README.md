@@ -160,6 +160,7 @@ factorymeter sync my-org                       # every active repository of an o
 factorymeter report my-org                     # the last 13 weeks against the 13 before
 factorymeter report my-org --since 26w         # a longer window
 factorymeter report owner/repo --until 4w      # the line as it stood four weeks ago
+factorymeter serve my-org                      # the same report as a page in the browser
 factorymeter store info my-org                 # what the store holds
 ```
 
@@ -171,6 +172,7 @@ goes on where it left off. The store is a directory of Parquet files:
 |---|---|---|
 | Terminal | the default | reading it now |
 | Markdown | `--format markdown` | a job summary or a pull request |
+| One HTML page | `--html line.html`, or `--format html` | keeping it, or publishing it from a job. It is the page `serve` shows |
 | JSON | `--json line.json`, or `--format json` | your own dashboards. The layout is `factorymeter/v1`, with a [JSON Schema](docs/reference/factorymeter-v1.schema.json) |
 | Summary | add `--summary` | sharing. It leaves out every repository name, title and link, so the file holds station numbers only |
 
@@ -183,6 +185,44 @@ factorymeter rules review                  # the rules of one station
 factorymeter classify owner/repo#123       # why one pull request counted as agent or human
 factorymeter signatures list               # every signature in use
 ```
+
+## See it as a page
+
+```bash
+factorymeter serve my-org          # then open http://127.0.0.1:7377
+```
+
+`serve` shows the report as a page, read from the store. The page is laid out the way the line
+runs:
+
+1. **The constraint**, as the headline, with the numbers of the whole line next to it.
+2. **The line**: the seven stations in order, each with what leaves it a week, the wait, and its
+   share of the hours changes spend on the line.
+3. **Where to invest**: the recommendations, ranked by the hours a week each one frees.
+4. **Agents and people**, side by side, then by agent, and for an owner by repository.
+5. **Each station**, number by number, one chart per number with up to 26 weeks of history. The
+   weeks before the window are dimmed. Each station also has its numbers week by week as a table.
+6. **Coverage**: what was loaded, and the limits of what it could see.
+
+The page switches between 4, 13 and 26 weeks, and for an owner it narrows to one repository. A
+sync that runs while the server is up shows on the next reload. `/report.json` answers with the
+same report as `factorymeter/v1` JSON.
+
+`report --html line.html` writes the same page to one file. The file carries its own style and
+script and loads nothing from the network, so it can be kept, sent, or published from a job.
+With `--summary` it holds station numbers only.
+
+What `serve` does and does not do:
+
+- It reads the store and nothing else. It takes no token and sends nothing.
+- It listens on this machine only, and it answers only requests made to `localhost` or a
+  loopback address. That check keeps a web page you visit from reading the line through a name
+  it points at your machine.
+- It has no login. To reach it from another machine, give `--addr` an address that machine can
+  reach and name the host with `--allow-host`. Then everyone who can reach the address can read
+  the line.
+- The page allows only its own style and script by their hashes. A title or a name in the data
+  cannot run as script.
 
 ## Without a store
 

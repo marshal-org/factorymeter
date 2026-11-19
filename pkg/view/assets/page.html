@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="{{.CSP}}">
+<meta name="referrer" content="no-referrer">
+<title>{{.Title}}</title>
+<style>{{.CSS}}</style>
+<script>{{.JS}}</script>
+</head>
+<body data-weeks="{{.Weeks}}">
+<header class="top">
+<div class="wrap bar">
+<span class="brand">factorymeter</span>
+<nav class="jump" aria-label="On this page">
+<a href="#line">The line</a>
+{{if .Recs}}<a href="#invest">Where to invest</a>{{end}}
+<a href="#agents">Agents and people</a>
+<a href="#stations">Each station</a>
+<a href="#coverage">Coverage</a>
+</nav>
+<button type="button" id="theme" class="ghost" hidden>Dark</button>
+</div>
+</header>
+
+<main class="wrap">
+<section class="hero">
+<p class="eyebrow">Delivery line{{if .Target}} of <strong>{{.Target}}</strong>{{end}}{{if .Summary}} <span class="pill">summary, no names</span>{{end}}</p>
+<h1>{{.Headline}}</h1>
+{{if .Detail}}<p class="lede">{{.Detail}}</p>{{end}}
+<div class="scope">
+{{with .Nav}}{{if .Windows}}<div class="seg" role="group" aria-label="Window">{{range .Windows}}<a href="{{.URL}}"{{if .Current}} class="on" aria-current="true"{{end}}>{{.Label}}</a>{{end}}</div>{{end}}
+{{if .Repos}}<details class="menu"><summary>{{range .Repos}}{{if .Current}}{{.Label}}{{end}}{{end}}</summary><div class="menu-list">{{range .Repos}}<a href="{{.URL}}"{{if .Current}} class="on" aria-current="true"{{end}}>{{.Label}}</a>{{end}}</div></details>{{end}}{{end}}
+<p class="span">{{.Span}}</p>
+</div>
+{{if .Tiles}}<div class="tiles">
+{{range .Tiles}}<div class="tile">
+<p class="tile-l">{{.Label}}</p>
+<p class="tile-v">{{template "fig" .Fig}}</p>
+<p class="tile-w">{{.Was}}</p>
+{{.Spark}}
+</div>
+{{end}}</div>{{end}}
+</section>
+
+<section id="line">
+<h2>The line</h2>
+<p class="note">A change moves from left to right. Held is the station's share of the hours changes spend on the line. The station that holds the most is the constraint.</p>
+<ol class="line">
+{{range .Stations}}<li class="st{{if .Constraint}} is-constraint{{end}}{{if not .Connected}} is-off{{end}}">
+{{if .Connected}}<a class="st-a" href="#station-{{.ID}}">{{end}}
+<p class="st-n"><span class="step">{{.Step}}</span>{{.Name}}</p>
+{{if .Constraint}}<p class="badge">Constraint</p>{{end}}
+<p class="status s-{{.Status}}"><span class="dot" aria-hidden="true"></span>{{.StatusLabel}}</p>
+{{if .Connected}}<dl>
+<div><dt>Out a week</dt><dd>{{template "fig" .Out}}</dd></div>
+<div><dt>Wait, median</dt><dd>{{template "fig" .Wait}}</dd></div>
+<div><dt>Held</dt><dd>{{if .Held}}<span class="v">{{.Held}}</span>{{else}}<span class="v">-</span>{{end}}</dd></div>
+</dl>
+{{.Meter}}
+{{.Spark}}
+</a>{{end}}
+</li>
+{{end}}</ol>
+<p class="key-line"><span class="mv better" aria-hidden="true">▲▼</span> a move for the better <span class="mv worse" aria-hidden="true">▲▼</span> a move for the worse <span class="mv" aria-hidden="true">▲▼</span> a move that is neither <span class="thin" aria-hidden="true">~</span> too few items to trust</p>
+{{if .Missing}}<ul class="plain">{{range .Missing}}<li>{{.}}</li>{{end}}</ul>{{end}}
+</section>
+
+{{if .Recs}}<section id="invest">
+<h2>Where to invest</h2>
+<p class="note">Ranked by the hours a week each one frees. The size is the gap between the last weeks and this line's own best four weeks, not a benchmark from somewhere else.</p>
+<ol class="recs">
+{{range .Recs}}<li class="rec">
+<div class="rec-h">
+<span class="rank">{{.Rank}}</span>
+<div>
+<h3>{{.Title}}</h3>
+<p class="rec-m">{{if .Linked}}<a href="#station-{{.StationID}}">{{.Station}}</a>{{else}}{{.Station}}{{end}} <span class="sep">·</span> confidence {{.Confidence}} <span class="sep">·</span> <code title="{{.RuleFires}}">{{.Rule}}</code></p>
+</div>
+{{if .Sized}}<div class="gain"><p class="gain-v">{{.Freed}}</p><p class="gain-l">{{.FreedUnit}}</p>{{.Bar}}</div>{{end}}
+</div>
+<p>{{.Why}}</p>
+{{if .Evidence}}<ul class="plain">{{range .Evidence}}<li>{{.}}</li>{{end}}</ul>{{end}}
+{{if .Items}}<details><summary>{{.ItemsLabel}}</summary><ul class="items">{{range .Items}}{{template "item" .}}{{end}}</ul></details>{{end}}
+{{if .PlayURL}}<p class="play"><a href="{{.PlayURL}}" rel="noreferrer noopener">The practice, in the playbook</a></p>{{end}}
+</li>
+{{end}}</ol>
+</section>{{end}}
+
+<section id="agents">
+<h2>Agents and people</h2>
+{{if .AgentShare}}<p class="note">Agents wrote {{.AgentShare}} of the changes merged by agents and people. That is a floor: only changes that carry a known signature count.</p>{{end}}
+{{if .ClassPlots}}<ul class="legend" aria-label="Series"><li><span class="k s1"></span>Agents</li><li><span class="k s2"></span>People</li>{{if .Automation}}<li><span class="k s3"></span>Automation</li>{{end}}</ul>
+<div class="cards">
+{{range .ClassPlots}}<figure class="card"><figcaption>{{.Title}}</figcaption>{{.Chart}}</figure>
+{{end}}</div>{{end}}
+{{if .Classes.Rows}}{{template "grid" .Classes}}{{else}}<p class="note">No change in the window carries a class.</p>{{end}}
+{{if .Agents.Rows}}<h3>By agent</h3>{{template "grid" .Agents}}{{end}}
+{{if .Repos.Rows}}<h3>By repository</h3>{{template "grid" .Repos}}{{end}}
+</section>
+
+<section id="stations">
+<h2>Each station</h2>
+{{range .Panes}}<section class="pane" id="station-{{.ID}}" data-name="{{.Name}}"{{if .Constraint}} data-constraint{{end}}>
+<h3>{{.Name}}{{if .Constraint}} <span class="badge">Constraint</span>{{end}}</h3>
+<p>{{.Does}}</p>
+{{if .Arrives}}<dl class="flow"><div><dt>An item arrives</dt><dd>{{.Arrives}}</dd></div><div><dt>It leaves</dt><dd>{{.Leaves}}</dd></div></dl>{{end}}
+{{if .Missing}}<p class="note">{{.Missing}}</p>{{end}}
+<div class="cards">
+{{range .Cards}}<article class="card">
+<h4>{{.Name}}</h4>
+<p class="card-v">{{template "fig" .Fig}}</p>
+<p class="card-m">{{if .Before}}Before {{.Before}}{{if .Change}} <span class="sep">·</span> {{.Change}}{{end}} <span class="sep">·</span> {{.Trend}}{{else}}Nothing before to compare{{end}} <span class="sep">·</span> {{.N}} items</p>
+{{if .Chart}}{{.Chart}}{{else}}<p class="none">No data in these weeks.</p>{{end}}
+<details><summary>What it counts</summary><p>{{.Definition}}</p><p><code>{{.ID}}</code></p></details>
+</article>
+{{end}}</div>
+{{if .Oldest}}<h4>Standing longest in the queue</h4><ul class="items">{{range .Oldest}}{{template "item" .}}{{end}}</ul>{{end}}
+{{if .Weeks}}<details class="weeks"><summary>The numbers, week by week</summary><div class="scroll"><table>
+<thead><tr><th scope="col">Week to</th>{{range .Head}}<th class="num" scope="col">{{.}}</th>{{end}}</tr></thead>
+<tbody>{{range .Weeks}}<tr{{if .Pre}} class="pre-row"{{end}}><th scope="row">{{.Week}}</th>{{range .Cells}}<td class="num">{{.}}</td>{{end}}</tr>
+{{end}}</tbody>
+</table></div></details>{{end}}
+</section>
+{{end}}</section>
+
+<section id="coverage">
+<h2>Coverage</h2>
+<p class="note">What the numbers stand on.</p>
+{{if .CoverRepos}}<div class="scroll"><table>
+<thead><tr><th scope="col">Repository</th><th scope="col">From</th><th scope="col">Synced</th><th class="num" scope="col">Changes</th></tr></thead>
+<tbody>{{range .CoverRepos}}<tr>{{range $i, $c := .}}{{if $i}}<td{{if eq $i 3}} class="num"{{end}}>{{$c}}</td>{{else}}<th scope="row">{{$c}}</th>{{end}}{{end}}</tr>
+{{end}}{{if .MoreRepos}}<tr><th scope="row">{{.MoreRepos}}</th><td></td><td></td><td></td></tr>{{end}}</tbody>
+</table></div>{{end}}
+{{if .Sources}}<div class="scroll"><table>
+<thead><tr><th scope="col">Records</th><th scope="col">Source</th><th class="num" scope="col">In the window</th><th scope="col">Note</th></tr></thead>
+<tbody>{{range .Sources}}<tr>{{range $i, $c := .}}{{if $i}}<td{{if eq $i 2}} class="num"{{end}}>{{$c}}</td>{{else}}<th scope="row">{{$c}}</th>{{end}}{{end}}</tr>
+{{end}}</tbody>
+</table></div>{{end}}
+{{if .Limits}}<h3>Limits</h3><ul class="plain">{{range .Limits}}<li>{{.}}</li>{{end}}</ul>{{end}}
+</section>
+</main>
+
+<footer class="wrap foot">
+<p>{{.Tool}}{{if .Generated}} <span class="sep">·</span> made {{.Generated}}{{end}} <span class="sep">·</span> nothing on this page loads from the network{{with .Nav}}{{if .JSON}} <span class="sep">·</span> <a href="{{.JSON}}">the same report as JSON</a>{{end}}{{end}}</p>
+</footer>
+</body>
+</html>
+{{- define "fig"}}<span class="v">{{.Value}}</span>{{if .Arrow}}<span class="mv {{.Tone}}" title="{{.Moved}}"><span aria-hidden="true">{{.Arrow}}</span><span class="sr">{{.Moved}}</span></span>{{end}}{{if .Thin}}<span class="thin" title="Drawn from too few items to trust">~</span>{{end}}{{end}}
+{{- define "item"}}<li>{{if .URL}}<a href="{{.URL}}" rel="noreferrer noopener">{{.Key}}</a>{{else}}<span class="key">{{.Key}}</span>{{end}}{{if .Title}} <span class="it-t">{{.Title}}</span>{{end}} <span class="it-m">standing {{.Standing}}{{if .Class}}, {{.Class}}{{end}}</span></li>{{end}}
+{{- define "grid"}}<div class="scroll"><table>
+<thead><tr>{{range $i, $h := .Head}}<th{{if $i}} class="num"{{end}} scope="col">{{$h}}</th>{{end}}</tr></thead>
+<tbody>{{range .Rows}}<tr><th scope="row">{{if .URL}}<a href="{{.URL}}">{{.Label}}</a>{{else}}{{.Label}}{{end}}</th>{{range .Cells}}<td class="num">{{template "fig" .}}</td>{{end}}</tr>
+{{end}}</tbody>
+</table></div>{{end}}
