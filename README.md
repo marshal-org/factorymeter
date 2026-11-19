@@ -238,17 +238,25 @@ factorymeter signatures list               # every signature in use
 factorymeter serve my-org          # then open http://127.0.0.1:7377
 ```
 
-`serve` shows the report as a page, read from the store. The page is laid out the way the line
-runs:
+`serve` shows the report as a page, read from the store. It has four pages:
 
-1. **The constraint**, as the headline, with the numbers of the whole line next to it.
-2. **The line**: the seven stations in order, each with what leaves it a week, the wait, and its
-   share of the hours changes spend on the line.
-3. **Where to invest**: the recommendations, ranked by the hours a week each one frees.
-4. **Agents and people**, side by side, then by agent, and for an owner by repository.
-5. **Each station**, number by number, one chart per number with up to 26 weeks of history. The
-   weeks before the window are dimmed. Each station also has its numbers week by week as a table.
-6. **Coverage**: what was loaded, and the limits of what it could see.
+1. **Overview**: the constraint as the headline, the numbers of the whole line, and **the line**:
+   the seven stations in order. Each station is graded flowing, watch or strained, with a colored
+   mark and a word. Pick a station and its numbers open right below the line: a chart per number
+   with up to 26 weeks of history, the reasons for its grade, and, for a station that is not
+   connected, what it needs. A median and its 90th percentile share one chart.
+2. **Where to invest**: the recommendations, ranked by the hours a week each one frees.
+3. **Agents and people**, side by side, then by agent, and for an owner by repository.
+4. **Coverage**: what was loaded, and the limits of what it could see.
+
+Every number has an info mark. Point at it, or tab to it, to read what it counts. Each value says
+what it is drawn from, such as the average week of the window or the median of its items, and
+what it was in the window of the same length before.
+
+A station gets the worst of three grades. Load: 20% or more of the hours changes spend on the
+line is watch, 40% or more is strained. Rework: 20% or more of its items failed or sent back is
+watch, 40% or more is strained. Wait: a median wait that got worse than in the window before is
+watch.
 
 The page switches between 4, 13 and 26 weeks, and for an owner it narrows to one repository. A
 sync that runs while the server is up shows on the next reload. `/report.json` answers with the

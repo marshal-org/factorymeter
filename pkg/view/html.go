@@ -9,6 +9,7 @@ import (
 	"io"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/marshal-org/factorymeter/pkg/contract"
 	"github.com/marshal-org/factorymeter/pkg/line"
@@ -94,12 +95,21 @@ func figure(s *contract.Series) fig {
 	return f
 }
 
+// pop is what a reader gets by pointing at the info mark of a number: what it
+// counts, in words.
+type pop struct {
+	ID    string
+	Lines []string
+	Code  string
+}
+
 type tile struct {
-	Label string
-	Fig   fig
+	Label, Basis string
+	Fig          fig
 	// Was says the value of the window before, or is empty.
 	Was   string
 	Spark template.HTML
+	Info  pop
 }
 
 type stationCard struct {
@@ -113,6 +123,7 @@ type stationCard struct {
 	Held        string
 	Meter       template.HTML
 	Spark       template.HTML
+	Health      health
 }
 
 type itemRow struct {
@@ -127,7 +138,7 @@ type recCard struct {
 	Items                           []itemRow
 	Bar                             template.HTML
 	Sized                           bool
-	// Linked is false when the station has no part of the page to jump to.
+	// Linked is false when the station has no panel on the page to open.
 	Linked                           bool
 	ItemsLabel, FreedUnit, RuleFires string
 }
@@ -145,14 +156,16 @@ type grid struct {
 type plotCard struct {
 	Title string
 	Chart template.HTML
+	Info  pop
 }
 
 type metricCard struct {
-	ID, Name, Definition  string
-	Fig                   fig
-	Before, Change, Trend string
-	N                     int
-	Chart                 template.HTML
+	ID, Name, Basis, Was string
+	Fig                  fig
+	// Alt is the 90th percentile of a card that also shows the median.
+	Alt   *fig
+	Chart template.HTML
+	Info  pop
 }
 
 type weekRow struct {
@@ -163,13 +176,19 @@ type weekRow struct {
 
 type stationPane struct {
 	ID, Name, Does, Item, Arrives, Leaves string
-	Status, Missing                       string
-	Constraint                            bool
+	Status, Missing, Needs                string
+	Off, Constraint                       bool
+	Health                                health
 	Cards                                 []metricCard
-	Oldest                                []itemRow
-	Head                                  []string
-	Weeks                                 []weekRow
+	// Empty names the numbers that have no data in the window.
+	Empty  string
+	Oldest []itemRow
+	Head   []string
+	Weeks  []weekRow
 }
+
+// tally is one part of the health of the line: how many stations have a grade.
+type tally struct{ Class, Icon, Text string }
 
 type htmlPage struct {
 	Title, Target, Headline, Detail, Span string
@@ -180,7 +199,8 @@ type htmlPage struct {
 	Summary                               bool
 	Tiles                                 []tile
 	Stations                              []stationCard
-	Missing                               []string
+	Health                                []tally
+	HealthInfo                            pop
 	Recs                                  []recCard
 	AgentShare                            string
 	Classes                               grid
@@ -210,6 +230,70 @@ func itemOf(it contract.Item) itemRow {
 
 var classNames = map[string]string{"agent": "Agents", "human": "People", "automation": "Automation"}
 
+// connect says what a station is measured from and how to get it into the
+// store, for a reader whose station is not connected.
+var connect = map[string]string{
+	line.Spec:    "Tickets. GitHub issues are read unless sync runs with --skip-tickets. To read Linear, sync with --linear and set LINEAR_API_KEY. To read Jira, sync with --jira and the site, and set JIRA_EMAIL and JIRA_API_TOKEN.",
+	line.Code:    "Pull requests. Every sync reads them.",
+	line.CI:      "GitHub Actions runs on the commits of pull requests. Sync reads them unless it runs with --skip-ci. Runs of another CI system are not read.",
+	line.Verify:  fmt.Sprintf("Deployments of a pull request's own commits, made before it merges, to an environment whose name does not say prod, production or live. They are read from the GitHub Deployments API. Preview deploys of Vercel, Netlify or Render create them, and so does a GitHub Actions job that runs on pull requests with an environment such as staging. A deployment of the branch the change merges into, a deployment after the merge and GitHub Pages do not count. A repository needs at least %d of them.", line.MinSample),
+	line.Review:  "Pull request reviews. Every sync reads them. A review counts when a person other than the author wrote it.",
+	line.Merge:   "Pull requests. Every sync reads them.",
+	line.Release: "Production deploys: deployments in the GitHub Deployments API to an environment whose name says prod, production or live. A repository with none uses its published releases instead. Sync reads them unless it runs with --skip-deploys.",
+}
+
+// name is the name of a metric on the page. A count of a week says so, since
+// the page shows no unit beside it.
+func name(m line.Metric) string {
+	if m.Unit == line.PerWeek {
+		return label(m) + " a week"
+	}
+	return label(m)
+}
+
+// basis says what a value is drawn from, in a few words.
+func basis(m line.Metric, s *contract.Series, weeks int) string {
+	switch {
+	case m.Unit == line.PerWeek:
+		return fmt.Sprintf("Average week: %d in %s", s.N, plural(weeks, "week"))
+	case m.Kind == line.Queue:
+		return "At the end of the window"
+	case m.Kind == line.Held && m.Unit == line.Hours:
+		return "Average week"
+	case strings.HasSuffix(m.ID, ".p50"):
+		return "Median of " + plural(s.N, "item")
+	case strings.HasSuffix(m.ID, ".p90"):
+		return "90th percentile of " + plural(s.N, "item")
+	case m.Unit == line.Share:
+		return "Share of " + plural(s.N, "item")
+	}
+	return plural(s.N, "item")
+}
+
+// was says what a value was in the window before, and how it moved.
+func was(s *contract.Series, weeks int) string {
+	if s.Previous == nil {
+		return "Nothing before to compare with"
+	}
+	out := fmt.Sprintf("The %s before: %s", plural(weeks, "week"), value(s, s.Previous))
+	var how []string
+	if c := Change(s); c != "" {
+		how = append(how, c)
+	}
+	if t := trendWord(s); t != "" {
+		how = append(how, t)
+	}
+	if len(how) > 0 {
+		out += " (" + strings.Join(how, ", ") + ")"
+	}
+	return out
+}
+
+// until is the last day of a span that ends at t, which is not in it.
+func until(t time.Time) time.Time { return t.Add(-time.Nanosecond) }
+
+func date(t time.Time) string { return t.UTC().Format("Jan 2, 2006") }
+
 func buildHTML(r *contract.Report, opt HTMLOptions) *htmlPage {
 	b := open(r)
 	whole := contract.Slice{}
@@ -217,16 +301,20 @@ func buildHTML(r *contract.Report, opt HTMLOptions) *htmlPage {
 	p := &htmlPage{
 		Title: "Delivery line", Target: r.Target, Headline: r.Verdict.Headline, Detail: r.Verdict.Detail,
 		CSP: CSP(), CSS: template.CSS(pageCSS), JS: template.JS(pageJS), Nav: opt.Nav, Summary: r.Summary, Limits: r.Limits,
+		HealthInfo: pop{ID: "health-rule", Lines: []string{HealthRule}},
 	}
 	if r.Target != "" {
 		p.Title += ": " + r.Target
 	}
-	p.Span = fmt.Sprintf("%s, %s to %s.", plural(weeks, "week"), day(r.Window.Since), day(r.Window.Until))
-	if r.Window.Previous != nil {
-		p.Span += fmt.Sprintf(" Compared with the %s before.", plural(weeks, "week"))
+	p.Span = fmt.Sprintf("Every number covers the %s from %s to %s. A count is the average week of those weeks. A time is the median, or the 90th percentile, of the items in them.",
+		plural(weeks, "week"), date(r.Window.Since), date(until(r.Window.Until)))
+	if pr := r.Window.Previous; pr != nil {
+		p.Span += fmt.Sprintf(" Arrows compare with the %s before, %s to %s.", plural(weeks, "week"), date(pr.From), date(until(pr.To)))
+	} else {
+		p.Span += fmt.Sprintf(" The store does not reach back to the %s before, so nothing is compared.", plural(weeks, "week"))
 	}
 	if n := len(r.Window.Periods); n > weeks {
-		p.Span += fmt.Sprintf(" The charts go back %s. The weeks before the window are dimmed.", plural(n, "week"))
+		p.Span += fmt.Sprintf(" The charts go back %s, and the weeks before the window are dimmed.", plural(n, "week"))
 	}
 	p.Tool = strings.TrimSpace(r.Tool.Name + " " + r.Tool.Version)
 	if !r.GeneratedAt.IsZero() {
@@ -247,21 +335,18 @@ func buildHTML(r *contract.Report, opt HTMLOptions) *htmlPage {
 		if !ok || s == nil || s.Value == nil {
 			continue
 		}
-		t := tile{Label: label(m), Fig: figure(s), Spark: spark(r, m, s)}
-		if s.Previous != nil {
-			t.Was = fmt.Sprintf("%s in the %s before", value(s, s.Previous), plural(weeks, "week"))
-			if c := Change(s); c != "" && t.Fig.Arrow != "" {
-				t.Was = c + ". " + capitalize(t.Was)
-			}
-		}
+		t := tile{Label: name(m), Basis: basis(m, s, weeks), Fig: figure(s), Spark: spark(r, m, s), Was: was(s, weeks),
+			Info: pop{ID: "t-" + m.ID, Lines: []string{m.Definition}, Code: m.ID}}
 		p.Tiles = append(p.Tiles, t)
 	}
 
-	// The line: every station side by side.
+	// The line: every station side by side, with its health.
 	status := map[string]string{contract.StatusMeasured: "measured", contract.StatusPartial: "partly measured", contract.StatusNotConnected: "not connected"}
+	count := map[string]int{}
 	for i, st := range r.Stations {
 		c := stationCard{ID: st.ID, Name: st.Name, Step: i + 1, Status: st.Status, StatusLabel: status[st.Status],
-			Connected: st.Status != contract.StatusNotConnected, Constraint: st.Constraint}
+			Connected: st.Status != contract.StatusNotConnected, Constraint: st.Constraint, Health: grade(st, b, weeks)}
+		count[c.Health.Class]++
 		if c.Connected {
 			c.Out, c.Wait = figure(b.get(st.ID+".flow", whole)), figure(b.get(st.ID+".wait.p50", whole))
 			if m, ok := line.ByID(st.ID + ".flow"); ok {
@@ -272,15 +357,21 @@ func buildHTML(r *contract.Report, opt HTMLOptions) *htmlPage {
 			}
 		}
 		p.Stations = append(p.Stations, c)
-		if st.Missing != "" {
-			p.Missing = append(p.Missing, st.Name+": "+st.Missing)
+	}
+	for _, k := range []struct{ class, one, many string }{
+		{"bad", "strained", "strained"}, {"warn", "to watch", "to watch"}, {"good", "flowing", "flowing"},
+		{"none", "with too little data", "with too little data"}, {"off", "not connected", "not connected"},
+	} {
+		if n := count[k.class]; n > 0 {
+			icon := map[string]string{"bad": "✕", "warn": "!", "good": "✓", "none": "·", "off": "○"}[k.class]
+			p.Health = append(p.Health, tally{Class: k.class, Icon: icon, Text: fmt.Sprintf("%d %s", n, k.many)})
 		}
 	}
 
 	// Where to invest. The bar sets each gain against the largest one.
 	shown := map[string]bool{}
 	for _, st := range r.Stations {
-		shown[st.ID] = st.Status != contract.StatusNotConnected
+		shown[st.ID] = true
 	}
 	most := 0.0
 	for _, rec := range r.Recommendations {
@@ -323,7 +414,7 @@ func buildHTML(r *contract.Report, opt HTMLOptions) *htmlPage {
 	for _, id := range []string{"line.flow", "line.lead.p50", "line.size.p50", "code.work.p50", "code.rework", "ci.work.p50", "ci.rework",
 		"review.wait.p50", "review.work.p50", "review.rework", "review.skipped", "merge.wait.p50", "merge.rework", "release.wait.p50"} {
 		m, ok := line.ByID(id)
-		rw := row{Label: label(m)}
+		rw := row{Label: name(m)}
 		found := false
 		for i, sl := range classes {
 			s := b.get(id, sl)
@@ -343,7 +434,7 @@ func buildHTML(r *contract.Report, opt HTMLOptions) *htmlPage {
 		if !ok {
 			continue
 		}
-		c := chart{r: r, m: m, stack: barred(m), label: label(m) + ", week by week, agents and people"}
+		c := chart{r: r, m: m, stack: barred(m), label: name(m) + ", week by week, agents and people"}
 		for i, sl := range classes {
 			if s := b.get(id, sl); s != nil && (i < 2 || c.stack) {
 				c.tracks = append(c.tracks, track{name: classNames[sl.Class], key: fmt.Sprintf("s%d", i+1), s: s})
@@ -351,7 +442,7 @@ func buildHTML(r *contract.Report, opt HTMLOptions) *htmlPage {
 		}
 		if len(c.tracks) > 0 {
 			if drawn := c.draw(); drawn != "" {
-				p.ClassPlots = append(p.ClassPlots, plotCard{Title: label(m), Chart: drawn})
+				p.ClassPlots = append(p.ClassPlots, plotCard{Title: name(m), Chart: drawn, Info: pop{ID: "a-" + m.ID, Lines: []string{m.Definition}, Code: m.ID}})
 			}
 		}
 	}
@@ -380,32 +471,58 @@ func buildHTML(r *contract.Report, opt HTMLOptions) *htmlPage {
 		}
 		return rows
 	}
-	p.Agents.Head = []string{"Agent", "Merged a week", "Open to merge", "Wait for review", "Sent back", "CI failed", "Abandoned"}
+	p.Agents.Head = []string{"Agent", "Merged a week", "Open to merge, median", "Wait for review, median", "Sent back", "CI failed", "Abandoned"}
 	p.Agents.Rows = cut([]string{"line.flow", "line.lead.p50", "review.wait.p50", "review.rework", "ci.rework", "code.rework"},
 		func(s contract.Slice) string { return s.Agent }, func(n string) contract.Slice { return contract.Slice{Class: "agent", Agent: n} })
-	p.Repos.Head = []string{"Repository", "Merged a week", "Open to merge", "Wait for review", "CI failed", "Wait for a release"}
+	p.Repos.Head = []string{"Repository", "Merged a week", "Open to merge, median", "Wait for review, median", "CI failed", "Wait for a release, median"}
 	p.Repos.Rows = cut([]string{"line.flow", "line.lead.p50", "review.wait.p50", "ci.rework", "release.wait.p50"},
 		func(s contract.Slice) string { return s.Repo }, func(n string) contract.Slice { return contract.Slice{Repo: n} })
 
-	// Each station, and the line as a whole, number by number.
+	// Each station, and the line as a whole, number by number. A median and
+	// its 90th percentile share one card and one chart: they are two cuts of
+	// the same items.
 	first := windowStart(r)
 	pane := func(id string) stationPane {
 		var sp stationPane
 		var cols []*contract.Series
+		var empty []string
 		for _, m := range line.ForStation(id) {
 			s := b.get(m.ID, whole)
 			if s == nil {
 				continue
 			}
-			c := metricCard{ID: m.ID, Name: label(m), Definition: m.Definition, Fig: figure(s), Change: Change(s), Trend: trendWord(s), N: s.N,
-				Chart: chart{r: r, m: m, tracks: []track{{key: "s1", s: s}}, label: label(m) + ", week by week"}.draw()}
-			if s.Previous != nil {
-				c.Before = value(s, s.Previous)
-			}
-			sp.Cards = append(sp.Cards, c)
 			if len(s.Points) >= len(r.Window.Periods) {
 				sp.Head, cols = append(sp.Head, label(m)), append(cols, s)
 			}
+			base, isP90 := strings.CutSuffix(m.ID, ".p90")
+			if isP90 && b.get(base+".p50", whole) != nil {
+				continue
+			}
+			c := metricCard{ID: m.ID, Name: name(m), Basis: basis(m, s, weeks), Fig: figure(s), Was: was(s, weeks),
+				Info: pop{ID: "c-" + m.ID, Lines: []string{m.Definition}, Code: m.ID}}
+			ch := chart{r: r, m: m, tracks: []track{{key: "s1", s: s}}, label: name(m) + ", week by week"}
+			if base, ok := strings.CutSuffix(m.ID, ".p50"); ok {
+				if hi := b.get(base+".p90", whole); hi != nil {
+					f := figure(hi)
+					c.Alt = &f
+					c.Name = strings.TrimSuffix(label(m), ", median")
+					c.Basis = "Median and 90th percentile of " + plural(s.N, "item")
+					c.Info.Lines = []string{strings.TrimSuffix(m.Definition, " The median."),
+						"The median is the middle item: half took less. The 90th percentile is the slow end: one item in ten took longer."}
+					c.Info.Code = m.ID + ", " + base + ".p90"
+					ch.tracks = []track{{name: "Median", key: "s1", s: s}, {name: "90th percentile", key: "s1 p90", s: hi}}
+					ch.label = c.Name + ", median and 90th percentile, week by week"
+				}
+			}
+			c.Chart = ch.draw()
+			if c.Chart == "" && s.Value == nil {
+				empty = append(empty, lower(c.Name))
+				continue
+			}
+			sp.Cards = append(sp.Cards, c)
+		}
+		if len(empty) > 0 {
+			sp.Empty = "No data in the window for " + strings.Join(empty, ", ") + "."
 		}
 		for i, per := range r.Window.Periods {
 			if len(cols) == 0 {
@@ -419,12 +536,16 @@ func buildHTML(r *contract.Report, opt HTMLOptions) *htmlPage {
 		}
 		return sp
 	}
-	for _, st := range r.Stations {
-		if st.Status == contract.StatusNotConnected {
-			continue
+	for i, st := range r.Stations {
+		var sp stationPane
+		if st.Status != contract.StatusNotConnected {
+			sp = pane(st.ID)
 		}
-		sp := pane(st.ID)
 		sp.ID, sp.Name, sp.Status, sp.Missing, sp.Constraint = st.ID, st.Name, st.Status, st.Missing, st.Constraint
+		sp.Off, sp.Health = st.Status == contract.StatusNotConnected, p.Stations[i].Health
+		if sp.Off || st.Status == contract.StatusPartial {
+			sp.Needs = connect[st.ID]
+		}
 		if def, ok := line.StationByID(st.ID); ok {
 			sp.Does, sp.Item, sp.Arrives, sp.Leaves = def.Does, def.Item, def.Arrives, def.Leaves
 		}
@@ -461,13 +582,6 @@ func buildHTML(r *contract.Report, opt HTMLOptions) *htmlPage {
 		p.Sources = append(p.Sources, []string{strings.ReplaceAll(s.Kind, "_", " "), src, fmt.Sprint(s.Records), s.Note})
 	}
 	return p
-}
-
-func capitalize(s string) string {
-	if s == "" {
-		return s
-	}
-	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 // HTML writes the report as one page with its charts. The page carries its

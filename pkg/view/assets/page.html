@@ -13,46 +13,52 @@
 <header class="top">
 <div class="wrap bar">
 <span class="brand">factorymeter</span>
-<nav class="jump" aria-label="On this page">
-<a href="#line">The line</a>
+<nav class="pages" aria-label="Pages">
+<a href="#overview">Overview</a>
 {{if .Recs}}<a href="#invest">Where to invest</a>{{end}}
 <a href="#agents">Agents and people</a>
-<a href="#stations">Each station</a>
 <a href="#coverage">Coverage</a>
 </nav>
 <button type="button" id="theme" class="ghost" hidden>Dark</button>
 </div>
 </header>
 
-<main class="wrap">
-<section class="hero">
+<div class="wrap context">
 <p class="eyebrow">Delivery line{{if .Target}} of <strong>{{.Target}}</strong>{{end}}{{if .Summary}} <span class="pill">summary, no names</span>{{end}}</p>
+{{with .Nav}}{{if or .Windows .Repos}}<div class="scope">
+{{if .Windows}}<span class="scope-l">Window</span><div class="seg" role="group" aria-label="Window">{{range .Windows}}<a href="{{.URL}}"{{if .Current}} class="on" aria-current="true"{{end}}>{{.Label}}</a>{{end}}</div>{{end}}
+{{if .Repos}}<details class="menu"><summary>{{range .Repos}}{{if .Current}}{{.Label}}{{end}}{{end}}</summary><div class="menu-list">{{range .Repos}}<a href="{{.URL}}"{{if .Current}} class="on" aria-current="true"{{end}}>{{.Label}}</a>{{end}}</div></details>{{end}}
+</div>{{end}}{{end}}
+<p class="span">{{.Span}}</p>
+</div>
+
+<main class="wrap">
+<section id="overview" class="page">
+<div class="hero">
 <h1>{{.Headline}}</h1>
 {{if .Detail}}<p class="lede">{{.Detail}}</p>{{end}}
-<div class="scope">
-{{with .Nav}}{{if .Windows}}<div class="seg" role="group" aria-label="Window">{{range .Windows}}<a href="{{.URL}}"{{if .Current}} class="on" aria-current="true"{{end}}>{{.Label}}</a>{{end}}</div>{{end}}
-{{if .Repos}}<details class="menu"><summary>{{range .Repos}}{{if .Current}}{{.Label}}{{end}}{{end}}</summary><div class="menu-list">{{range .Repos}}<a href="{{.URL}}"{{if .Current}} class="on" aria-current="true"{{end}}>{{.Label}}</a>{{end}}</div></details>{{end}}{{end}}
-<p class="span">{{.Span}}</p>
 </div>
 {{if .Tiles}}<div class="tiles">
 {{range .Tiles}}<div class="tile">
-<p class="tile-l">{{.Label}}</p>
+<div class="head"><p class="tile-l">{{.Label}}</p>{{template "info" .Info}}</div>
 <p class="tile-v">{{template "fig" .Fig}}</p>
+<p class="tile-b">{{.Basis}}</p>
 <p class="tile-w">{{.Was}}</p>
 {{.Spark}}
 </div>
 {{end}}</div>{{end}}
-</section>
 
-<section id="line">
+<div id="line" class="block">
+<div class="line-h">
 <h2>The line</h2>
-<p class="note">A change moves from left to right. Held is the station's share of the hours changes spend on the line. The station that holds the most is the constraint.</p>
+{{if .Health}}<p class="tally" aria-label="Health of the stations">{{range .Health}}<span class="hl {{.Class}}"><span class="hl-i" aria-hidden="true">{{.Icon}}</span>{{.Text}}</span>{{end}}{{template "info" .HealthInfo}}</p>{{end}}
+</div>
+<p class="note">A change moves from left to right. Pick a station to see its numbers here. Held is the station's share of the hours changes spend on the line. The station that holds the most is the constraint.</p>
 <ol class="line">
-{{range .Stations}}<li class="st{{if .Constraint}} is-constraint{{end}}{{if not .Connected}} is-off{{end}}">
-{{if .Connected}}<a class="st-a" href="#station-{{.ID}}">{{end}}
+{{range .Stations}}<li class="st h-{{.Health.Class}}{{if .Constraint}} is-constraint{{end}}{{if not .Connected}} is-off{{end}}" data-station="{{.ID}}">
+<a class="st-a" href="#station-{{.ID}}">
 <p class="st-n"><span class="step">{{.Step}}</span>{{.Name}}</p>
-{{if .Constraint}}<p class="badge">Constraint</p>{{end}}
-<p class="status s-{{.Status}}"><span class="dot" aria-hidden="true"></span>{{.StatusLabel}}</p>
+<p class="st-g"><span class="hl {{.Health.Class}}"><span class="hl-i" aria-hidden="true">{{.Health.Icon}}</span>{{.Health.Label}}</span>{{if .Constraint}}<span class="badge">Constraint</span>{{end}}</p>
 {{if .Connected}}<dl>
 <div><dt>Out a week</dt><dd>{{template "fig" .Out}}</dd></div>
 <div><dt>Wait, median</dt><dd>{{template "fig" .Wait}}</dd></div>
@@ -60,14 +66,42 @@
 </dl>
 {{.Meter}}
 {{.Spark}}
-</a>{{end}}
+{{if eq .Status "partial"}}<p class="st-s">partly measured</p>{{end}}{{else}}<p class="st-s">What it needs</p>{{end}}
+</a>
 </li>
 {{end}}</ol>
-<p class="key-line"><span class="mv better" aria-hidden="true">▲▼</span> a move for the better <span class="mv worse" aria-hidden="true">▲▼</span> a move for the worse <span class="mv" aria-hidden="true">▲▼</span> a move that is neither <span class="thin" aria-hidden="true">~</span> too few items to trust</p>
-{{if .Missing}}<ul class="plain">{{range .Missing}}<li>{{.}}</li>{{end}}</ul>{{end}}
+<div class="key-line"><span><span class="mv better" aria-hidden="true">▲▼</span> a move for the better</span><span><span class="mv worse" aria-hidden="true">▲▼</span> a move for the worse</span><span><span class="mv" aria-hidden="true">▲▼</span> a move that is neither</span><span><span class="thin" aria-hidden="true">~</span> too few items to trust</span>{{range .Panes}}{{if eq .ID "line"}}<a class="whole" href="#station-line">The whole line, end to end</a>{{end}}{{end}}</div>
+</div>
+
+<div id="drill" class="drill">
+{{range .Panes}}<section class="pane" id="station-{{.ID}}" data-name="{{.Name}}"{{if .Constraint}} data-constraint{{end}}>
+<div class="pane-h"><h3>{{.Name}}</h3>{{if .Health.Class}}<span class="hl {{.Health.Class}}"><span class="hl-i" aria-hidden="true">{{.Health.Icon}}</span>{{.Health.Label}}</span>{{end}}{{if .Constraint}}<span class="badge">Constraint</span>{{end}}</div>
+<p>{{.Does}}</p>
+{{if .Health.Reasons}}<ul class="why">{{range .Health.Reasons}}<li>{{.}}</li>{{end}}</ul>{{end}}
+{{if .Arrives}}<dl class="flow"><div><dt>An item arrives</dt><dd>{{.Arrives}}</dd></div><div><dt>It leaves</dt><dd>{{.Leaves}}</dd></div></dl>{{end}}
+{{if .Missing}}<p class="missing">{{.Missing}}</p>{{end}}
+{{if .Needs}}<div class="needs"><h4>What it needs</h4><p>{{.Needs}}</p></div>{{end}}
+{{if .Cards}}<div class="cards">
+{{range .Cards}}<article class="card">
+<div class="head"><h4>{{.Name}}</h4>{{template "info" .Info}}</div>
+<p class="card-v">{{if .Alt}}<span class="cut">median</span>{{end}}{{template "fig" .Fig}}{{with .Alt}}<span class="alt"><span class="cut">90th</span>{{template "fig" .}}</span>{{end}}</p>
+<p class="card-m">{{.Basis}}</p>
+<p class="card-m">{{.Was}}</p>
+{{if .Chart}}{{.Chart}}{{if .Alt}}<ul class="legend mini" aria-label="Series"><li><span class="k s1"></span>Median</li><li><span class="k s1 p90"></span>90th percentile</li></ul>{{end}}{{else}}<p class="none">No week by week data.</p>{{end}}
+</article>
+{{end}}</div>{{end}}
+{{if .Empty}}<p class="note">{{.Empty}}</p>{{end}}
+{{if .Oldest}}<h4>Standing longest in the queue</h4><ul class="items">{{range .Oldest}}{{template "item" .}}{{end}}</ul>{{end}}
+{{if .Weeks}}<details class="weeks"><summary>The numbers, week by week</summary><div class="scroll"><table>
+<thead><tr><th scope="col">Week to</th>{{range .Head}}<th class="num" scope="col">{{.}}</th>{{end}}</tr></thead>
+<tbody>{{range .Weeks}}<tr{{if .Pre}} class="pre-row"{{end}}><th scope="row">{{.Week}}</th>{{range .Cells}}<td class="num">{{.}}</td>{{end}}</tr>
+{{end}}</tbody>
+</table></div></details>{{end}}
+</section>
+{{end}}</div>
 </section>
 
-{{if .Recs}}<section id="invest">
+{{if .Recs}}<section id="invest" class="page">
 <h2>Where to invest</h2>
 <p class="note">Ranked by the hours a week each one frees. The size is the gap between the last weeks and this line's own best four weeks, not a benchmark from somewhere else.</p>
 <ol class="recs">
@@ -88,44 +122,19 @@
 {{end}}</ol>
 </section>{{end}}
 
-<section id="agents">
+<section id="agents" class="page">
 <h2>Agents and people</h2>
 {{if .AgentShare}}<p class="note">Agents wrote {{.AgentShare}} of the changes merged by agents and people. That is a floor: only changes that carry a known signature count.</p>{{end}}
 {{if .ClassPlots}}<ul class="legend" aria-label="Series"><li><span class="k s1"></span>Agents</li><li><span class="k s2"></span>People</li>{{if .Automation}}<li><span class="k s3"></span>Automation</li>{{end}}</ul>
 <div class="cards">
-{{range .ClassPlots}}<figure class="card"><figcaption>{{.Title}}</figcaption>{{.Chart}}</figure>
+{{range .ClassPlots}}<figure class="card"><div class="head"><figcaption>{{.Title}}</figcaption>{{template "info" .Info}}</div>{{.Chart}}</figure>
 {{end}}</div>{{end}}
 {{if .Classes.Rows}}{{template "grid" .Classes}}{{else}}<p class="note">No change in the window carries a class.</p>{{end}}
 {{if .Agents.Rows}}<h3>By agent</h3>{{template "grid" .Agents}}{{end}}
 {{if .Repos.Rows}}<h3>By repository</h3>{{template "grid" .Repos}}{{end}}
 </section>
 
-<section id="stations">
-<h2>Each station</h2>
-{{range .Panes}}<section class="pane" id="station-{{.ID}}" data-name="{{.Name}}"{{if .Constraint}} data-constraint{{end}}>
-<h3>{{.Name}}{{if .Constraint}} <span class="badge">Constraint</span>{{end}}</h3>
-<p>{{.Does}}</p>
-{{if .Arrives}}<dl class="flow"><div><dt>An item arrives</dt><dd>{{.Arrives}}</dd></div><div><dt>It leaves</dt><dd>{{.Leaves}}</dd></div></dl>{{end}}
-{{if .Missing}}<p class="note">{{.Missing}}</p>{{end}}
-<div class="cards">
-{{range .Cards}}<article class="card">
-<h4>{{.Name}}</h4>
-<p class="card-v">{{template "fig" .Fig}}</p>
-<p class="card-m">{{if .Before}}Before {{.Before}}{{if .Change}} <span class="sep">·</span> {{.Change}}{{end}} <span class="sep">·</span> {{.Trend}}{{else}}Nothing before to compare{{end}} <span class="sep">·</span> {{.N}} items</p>
-{{if .Chart}}{{.Chart}}{{else}}<p class="none">No data in these weeks.</p>{{end}}
-<details><summary>What it counts</summary><p>{{.Definition}}</p><p><code>{{.ID}}</code></p></details>
-</article>
-{{end}}</div>
-{{if .Oldest}}<h4>Standing longest in the queue</h4><ul class="items">{{range .Oldest}}{{template "item" .}}{{end}}</ul>{{end}}
-{{if .Weeks}}<details class="weeks"><summary>The numbers, week by week</summary><div class="scroll"><table>
-<thead><tr><th scope="col">Week to</th>{{range .Head}}<th class="num" scope="col">{{.}}</th>{{end}}</tr></thead>
-<tbody>{{range .Weeks}}<tr{{if .Pre}} class="pre-row"{{end}}><th scope="row">{{.Week}}</th>{{range .Cells}}<td class="num">{{.}}</td>{{end}}</tr>
-{{end}}</tbody>
-</table></div></details>{{end}}
-</section>
-{{end}}</section>
-
-<section id="coverage">
+<section id="coverage" class="page">
 <h2>Coverage</h2>
 <p class="note">What the numbers stand on.</p>
 {{if .CoverRepos}}<div class="scroll"><table>
@@ -148,6 +157,7 @@
 </body>
 </html>
 {{- define "fig"}}<span class="v">{{.Value}}</span>{{if .Arrow}}<span class="mv {{.Tone}}" title="{{.Moved}}"><span aria-hidden="true">{{.Arrow}}</span><span class="sr">{{.Moved}}</span></span>{{end}}{{if .Thin}}<span class="thin" title="Drawn from too few items to trust">~</span>{{end}}{{end}}
+{{- define "info"}}<span class="info"><button type="button" class="info-b" aria-label="What it counts" aria-describedby="{{.ID}}">i</button><span class="pop" id="{{.ID}}" role="tooltip">{{range .Lines}}<span class="pop-p">{{.}}</span>{{end}}{{if .Code}}<code>{{.Code}}</code>{{end}}</span></span>{{end}}
 {{- define "item"}}<li>{{if .URL}}<a href="{{.URL}}" rel="noreferrer noopener">{{.Key}}</a>{{else}}<span class="key">{{.Key}}</span>{{end}}{{if .Title}} <span class="it-t">{{.Title}}</span>{{end}} <span class="it-m">standing {{.Standing}}{{if .Class}}, {{.Class}}{{end}}</span></li>{{end}}
 {{- define "grid"}}<div class="scroll"><table>
 <thead><tr>{{range $i, $h := .Head}}<th{{if $i}} class="num"{{end}} scope="col">{{$h}}</th>{{end}}</tr></thead>

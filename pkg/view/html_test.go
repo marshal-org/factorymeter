@@ -31,12 +31,32 @@ func TestHTML(t *testing.T) {
 		"<title>Delivery line: acme/app</title>",
 		"<h1>Review is the constraint.</h1>",
 		`<p class="lede">Changes stood there.</p>`,
-		"2 weeks, 2026-10-19 to 2026-11-02. Compared with the 2 weeks before. The charts go back 4 weeks.",
+		"Every number covers the 2 weeks from Oct 19, 2026 to Nov 1, 2026. A count is the average week of those weeks.",
+		"Arrows compare with the 2 weeks before, Oct 5, 2026 to Oct 18, 2026. The charts go back 4 weeks",
+		// Each value says what it is drawn from and what it is compared with.
+		"Average week: 6 in 2 weeks",
+		"The 2 weeks before: 2.5 (&#43;20%, better)",
 		// The week each point stands for, once for every chart.
 		`<body data-weeks="Week to Oct 12, 2026|Week to Oct 19, 2026|Week to Oct 26, 2026|Week to Nov 2, 2026">`,
-		`<li class="st is-constraint">`,
+		// Review holds 60 percent of the line: strained, and the reason is told.
+		`<li class="st h-bad is-constraint" data-station="review">`,
+		"<li>Load: holds 60% of the hours changes spend on the line.</li>",
+		"<li>Rework: changes sent back in review, 25%.</li>",
+		"<li>Wait: the median got worse: 3.5h, from 1.0h in the 2 weeks before.</li>",
+		// Code has no number to grade, and merge holds 40 percent.
+		`<li class="st h-none" data-station="code">`,
+		`<li class="st h-bad" data-station="merge">`,
+		`<li class="st h-off is-off" data-station="spec">`,
+		// A station that is not connected says what it needs.
+		`<section class="pane" id="station-spec" data-name="Spec">`,
+		`<p class="missing">No tickets are in the store.</p>`,
+		"<h4>What it needs</h4><p>Tickets. GitHub issues are read",
+		// What a number counts is a note on its info mark.
+		`aria-describedby="c-review.flow">i</button><span class="pop" id="c-review.flow" role="tooltip">`,
+		`<span class="pop" id="health-rule" role="tooltip">`,
+		// The sections are pages.
+		`<a href="#overview">Overview</a>`,
 		`<a class="st-a" href="#station-review">`,
-		"<li>Spec: No tickets are in the store.</li>",
 		`<section class="pane" id="station-review" data-name="Review" data-constraint>`,
 		`<section class="pane" id="station-code" data-name="Code">`,
 		`<section class="pane" id="station-line" data-name="The whole line">`,
@@ -45,7 +65,7 @@ func TestHTML(t *testing.T) {
 		`data-v="5.0|0.0|2.0|4.0"`,
 		`data-v="1.0h;0||1.5h;0|4.5h;0"`,
 		// A number with no weekly history says so, and draws no empty frame.
-		`<p class="none">No data in these weeks.</p>`,
+		`<p class="none">No week by week data.</p>`,
 		// An item with no link is plain text.
 		`<span class="key">acme/app#13</span> <span class="it-t">Wait for me</span> <span class="it-m">standing 30.0h, human</span>`,
 		"Agents wrote 33% of the changes merged by agents and people.",
@@ -61,8 +81,6 @@ func TestHTML(t *testing.T) {
 		}
 	}
 	for _, not := range []string{
-		// A station that is not connected has no pane to open.
-		`id="station-spec"`, `id="station-ci"`, `href="#station-spec"`,
 		// No recommendation: no section, and no link to one.
 		`id="invest"`, `href="#invest"`,
 		// A page in a file cannot ask for another window, repository or format.
@@ -74,7 +92,7 @@ func TestHTML(t *testing.T) {
 			t.Errorf("the page holds %q", not)
 		}
 	}
-	if n := strings.Count(out, `<li class="st is-off">`); n != 4 {
+	if n := strings.Count(out, `is-off" data-station=`); n != 4 {
 		t.Errorf("%d stations are drawn as not connected, want 4", n)
 	}
 	if n := strings.Count(out, "<script"); n != 1 {
@@ -82,8 +100,8 @@ func TestHTML(t *testing.T) {
 	}
 	// The sections come in the order of the line.
 	last := -1
-	for _, h := range []string{`<section id="line">`, `<section id="agents">`, `<section id="stations">`, `id="station-code"`, `id="station-review"`,
-		`id="station-merge"`, `id="station-line"`, `<section id="coverage">`} {
+	for _, h := range []string{`<section id="overview" class="page">`, `<div id="line" class="block">`, `id="station-spec"`, `id="station-code"`, `id="station-review"`,
+		`id="station-merge"`, `id="station-release"`, `id="station-line"`, `<section id="agents" class="page">`, `<section id="coverage" class="page">`} {
 		at := strings.Index(out, h)
 		if at <= last {
 			t.Errorf("%q is missing or out of order", h)
@@ -211,7 +229,7 @@ func TestHTMLRecommendationsAndSummary(t *testing.T) {
 			Items:    []contract.Item{{Kind: "change", Key: "acme/app#13", URL: "https://example.invalid/13", Title: "Wait for me", Class: "human", Hours: 30}}},
 		// Sized at nothing: the rule fired, and there is no gain to show.
 		{Rule: "merge.wait.long", Station: line.Merge, Title: "Merge sooner", Why: "Approved changes wait.", HoursFreed: p(0), Confidence: contract.ConfidenceLow},
-		// A station with no pane on the page is named, and not linked.
+		// A station that is not connected has a panel too, and is linked.
 		{Rule: "spec.missing", Station: line.Spec, Title: "Connect the tickets", Why: "No tickets.", Confidence: contract.ConfidenceMedium},
 	}
 	out := htmlOf(t, r, HTMLOptions{})
@@ -226,7 +244,7 @@ func TestHTMLRecommendationsAndSummary(t *testing.T) {
 		"<summary>1 item to look at</summary>",
 		`<a href="https://example.invalid/13" rel="noreferrer noopener">acme/app#13</a>`,
 		`<a href="https://example.invalid/play" rel="noreferrer noopener">The practice, in the playbook</a>`,
-		`<p class="rec-m">Spec <span class="sep">`,
+		`<p class="rec-m"><a href="#station-spec">Spec</a> <span class="sep">`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the page lacks %q", want)
@@ -235,8 +253,10 @@ func TestHTMLRecommendationsAndSummary(t *testing.T) {
 	if n := strings.Count(out, `class="gain"`); n != 1 {
 		t.Errorf("%d recommendations show a gain, want 1", n)
 	}
-	if strings.Contains(out, `href="#station-spec"`) {
-		t.Error("a recommendation links to a station that has no pane")
+	// A station the report does not list has no panel, and is not linked.
+	r.Recommendations[2].Station = "elsewhere"
+	if out := htmlOf(t, r, HTMLOptions{}); !strings.Contains(out, `<p class="rec-m">elsewhere <span class="sep">`) {
+		t.Error("a recommendation links to a station that has no panel")
 	}
 	if strings.Contains(out, "<li></li>") {
 		t.Error("evidence with no text is printed as an empty line")

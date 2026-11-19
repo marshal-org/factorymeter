@@ -40,67 +40,111 @@
     paint();
   }
 
-  // The stations become tabs: one at a time, the constraint first.
-  function tabs() {
-    var host = document.getElementById("stations");
-    if (!host) return;
-    var panes = [].slice.call(host.querySelectorAll(".pane"));
-    if (panes.length < 2) return;
-    var list = el("div", "tabs");
-    list.setAttribute("role", "tablist");
-    list.setAttribute("aria-label", "Stations");
-    var buttons = panes.map(function (p, i) {
-      var b = el("button");
-      b.type = "button";
-      b.id = "tab-" + p.id;
-      b.setAttribute("role", "tab");
-      b.setAttribute("aria-controls", p.id);
-      b.textContent = p.getAttribute("data-name");
-      if (p.hasAttribute("data-constraint")) {
-        var badge = el("span", "badge");
-        badge.textContent = "Constraint";
-        b.appendChild(badge);
-      }
-      p.setAttribute("role", "tabpanel");
-      p.setAttribute("aria-labelledby", b.id);
-      b.addEventListener("click", function () { show(i, true); });
-      b.addEventListener("keydown", function (e) {
-        var d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
-        if (!d) return;
-        e.preventDefault();
-        var n = (i + d + panes.length) % panes.length;
-        show(n, true);
-        buttons[n].focus();
-      });
-      list.appendChild(b);
-      return b;
-    });
-    host.insertBefore(list, panes[0]);
+  // The sections become pages, one at a time, and the stations of the line
+  // pick what the overview shows below it. The address keeps the choice, so
+  // a link and the back button land where the reader was.
+  function pages() {
+    var nav = document.querySelector(".pages");
+    var all = [].slice.call(document.querySelectorAll("main > .page"));
+    if (!nav || all.length < 2) return;
+    var links = [].slice.call(nav.querySelectorAll("a"));
+    var drill = document.getElementById("drill");
+    var panes = drill ? [].slice.call(drill.querySelectorAll(".pane")) : [];
+    var cards = [].slice.call(document.querySelectorAll(".line .st"));
+    var whole = document.querySelector(".whole");
+    var current = null;
 
-    function show(n, keep) {
-      panes.forEach(function (p, i) {
-        p.hidden = i !== n;
-        buttons[i].setAttribute("aria-selected", i === n ? "true" : "false");
-        buttons[i].tabIndex = i === n ? 0 : -1;
+    function page(id) {
+      all.forEach(function (s) { s.hidden = s.id !== id; });
+      links.forEach(function (a) {
+        if (a.getAttribute("href") === "#" + id) a.setAttribute("aria-current", "page");
+        else a.removeAttribute("aria-current");
       });
-      if (keep && history.replaceState) history.replaceState(null, "", "#" + panes[n].id);
+      current = id;
     }
-    function fromHash(scroll) {
+    function station(id) {
+      var found = false;
+      panes.forEach(function (p) {
+        var on = p.id === "station-" + id;
+        p.hidden = !on;
+        found = found || on;
+      });
+      if (!found) return false;
+      cards.forEach(function (c) {
+        var on = c.getAttribute("data-station") === id;
+        c.classList.toggle("is-on", on);
+        var a = c.querySelector("a");
+        if (on) a.setAttribute("aria-current", "true");
+        else a.removeAttribute("aria-current");
+      });
+      if (whole) whole.classList.toggle("on", id === "line");
+      return true;
+    }
+    function first() {
+      var pick = null;
+      panes.forEach(function (p) { if (!pick && p.hasAttribute("data-constraint")) pick = p; });
+      cards.forEach(function (c) {
+        if (!pick && !c.classList.contains("is-off")) pick = document.getElementById("station-" + c.getAttribute("data-station"));
+      });
+      return (pick || panes[0] || { id: "" }).id.replace(/^station-/, "");
+    }
+    function route() {
       var id = location.hash.slice(1);
-      for (var i = 0; i < panes.length; i++) {
-        if (panes[i].id === id) {
-          show(i, false);
-          if (scroll) host.scrollIntoView();
-          return true;
-        }
+      if (id.indexOf("station-") === 0 && station(id.slice(8))) {
+        if (current !== "overview") window.scrollTo(0, 0);
+        page("overview");
+        return;
       }
-      return false;
+      var known = all.some(function (s) { return s.id === id; });
+      var next = known ? id : "overview";
+      if (next !== current) window.scrollTo(0, 0);
+      page(next);
     }
-    var start = 0;
-    panes.forEach(function (p, i) { if (p.hasAttribute("data-constraint")) start = i; });
-    show(start, false);
-    fromHash(true);
-    window.addEventListener("hashchange", function () { fromHash(true); });
+    // A station is picked in place: the page does not move.
+    function pick(e) {
+      var a = e.target.closest("a[href^='#station-']");
+      if (!a || !drill || e.button || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      var id = a.getAttribute("href").slice(9);
+      if (!station(id)) return;
+      e.preventDefault();
+      if (current !== "overview") { page("overview"); window.scrollTo(0, 0); }
+      if (history.pushState) history.pushState(null, "", "#station-" + id);
+    }
+    document.addEventListener("click", pick);
+    station(first());
+    route();
+    window.addEventListener("hashchange", route);
+    window.addEventListener("popstate", route);
+  }
+
+  // A note opens below its mark, and moves sideways to stay in the window.
+  function notes() {
+    function fit(e) {
+      var box = e.target.closest && e.target.closest(".info");
+      if (!box) return;
+      var pop = box.querySelector(".pop");
+      pop.style.transform = "";
+      var r = pop.getBoundingClientRect();
+      var shift = 0;
+      if (r.left < 8) shift = 8 - r.left;
+      else if (r.right > window.innerWidth - 8) shift = window.innerWidth - 8 - r.right;
+      if (shift) pop.style.transform = "translateX(" + Math.round(shift) + "px)";
+    }
+    // A shift is cleared when the note closes, so a hidden note never holds
+    // a place outside the window.
+    function reset(e) {
+      var box = e.target.closest && e.target.closest(".info");
+      if (box) box.querySelector(".pop").style.transform = "";
+    }
+    document.addEventListener("pointerover", fit);
+    document.addEventListener("focusin", fit);
+    document.addEventListener("pointerout", reset);
+    document.addEventListener("focusout", reset);
+    // Escape closes a note opened from the keyboard.
+    document.addEventListener("keydown", function (e) {
+      var a = document.activeElement;
+      if (e.key === "Escape" && a && a.classList.contains("info-b")) a.blur();
+    });
   }
 
   // One tooltip for every chart. It names the week under the pointer and
@@ -198,7 +242,7 @@
     });
   }
 
-  function ready() { theme(); tabs(); tips(); menus(); }
+  function ready() { theme(); pages(); notes(); tips(); menus(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ready);
   else ready();
 })();
