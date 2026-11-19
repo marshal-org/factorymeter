@@ -80,14 +80,7 @@ type Linear struct {
 
 // linearState is what a sync keeps of a workspace between runs.
 type linearState struct {
-	// Floor is the update time the tickets are held from. High is the update
-	// time they are held up to. Every ticket updated between the two is in
-	// the store.
-	Floor time.Time `json:"floor"`
-	High  time.Time `json:"high"`
-	// Open is set once the open tickets last updated before the floor are
-	// stored. The queue in front of the spec station needs them.
-	Open bool `json:"open"`
+	ticketWindow
 	// Teams are the team keys the read is limited to, sorted.
 	Teams []string `json:"teams"`
 }
@@ -211,38 +204,9 @@ func (r *linearSync) sync(ctx context.Context) error {
 		return err
 	}
 
-	// A workspace keeps the floor of its first sync. A later floor only
-	// counts when it is earlier.
-	target := r.o.Since
-	switch {
-	case r.st.Floor.IsZero():
-		r.st.Floor, r.st.High = target, target
-		if err := r.save(); err != nil {
-			return err
-		}
-	case target.Before(r.st.Floor):
-		// The tickets updated since the old floor are stored, so read the
-		// stretch below it.
-		if err := r.stretch(ctx, target, r.st.Floor, nil); err != nil {
-			return err
-		}
-		r.st.Floor = target
-		if err := r.save(); err != nil {
-			return err
-		}
-	}
-
-	from := r.st.High.Add(-linearOverlap)
-	if from.Before(r.st.Floor) {
-		from = r.st.Floor
-	}
-	err := r.stretch(ctx, from, time.Time{}, func(reached time.Time) error {
-		if reached.After(r.st.High) {
-			r.st.High = reached
-		}
-		return r.save()
-	})
-	if err != nil {
+	read := windowRead{o: r.o, w: &r.st.ticketWindow, slice: linearSlice, overlap: linearOverlap, save: r.save,
+		span: func(ctx context.Context, from, to time.Time) error { return r.span(ctx, from, to, false) }}
+	if err := read.updated(ctx); err != nil {
 		return err
 	}
 	if c := r.res.Tickets; c.Added+c.Changed > 0 {
@@ -334,33 +298,6 @@ func cursorVar(after string) any {
 		return nil
 	}
 	return after
-}
-
-// stretch reads the tickets updated from a time up to another, a slice at a
-// time and oldest first. A zero end means up to now, and then the last slice
-// has no upper bound, so a ticket updated while the sync runs is still read.
-// reached is told the update time the store holds every ticket up to, after
-// each slice.
-func (r *linearSync) stretch(ctx context.Context, from, to time.Time, reached func(time.Time) error) error {
-	end := to
-	if end.IsZero() {
-		end = r.o.Now
-	}
-	for a := from; a.Before(end); a = a.Add(linearSlice) {
-		b, at := a.Add(linearSlice), a.Add(linearSlice)
-		if !b.Before(end) {
-			b, at = to, end
-		}
-		if err := r.span(ctx, a, b, false); err != nil {
-			return err
-		}
-		if reached != nil {
-			if err := reached(at); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 // linearOpenTypes are the types of a workflow state that an open ticket has.

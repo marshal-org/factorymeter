@@ -23,9 +23,9 @@ Every time is UTC. A time that has not happened is null, never a zero date. A re
 | Field | Type | Meaning |
 |---|---|---|
 | `source` | string | Where the record came from. One of `github`, `linear`, `jira`. |
-| `id` | string | Stable id, unique among tickets: the source, a colon, and the name the source never changes. That is the key on GitHub and the issue id on Linear, where a key changes when a ticket moves to another team. |
+| `id` | string | Stable id, unique among tickets: the source, a colon, and the name the source never changes. That is the key on GitHub and the issue id on Linear, where a key changes when a ticket moves to another team. On Jira it is the host of the site, a slash and the issue id, such as jira:acme.atlassian.net/10009. |
 | `key` | string | The name people use for the ticket: owner/repo#12 on GitHub, ENG-123 on Linear or Jira. |
-| `aliases` | list of string | Keys the ticket had before, such as its key in the team it was moved out of. A change that names one is still linked to the ticket. Empty on GitHub. |
+| `aliases` | list of string | Keys the ticket had before, such as its key in the team or project it was moved out of. A change that names one is still linked to the ticket. Empty on GitHub. |
 | `project` | string | The repository, team or project the ticket belongs to. |
 | `url` | string | Link to the ticket on the source. |
 | `title` | string | The title. |

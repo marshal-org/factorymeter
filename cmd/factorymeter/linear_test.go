@@ -470,7 +470,7 @@ func TestActionSyncReadsLinear(t *testing.T) {
 
 	// A store with Linear tickets is private, whatever the repository is.
 	r.write("event.json", `{"repository": {"private": false}}`)
-	if text, out := r.step("share"); out["names"] != "false" || out["save"] != "false" || !strings.Contains(text, "or Linear tickets") {
+	if text, out := r.step("share"); out["names"] != "false" || out["save"] != "false" || !strings.Contains(text, "or tickets of Linear or Jira") {
 		t.Errorf("share in a public repository: %v\n%s", out, text)
 	}
 }

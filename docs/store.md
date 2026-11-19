@@ -120,6 +120,74 @@ workspace, and always counts as private. `store info` lists it as
 This adapter is checked against Linear's published GraphQL schema and a
 stand-in server. It has not yet run against a live workspace.
 
+## Tickets from Jira
+
+`sync --jira acme.atlassian.net` reads a Jira Cloud site, after it has read
+GitHub and Linear. It asks as the account in `JIRA_EMAIL`, with the API token
+in `JIRA_API_TOKEN`. `--jira-project ENG` reads one project, and can be given
+more than once. Without it every project the account can see is read.
+
+```sh
+export JIRA_EMAIL=...
+export JIRA_API_TOKEN=...
+factorymeter sync my-org --jira acme.atlassian.net
+factorymeter sync my-org --jira acme.atlassian.net --jira-project ENG --jira-project OPS
+```
+
+What is kept of a Jira issue: its key and the keys it had before, its project,
+summary, labels, status, the display name of the account that made it, and its
+times. The description, the comments, the assignee and the reporter are not
+asked for. No email address is kept.
+
+- **When work started.** Jira puts every status in one of three categories:
+  To Do, In Progress and Done. The history of an issue lists the statuses it
+  went through. The ticket starts the first time it entered a status of the
+  category In Progress, also when it went back since. An issue that was made
+  in such a status starts when it was made.
+- **Reopened.** A ticket counts as reopened each time it left a status of the
+  category Done for an open one.
+- **States.** To Do is stored as unstarted, or as backlog when the name of the
+  status has the word backlog in it. In Progress is stored as started. Done is
+  stored as done. It is stored as cancelled when the resolution or the status
+  is one of a fixed list of names, such as Won't Do, Duplicate, Cannot
+  Reproduce, Declined, Cancelled and Rejected. A name of your own that means
+  the same is not known, and counts as done.
+- **Epics are left out.** An issue above the level of a story or a task is not
+  a ticket. Subtasks are kept.
+- **Links.** Jira does not say in this API which pull requests belong to an
+  issue, so no link is stored. The report ties a pull request to a ticket when
+  its branch, title or description names the key of the ticket. Those are found
+  when the report is made.
+- **A long history.** The search returns the history of an issue with the
+  issue. When it does not return all of it, the rest is read with one more
+  request per 100 changes of that issue.
+- **A later sync** reads the issues updated since the last one. Jira is read
+  14 days of update times at a time, and the place is saved after each, so a
+  sync that stops goes on from there.
+- **Days, not moments.** A search of Jira compares times in the time zone of
+  the account. So each read asks for whole days and for a day more on each
+  side, and reads some issues twice. Nothing is lost by it.
+- **Another list of projects** makes the sync drop the stored tickets of the
+  site and read them again.
+- **A sync without `--jira`** leaves the stored Jira tickets as they are and
+  says so. The report says when they are more than a day behind.
+- **Deleted issues** stay in the store.
+- **Two sites in one store.** A second site is a second scope. When a ticket
+  of each has the same key, a pull request that names the key is tied to one
+  of the two only. Nothing warns of it.
+- **Linear and Jira in one store.** When a ticket of each has the same key, a
+  pull request that names the key is tied to the Linear ticket.
+- **Jira Cloud only.** Jira Data Center has another API and is not read.
+
+The site is a scope of its own in the store, named by its host, and always
+counts as private. `store info` lists it as `<host> (Jira)`.
+
+The client sends `GET` requests only. It does not follow a redirect, so the
+account is never sent to a host other than the one you named.
+
+This adapter is checked against Atlassian's published description of the API
+and a stand-in server. It has not yet run against a live site.
+
 ## A store from an older version
 
 A record gains a field now and then. A file written before the field has no
@@ -252,7 +320,8 @@ artifact.
 
 Everything. A sync talks to the GitHub API with your read-only token and writes
 to the store directory. With `--linear` it also talks to the Linear API with
-your key. Titles of Linear issues are in the store too. A store of a private repository holds its pull request
+your key, and with `--jira` to your Jira site with your account. Titles of
+Linear and Jira issues are in the store too. A store of a private repository holds its pull request
 titles, bodies, commit authors, branch names and issue titles, so treat the directory like
 the repository itself.
 

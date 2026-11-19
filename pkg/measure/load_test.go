@@ -245,6 +245,93 @@ func TestReportSaysWhenLinearIsBehind(t *testing.T) {
 	}
 }
 
+// A Jira site attaches no pull request to a ticket, so only the key ties the
+// two, and the report says so.
+//
+//	PAY-1  created 6               app#1 (opened 4) names it in its title
+//	PAY-2  created 9, started 8    app#2 (opened 5) names it in its branch
+//	PAY-3  created 3               nothing
+func TestLoadTiesJiraTicketsToPullRequestsByKey(t *testing.T) {
+	at := func(days float64) time.Time { return end.Add(time.Duration(days * float64(day))) }
+	s, err := store.OpenWrite(t.TempDir(), "acme", end)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	must := func(_, _ int, err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	const site = "acme.atlassian.net"
+	for _, sc := range []store.Scope{
+		{Source: record.GitHub, Name: repo, Private: true, From: end.Add(-26 * week), SyncedAt: end},
+		{Source: record.Jira, Name: site, Private: true, From: end.Add(-26 * week), SyncedAt: end},
+	} {
+		if err := s.PutScope(sc); err != nil {
+			t.Fatal(err)
+		}
+	}
+	must(store.Changes.Put(s, record.GitHub, repo, []record.Change{
+		change(1, at(-4), titled("PAY-1: charge the card")),
+		change(2, at(-5), branch("ada/pay-2-refund")),
+	}))
+	ticket := func(n int, state string, created float64, started *time.Time) record.Ticket {
+		key := "PAY-" + string(rune('0'+n))
+		return record.Ticket{Source: record.Jira, ID: record.TicketID(record.Jira, site+"/1000"+key[4:]), Key: key, Aliases: []string{}, Project: "PAY",
+			Title: "Ticket " + key, URL: "https://" + site + "/browse/" + key, State: state, CreatedAt: at(created), UpdatedAt: at(created),
+			StartedAt: started, Labels: []string{}}
+	}
+	started := at(-8)
+	must(store.Tickets.Put(s, record.Jira, site, []record.Ticket{
+		ticket(1, record.TicketUnstarted, -6, nil),
+		ticket(2, record.TicketStarted, -9, &started),
+		ticket(3, record.TicketUnstarted, -3, nil),
+	}))
+
+	l, err := Load(s, registry(t), "acme")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// PAY-2 starts in Jira a day after it was created, before its pull
+	// request. PAY-1 starts with its pull request, two days after.
+	if got := vals(l.obsOf("spec.wait", sel{})); !same(got, []float64{24, 48}) {
+		t.Errorf("spec.wait = %v, want 24 and 48", got)
+	}
+	r, err := l.Report(Options{Target: "acme", Weeks: 2, History: 4, Now: end})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sc := range r.Coverage.Sources {
+		if sc.Kind == record.KindTicket && (sc.Source != "jira" || sc.Records != 3 || !strings.Contains(sc.Note, "A Jira ticket starts when")) {
+			t.Errorf("ticket coverage = %+v", sc)
+		}
+	}
+	limits := strings.Join(r.Limits, "\n")
+	if want := "A pull request counts as linked to a Jira ticket when its branch, title or description names the key of the ticket. A word that only looks like a key is taken for one. A ticket deleted in Jira stays in the store."; !strings.Contains(limits, want) {
+		t.Errorf("the limits do not say %q:\n%s", want, limits)
+	}
+	if strings.Contains(limits, "attached") {
+		t.Errorf("the limits speak of a pull request that Jira has attached:\n%s", limits)
+	}
+}
+
+// A store can hold a Linear workspace and a Jira site, as it does while a
+// team moves from one to the other. A key that both have goes to Linear.
+func TestAKeyInLinearAndInJiraGoesToLinear(t *testing.T) {
+	var k ticketKeys
+	k.id = map[string]string{}
+	// The scopes come in the order of their keys: Jira, then Linear.
+	k.add(&record.Ticket{Source: record.Jira, ID: "jira:acme.atlassian.net/10001", Key: "ENG-1"})
+	k.add(&record.Ticket{Source: record.Jira, ID: "jira:acme.atlassian.net/10002", Key: "ENG-2"})
+	k.add(&record.Ticket{Source: record.Linear, ID: "linear:u1", Key: "ENG-1"})
+	k.done()
+	if got := k.in("ENG-1 and ENG-2"); !reflect.DeepEqual(got, []string{"linear:u1", "jira:acme.atlassian.net/10002"}) {
+		t.Errorf("got %v", got)
+	}
+}
+
 func TestAStoreWithOnlyTicketsOfAnotherSystemHoldsNothing(t *testing.T) {
 	s, err := store.OpenWrite(t.TempDir(), "acme", end)
 	if err != nil {

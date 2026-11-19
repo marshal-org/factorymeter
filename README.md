@@ -25,7 +25,7 @@ factorymeter sync my-org && factorymeter report my-org   # every active reposito
 
 It only reads. It needs a read-only GitHub token, it runs on your machine, and it sends nothing
 anywhere except to the GitHub API. When you ask for it, it also reads the tickets of a Linear
-workspace, from the Linear API.
+workspace, from the Linear API, or of a Jira Cloud site, from that site.
 
 ---
 
@@ -165,6 +165,24 @@ factorymeter sync my-org --linear-team ENG --linear-team OPS   # only these team
 A key belongs to one workspace, and that is the workspace that is read. The client sends
 queries only and refuses a mutation, the same as the GitHub client.
 
+### A Jira account, if your tickets live in Jira
+
+`sync --jira <site>` also reads the tickets of a Jira Cloud site. Make an API token under
+Manage account, Security, API tokens, and put it in `JIRA_API_TOKEN`. Put the email of that
+account in `JIRA_EMAIL`. An account that can browse the projects is all it needs. There is no
+flag for either, so they never land in your shell history. factorymeter never prints them and
+never writes them to a file.
+
+```bash
+export JIRA_EMAIL=...                          # the account the token belongs to
+export JIRA_API_TOKEN=...                      # an API token of that account
+factorymeter sync my-org --jira acme.atlassian.net                      # every project the account can see
+factorymeter sync my-org --jira acme.atlassian.net --jira-project ENG   # only this project
+```
+
+The client has one verb, `GET`, and sends the account to the site you name and to no other
+host. It does not follow a redirect. Jira Data Center is not read.
+
 ## Sync, then report
 
 `sync` reads the history from GitHub into a store on your machine. The first sync reads 26
@@ -179,6 +197,7 @@ factorymeter report owner/repo --until 4w      # the line as it stood four weeks
 factorymeter serve my-org                      # the same report as a page in the browser
 factorymeter store info my-org                 # what the store holds
 factorymeter sync my-org --linear              # also read the tickets of a Linear workspace
+factorymeter sync my-org --jira acme.atlassian.net   # also read the tickets of a Jira Cloud site
 ```
 
 Run both once a week and the report follows the line week after week. A sync that is stopped
@@ -291,9 +310,9 @@ The report prints the limits that apply every time. They are not fine print.
 - **A branch prefix alone is not proof.** People type `claude/` and `codex/` by hand.
 - **Times are hours on the clock.** Nights and weekends count.
 - **Writing time starts at the first commit of a change.** Work before that commit is not seen.
-- **A ticket is a GitHub issue, or a Linear issue with `sync --linear`.** A GitHub issue has no
-  started state, so it starts when the first pull request that closes it is opened. An issue
-  closed with no such pull request never counts as started. Jira is not read yet.
+- **A ticket is a GitHub issue, a Linear issue with `sync --linear`, or a Jira issue with
+  `sync --jira`.** A GitHub issue has no started state, so it starts when the first pull request
+  that closes it is opened. An issue closed with no such pull request never counts as started.
 - **A Linear ticket starts when it first enters a started state, or when the first pull request
   linked to it is opened, whichever is earlier.** A pull request is linked when Linear has it
   attached, or when its branch, title or description names the key of the ticket, such as
@@ -303,6 +322,15 @@ The report prints the limits that apply every time. They are not fine print.
   pull requests. The report of the owner counts them all.
 - **The Linear adapter is proven against Linear's published schema and a stand-in server, not
   yet against a live workspace.** Tell us what you see.
+- **A Jira ticket starts when it first enters a status of the category In Progress, or when the
+  first pull request linked to it is opened, whichever is earlier.** A pull request is linked
+  when its branch, title or description names the key of the ticket, such as `ENG-123`. Jira
+  does not say which pull requests belong to an issue, so the key is the only tie. Like a Linear
+  ticket, a Jira ticket counts for the repository of the first pull request linked to it.
+- **Epics are not tickets.** An issue above the level of a story or a task is left out. Subtasks
+  are counted.
+- **The Jira adapter is proven against Atlassian's published API description and a stand-in
+  server, not yet against a live site.** Jira Cloud only. Tell us what you see.
 - **CI means GitHub Actions.** Other CI systems are not read.
 - **A run of the merge queue belongs to one pull request.** The queue runs CI on a branch it makes
   and names after a pull request. The run counts for that one, also when the branch carries the
@@ -357,6 +385,10 @@ jobs:
 | `token` | the job's own token | a token that can read the target. An owner-wide report needs your own read-only token |
 | `linear-api-key` | empty | a Linear personal API key. With it the tickets of Linear are read too. Pass it from a secret |
 | `linear-teams` | empty | the keys of the Linear teams to read, separated by commas or spaces. Empty reads every team the key can see |
+| `jira-site` | empty | the host of a Jira Cloud site, such as `acme.atlassian.net`. With it, `jira-email` and `jira-api-token`, the tickets of Jira are read too |
+| `jira-email` | empty | the email of the Jira account the API token belongs to. Pass it from a secret |
+| `jira-api-token` | empty | an API token of a Jira account that can read the site. Pass it from a secret |
+| `jira-projects` | empty | the keys of the Jira projects to read, separated by commas or spaces. Empty reads every project the account can see |
 | `summary` | `true` | write the report to the job summary |
 | `artifact` | `true` | upload the HTML, JSON and Markdown as a build artifact |
 | `artifact-name` | `factorymeter-report` | name of the artifact that holds the report |
@@ -373,8 +405,8 @@ What to know about the store artifact:
   in can download its artifacts. The store of a private repository holds its pull request
   titles and logins. So when the workflow runs in a public repository and the target has a
   private repository in it, the Action does not save the store, writes the report without
-  names, and says so in a warning. Linear tickets always count as private, so the same holds
-  for a store with Linear tickets in a public repository.
+  names, and says so in a warning. Tickets of Linear and of Jira always count as private, so
+  the same holds for a store with such tickets in a public repository.
 - **It is only taken from a run of your own repository.** A pull request from a fork can upload
   an artifact under any name. The Action never restores one of those.
 - **A run that stopped still saves what it read.** The next run goes on from there.
@@ -396,6 +428,20 @@ To read Linear as well, give the key from a secret:
 
 When the secret is empty, as it is for a pull request from a fork, Linear is not read and the
 run goes on.
+
+To read Jira as well, give the site, and the account from secrets:
+
+```yaml
+      - uses: marshal-org/factorymeter@v0.1.0
+        with:
+          jira-site: acme.atlassian.net
+          jira-email: ${{ secrets.JIRA_EMAIL }}
+          jira-api-token: ${{ secrets.JIRA_API_TOKEN }}
+          jira-projects: ENG, OPS     # leave out to read every project
+```
+
+When one of the three is empty, Jira is not read, a warning names what is empty, and the run
+goes on.
 
 The Action builds the binary from the commit you pinned, so the code that runs is the code you
 can read.

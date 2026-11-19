@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/marshal-org/factorymeter/pkg/ingest"
+	"github.com/marshal-org/factorymeter/pkg/jira"
 	"github.com/marshal-org/factorymeter/pkg/linear"
 	"github.com/marshal-org/factorymeter/pkg/record"
 	"github.com/marshal-org/factorymeter/pkg/store"
@@ -33,7 +34,8 @@ func syncCmd() *cobra.Command {
 	var dir, since string
 	var opt ingest.Options
 	var quiet, withLinear bool
-	var linearTeams []string
+	var linearTeams, jiraProjects []string
+	var jiraSite string
 	cmd := &cobra.Command{
 		Use:   "sync <owner/repo | owner>",
 		Short: "Read what changed on GitHub into the local store",
@@ -56,12 +58,21 @@ workspace is the one the key belongs to. --linear-team limits the read to
 some teams. A report then counts the Linear tickets at the spec station, next
 to GitHub issues.
 
+With --jira and the host of a Jira Cloud site, sync also reads the tickets of
+that site into the same store. The account comes from JIRA_EMAIL and
+JIRA_API_TOKEN: an email and an API token of an account that can read the
+site. --jira-project limits the read to some projects. A pull request is tied
+to a Jira ticket when its branch, title or description names the key of the
+ticket.
+
 The store is a directory of Parquet files. Nothing leaves this machine.`,
 		Example: `  factorymeter sync marshal-org/runlease
   factorymeter sync my-org --since 13w --workers 8
   factorymeter sync my-org --store ./factorymeter-store
   LINEAR_API_KEY=... factorymeter sync my-org --linear
-  LINEAR_API_KEY=... factorymeter sync my-org --linear-team ENG --linear-team OPS`,
+  LINEAR_API_KEY=... factorymeter sync my-org --linear-team ENG --linear-team OPS
+  JIRA_EMAIL=... JIRA_API_TOKEN=... factorymeter sync my-org --jira acme.atlassian.net
+  JIRA_EMAIL=... JIRA_API_TOKEN=... factorymeter sync my-org --jira acme.atlassian.net --jira-project ENG`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target := strings.Trim(strings.TrimSpace(args[0]), "/")
@@ -88,6 +99,17 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 					return err
 				}
 			}
+			var jc *jira.Client
+			switch site := strings.TrimSpace(jiraSite); {
+			case site != "":
+				if jc, err = jiraClient(site, quiet); err != nil {
+					return err
+				}
+			case cmd.Flags().Changed("jira"):
+				return errors.New("--jira needs the host of the Jira site, such as acme.atlassian.net")
+			case len(jiraProjects) > 0:
+				return errors.New("--jira-project needs --jira with the host of the Jira site, such as acme.atlassian.net")
+			}
 			s, err := store.OpenWrite(path, owner, now)
 			if err != nil {
 				return err
@@ -101,21 +123,33 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 			res, serr := g.Sync(cmd.Context(), target)
 			w := cmd.OutOrStdout()
 			printSync(w, res, c.Calls, time.Since(now))
-			switch {
-			case lc == nil:
-				if len(s.Scopes(record.Linear)) > 0 {
-					fmt.Fprintln(w, "note: the store holds Linear tickets, and this sync did not read Linear. Pass --linear to read what changed on them.")
-				}
-				return serr
-			case cmd.Context().Err() != nil, serr != nil && !anyRead(res):
+			if lc == nil && len(s.Scopes(record.Linear)) > 0 {
+				fmt.Fprintln(w, "note: the store holds Linear tickets, and this sync did not read Linear. Pass --linear to read what changed on them.")
+			}
+			if jc == nil && len(s.Scopes(record.Jira)) > 0 {
+				fmt.Fprintln(w, "note: the store holds Jira tickets, and this sync did not read Jira. Pass --jira to read what changed on them.")
+			}
+			if cmd.Context().Err() != nil || (serr != nil && !anyRead(res)) {
 				// Stopped, or nothing of GitHub could be read at all.
 				return serr
 			}
-			began := time.Now()
-			l := &ingest.Linear{C: lc, S: s, Opt: opt, Teams: linearTeams}
-			lres, lerr := l.Sync(cmd.Context())
-			printLinear(w, lres, lerr, lc.Calls, time.Since(began))
-			return errors.Join(serr, lerr)
+			errs := []error{serr}
+			if lc != nil {
+				began := time.Now()
+				l := &ingest.Linear{C: lc, S: s, Opt: opt, Teams: linearTeams}
+				lres, lerr := l.Sync(cmd.Context())
+				printLinear(w, lres, lerr, lc.Calls, time.Since(began))
+				errs = append(errs, lerr)
+			}
+			// A sync that was stopped while it read Linear does not go on to Jira.
+			if jc != nil && cmd.Context().Err() == nil {
+				began := time.Now()
+				j := &ingest.Jira{C: jc, S: s, Opt: opt, Projects: jiraProjects}
+				jres, jerr := j.Sync(cmd.Context())
+				printJira(w, jres, jerr, jc.Calls, time.Since(began))
+				errs = append(errs, jerr)
+			}
+			return errors.Join(errs...)
 		},
 	}
 	f := cmd.Flags()
@@ -130,6 +164,8 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 	f.BoolVar(&opt.IncludeArchived, "include-archived", false, "with an owner: include archived repositories")
 	f.BoolVar(&withLinear, "linear", false, "also read the tickets of the Linear workspace that LINEAR_API_KEY belongs to")
 	f.StringArrayVar(&linearTeams, "linear-team", nil, "read only this Linear team, by its key, such as ENG. Repeat for more. Implies --linear")
+	f.StringVar(&jiraSite, "jira", "", "also read the tickets of this Jira Cloud site, such as acme.atlassian.net, as the account of JIRA_EMAIL and JIRA_API_TOKEN")
+	f.StringArrayVar(&jiraProjects, "jira-project", nil, "read only this Jira project, by its key, such as ENG. Repeat for more. Needs --jira")
 	f.BoolVar(&quiet, "quiet", false, "no progress on standard error")
 	return cmd
 }
@@ -182,7 +218,6 @@ func printSync(w io.Writer, res ingest.Result, calls int, took time.Duration) {
 	fmt.Fprintf(w, "%d requests to GitHub in %s.\n", calls, took.Round(time.Second))
 }
 
-// printLinear prints what a sync of a Linear workspace did. It comes after the
 // anyRead says whether the sync read at least one repository to the end.
 // When none was read there is no pull request to tie a ticket to.
 func anyRead(res ingest.Result) bool {
@@ -194,11 +229,24 @@ func anyRead(res ingest.Result) bool {
 	return false
 }
 
-// lines of GitHub, which other tools read.
+// printLinear prints what a sync of a Linear workspace did.
 func printLinear(w io.Writer, r ingest.SourceResult, err error, calls int, took time.Duration) {
-	name := "Linear"
+	printSource(w, "Linear", "teams", true, r, err, calls, took)
+}
+
+// printJira prints what a sync of a Jira site did. Jira attaches no pull
+// request to a ticket, so the line has no count of links.
+func printJira(w io.Writer, r ingest.SourceResult, err error, calls int, took time.Duration) {
+	printSource(w, "Jira", "projects", false, r, err, calls, took)
+}
+
+// printSource prints what a sync of a ticket system did. It comes after the
+// lines of GitHub, which other tools read. parts is what the system calls the
+// groups a sync can be limited to.
+func printSource(w io.Writer, system, parts string, links bool, r ingest.SourceResult, err error, calls int, took time.Duration) {
+	name := system
 	if r.Name != "" {
-		name = "Linear " + r.Name
+		name = system + " " + r.Name
 		from := "-"
 		if !r.From.IsZero() {
 			from = r.From.Format("2006-01-02")
@@ -210,15 +258,19 @@ func printLinear(w io.Writer, r ingest.SourceResult, err error, calls int, took 
 		case err != nil:
 			state = ", failed"
 		}
-		fmt.Fprintf(w, "%s: tickets %s, links to pull requests %s, from %s%s\n", name, delta(r.Tickets), delta(r.Links), from, state)
+		linked := ""
+		if links {
+			linked = ", links to pull requests " + delta(r.Links)
+		}
+		fmt.Fprintf(w, "%s: tickets %s%s, from %s%s\n", name, delta(r.Tickets), linked, from, state)
 	}
 	if r.Again {
-		fmt.Fprintf(w, "note: %s: the list of teams changed, so the tickets were read again from the start.\n", name)
+		fmt.Fprintf(w, "note: %s: the list of %s changed, so the tickets were read again from the start.\n", name, parts)
 	}
 	if err != nil && !stopped(err) {
 		fmt.Fprintf(w, "failed: %s: %v\n", name, err)
 	}
-	fmt.Fprintf(w, "%d requests to Linear in %s.\n", calls, took.Round(time.Second))
+	fmt.Fprintf(w, "%d requests to %s in %s.\n", calls, system, took.Round(time.Second))
 }
 
 // storeInfo is what "store info --format json" prints.
@@ -271,8 +323,8 @@ func storeCmd() *cobra.Command {
 		Short: "Print what the store holds",
 		Long: `info prints the repositories in an owner's store, how many records each
 has, how far back they go and when each was last synced. A Linear workspace
-is listed after them, with its name followed by "(Linear)". It reads the
-store only. It does not need a token and makes no request.`,
+or a Jira site is listed with them, with its name followed by "(Linear)" or
+"(Jira)". It reads the store only. It does not need a token and makes no request.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if format != "text" && format != "json" {
