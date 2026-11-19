@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0](https://github.com/marshal-org/factorymeter/compare/v0.3.0...v0.4.0) (2026-11-19)
+
+
+### Features
+
+* **report:** link the line to Lights Out, and leave the first generation out of the help ([0ef67fe](https://github.com/marshal-org/factorymeter/commit/0ef67fe25bff36af5be836a800d13212f5a7b6a8))
+
+
+### Bug Fixes
+
+* **ci:** start no run on a release pull request that also moves the version pins ([13f4d05](https://github.com/marshal-org/factorymeter/commit/13f4d052f9976168e2ddec791b33dc85afb13911))
+* **site:** let the pack job read the Pages settings ([30f27ba](https://github.com/marshal-org/factorymeter/commit/30f27ba5b1401085313ca7fd2eed4e869691c391))
+* **site:** upload and publish the site in two jobs ([2291abd](https://github.com/marshal-org/factorymeter/commit/2291abdabbe78cf9e04593fec86f5080e4c8b21f))
+
 ## [0.3.0](https://github.com/marshal-org/factorymeter/compare/v0.2.0...v0.3.0) (2026-11-19)
 
 
