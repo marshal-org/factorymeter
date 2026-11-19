@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0](https://github.com/marshal-org/factorymeter/compare/v0.2.0...v0.3.0) (2026-11-19)
+
+
+### Features
+
+* **page:** name the next station in line, tie where to invest to each station, and use the Software Factory colors ([421b70a](https://github.com/marshal-org/factorymeter/commit/421b70aa1f24e1f4f46abc7ac1fbd454b0d3b3ae))
+* **page:** split the page into pages, grade each station, and open a station below the line ([b3fe2a8](https://github.com/marshal-org/factorymeter/commit/b3fe2a8a2ed7d77e98f0526889705e49bfd5004f))
+
+
+### Bug Fixes
+
+* **ci:** start no CI run on the release pull request ([1a25442](https://github.com/marshal-org/factorymeter/commit/1a25442501fe0ad788bdf8445f0e014300b9dc2b))
+* **cli:** check the target and the flags before using them ([dad5a28](https://github.com/marshal-org/factorymeter/commit/dad5a2818a6856c3e156bedda97ab98c5eb39a87))
+
 ## [0.2.0](https://github.com/marshal-org/factorymeter/compare/v0.1.0...v0.2.0) (2026-11-19)
 
 
