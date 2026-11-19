@@ -154,9 +154,50 @@ select state, count(*) from 'changes/*/*/*.parquet' group by 1;
 
 factorymeter itself needs no database. The binary reads and writes the files.
 
+## The store in the GitHub Action
+
+A runner starts empty, so the Action keeps the store as a build artifact of the
+repository the workflow runs in. The artifact is named `factorymeter-store-`
+and the owner of the target in lower case, because one store holds one owner.
+
+Each run does this:
+
+1. It looks for the newest artifact of that name that has not expired and that
+   a run of the repository's own code saved. A run of a pull request from a
+   fork can upload an artifact under any name, so its artifacts are never taken.
+2. It downloads the store and checks that this version can read it and that it
+   holds the owner of the target. If any of this fails, the run starts with no
+   store and says why.
+3. It syncs. With a store, that reads only what changed. Without one, it reads
+   the `history` input, 26 weeks by default.
+4. It writes the report from the store.
+5. It uploads the store again, also when the sync failed or was stopped. A sync
+   keeps what it stored, so the next run goes on from there.
+
+The store is taken from the newest run that saved one, not only from a run
+that ended well. A store is right at every point where a sync can stop.
+
+Two tokens are in play, in separate steps. The job's own token lists and
+downloads the artifact, and needs `actions: read`. The `token` input reads the
+target, and is given to the sync only.
+
+Anyone who can read the repository can download its artifacts. So in a public
+repository, a store that holds a private repository is not uploaded, and the
+report is written with `--summary`, which leaves out every name. The run prints
+a warning and reads the whole history each time. Run the workflow in a private
+repository to keep the store and the names.
+
+GitHub deletes an artifact after its retention time, 90 days at most. The next
+run then reads the whole history again. To start over by hand, delete the
+artifact.
+
 ## What stays on your machine
 
 Everything. A sync talks to the GitHub API with your read-only token and writes
 to the store directory. A store of a private repository holds its pull request
 titles, bodies, commit authors, branch names and issue titles, so treat the directory like
 the repository itself.
+
+The GitHub Action is the one case where the store leaves the machine that wrote
+it: it goes to a build artifact of your own repository, as the section above
+describes.
