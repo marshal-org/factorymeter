@@ -172,9 +172,9 @@ const (
 // Ticket is an issue on GitHub, Linear or Jira.
 type Ticket struct {
 	Source    string     `json:"source" parquet:"source" doc:"Where the record came from." enum:"github,linear,jira"`
-	ID        string     `json:"id" parquet:"id" doc:"Stable id, unique among tickets: the source, a colon, and the name the source never changes. That is the key on GitHub and the issue id on Linear, where a key changes when a ticket moves to another team."`
+	ID        string     `json:"id" parquet:"id" doc:"Stable id, unique among tickets: the source, a colon, and the name the source never changes. That is the key on GitHub and the issue id on Linear, where a key changes when a ticket moves to another team. On Jira it is the host of the site, a slash and the issue id, such as jira:acme.atlassian.net/10009."`
 	Key       string     `json:"key" parquet:"key" doc:"The name people use for the ticket: owner/repo#12 on GitHub, ENG-123 on Linear or Jira."`
-	Aliases   []string   `json:"aliases" parquet:"aliases,list" doc:"Keys the ticket had before, such as its key in the team it was moved out of. A change that names one is still linked to the ticket. Empty on GitHub."`
+	Aliases   []string   `json:"aliases" parquet:"aliases,list" doc:"Keys the ticket had before, such as its key in the team or project it was moved out of. A change that names one is still linked to the ticket. Empty on GitHub."`
 	Project   string     `json:"project" parquet:"project" doc:"The repository, team or project the ticket belongs to."`
 	URL       string     `json:"url" parquet:"url" doc:"Link to the ticket on the source."`
 	Title     string     `json:"title" parquet:"title" doc:"The title."`

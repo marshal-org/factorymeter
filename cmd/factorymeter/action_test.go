@@ -276,7 +276,7 @@ func TestActionKeepsAPrivateStoreOutOfAPublicRepository(t *testing.T) {
 
 	private(t, dir, now)
 	text, out := r.step("share")
-	if out["names"] != "false" || out["save"] != "false" || !strings.Contains(text, "::warning::factorymeter: acme/app is public and the store holds a private repository or Linear tickets") {
+	if out["names"] != "false" || out["save"] != "false" || !strings.Contains(text, "::warning::factorymeter: acme/app is public and the store holds a private repository or tickets of Linear or Jira") {
 		t.Errorf("private store, public repository: %v\n%s", out, text)
 	}
 	r.write("event.json", hidden)

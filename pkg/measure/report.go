@@ -706,7 +706,13 @@ func (l *Line) coverage(o Options, w window, status map[string]stationState, lim
 		for _, n := range t.notes {
 			limits = append(limits, name+": "+n)
 		}
-		limits = append(limits, fmt.Sprintf("A pull request counts as linked to a %s ticket when %s has it attached, or when its branch, title or description names the key of the ticket. A word that only looks like a key is taken for one. A ticket deleted in %s stays in the store.", name, name, name))
+		// Linear attaches pull requests to a ticket. Jira has no list of them
+		// that a sync reads, so only the key ties the two.
+		attached := fmt.Sprintf("when %s has it attached, or ", name)
+		if t.source == record.Jira {
+			attached = ""
+		}
+		limits = append(limits, fmt.Sprintf("A pull request counts as linked to a %s ticket %swhen its branch, title or description names the key of the ticket. A word that only looks like a key is taken for one. A ticket deleted in %s stays in the store.", name, attached, name))
 		switch {
 		case t.linkedOnly && t.skipped > 0:
 			limits = append(limits, fmt.Sprintf("Only the %s tickets that a pull request of this repository is linked to are counted. %s in the store %s left out. The report of the owner counts them all.",

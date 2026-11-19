@@ -18,7 +18,8 @@ branding:
 # The report goes to the job summary and to a build artifact. The store, which
 # is what makes the next run quick, goes to a second build artifact of the same
 # repository. Nothing is sent anywhere except to the GitHub API and, when you
-# give a Linear key, to the Linear API.
+# give a Linear key, to the Linear API, and when you give a Jira site and an
+# account, to that Jira site.
 
 inputs:
   target:
@@ -43,6 +44,22 @@ inputs:
     default: ""
   linear-teams:
     description: "The keys of the Linear teams to read, separated by commas or spaces: ENG, OPS. Empty reads every team the key can see."
+    required: false
+    default: ""
+  jira-site:
+    description: "The host of a Jira Cloud site: acme.atlassian.net. With it, jira-email and jira-api-token, the tickets of the site are read too, and the spec station is measured from them. In a public repository the report is then written without names, and the store is not kept."
+    required: false
+    default: ""
+  jira-email:
+    description: The email of the Jira account the API token belongs to. Pass it from a secret.
+    required: false
+    default: ""
+  jira-api-token:
+    description: An API token of a Jira account that can read the site. Pass it from a secret.
+    required: false
+    default: ""
+  jira-projects:
+    description: "The keys of the Jira projects to read, separated by commas or spaces: ENG, OPS. Empty reads every project the account can see."
     required: false
     default: ""
   summary:
@@ -148,6 +165,10 @@ runs:
         FM_HISTORY: ${{ inputs.history }}
         LINEAR_API_KEY: ${{ inputs.linear-api-key }}
         FM_LINEAR_TEAMS: ${{ inputs.linear-teams }}
+        FM_JIRA_SITE: ${{ inputs.jira-site }}
+        JIRA_EMAIL: ${{ inputs.jira-email }}
+        JIRA_API_TOKEN: ${{ inputs.jira-api-token }}
+        FM_JIRA_PROJECTS: ${{ inputs.jira-projects }}
       run: bash "$GITHUB_ACTION_PATH/scripts/action.sh" sync
 
     # Runs after a sync that failed or was stopped too. Such a sync keeps what

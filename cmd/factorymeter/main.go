@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/marshal-org/factorymeter/pkg/github"
+	"github.com/marshal-org/factorymeter/pkg/jira"
 	"github.com/marshal-org/factorymeter/pkg/linear"
 )
 
@@ -96,6 +97,31 @@ func linearClient(quiet bool) (*linear.Client, error) {
 	if v := strings.TrimSpace(os.Getenv("LINEAR_API_URL")); v != "" {
 		c.URL = v
 	}
+	if !quiet {
+		c.Logf = progress
+	}
+	return c, nil
+}
+
+// jiraClient builds a client for a Jira Cloud site. The site is not a secret
+// and comes from a flag. The email and the token come from the environment
+// only, never from a flag, so they do not end up in the shell history or in
+// the list of processes. Neither is ever printed.
+func jiraClient(site string, quiet bool) (*jira.Client, error) {
+	email, tok := strings.TrimSpace(os.Getenv("JIRA_EMAIL")), strings.TrimSpace(os.Getenv("JIRA_API_TOKEN"))
+	switch {
+	case email == "" && tok == "":
+		return nil, errors.New("no Jira account. Set JIRA_EMAIL to the email of an account that can read the site, and JIRA_API_TOKEN to an API token of that account")
+	case email == "":
+		return nil, errors.New("no Jira email. Set JIRA_EMAIL to the email of the account the API token belongs to")
+	case tok == "":
+		return nil, errors.New("no Jira token. Set JIRA_API_TOKEN to an API token of the account that can read the site")
+	}
+	c, err := jira.New(site, email, tok)
+	if err != nil {
+		return nil, err
+	}
+	c.UserAgent = "factorymeter/" + version
 	if !quiet {
 		c.Logf = progress
 	}

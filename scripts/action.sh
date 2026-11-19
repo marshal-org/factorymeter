@@ -2,7 +2,7 @@
 # The steps of the GitHub Action. action.yml runs them one at a time:
 #
 #   action.sh restore   bring back the store an earlier run saved
-#   action.sh sync      read what changed on GitHub, and on Linear, into the store
+#   action.sh sync      read what changed on GitHub, Linear and Jira into the store
 #   action.sh share     decide what may leave the runner
 #   action.sh report    write the report and the outputs
 #
@@ -87,8 +87,13 @@ do_restore() {
 # Linear is read when the workflow gives a key. The key stays in
 # LINEAR_API_KEY, where the binary reads it, and is never an argument. The
 # teams are split without globbing, so a team cannot name files.
+#
+# Jira is read when the workflow gives a site, an email and a token. The email
+# and the token stay in JIRA_EMAIL and JIRA_API_TOKEN, where the binary reads
+# them. The site is not a secret and is an argument. With a part of the three
+# missing, as for a pull request from a fork, Jira is not read.
 do_sync() {
-  local log="$RUNNER_TEMP/factorymeter-sync.log" team
+  local log="$RUNNER_TEMP/factorymeter-sync.log" team project missing=""
   local args=(sync "$target" --store "$store" --since "${FM_HISTORY:-26w}")
   if [ -n "${LINEAR_API_KEY:-}" ]; then
     args+=(--linear)
@@ -99,6 +104,19 @@ do_sync() {
     set +f
   elif [ -n "${FM_LINEAR_TEAMS:-}" ]; then
     warn "linear-teams is set and linear-api-key is empty, so Linear is not read."
+  fi
+  [ -n "${FM_JIRA_SITE:-}" ] || missing="$missing jira-site"
+  [ -n "${JIRA_EMAIL:-}" ] || missing="$missing jira-email"
+  [ -n "${JIRA_API_TOKEN:-}" ] || missing="$missing jira-api-token"
+  if [ -z "$missing" ]; then
+    args+=(--jira "$FM_JIRA_SITE")
+    set -f
+    for project in $(printf '%s' "${FM_JIRA_PROJECTS:-}" | tr ',\r\n\t' '    '); do
+      args+=(--jira-project "$project")
+    done
+    set +f
+  elif [ -n "${FM_JIRA_SITE:-}${JIRA_EMAIL:-}${JIRA_API_TOKEN:-}${FM_JIRA_PROJECTS:-}" ]; then
+    warn "Jira needs jira-site, jira-email and jira-api-token. Empty:$missing. So Jira is not read."
   fi
   "$fm" "${args[@]}" | tee "$log"
   output requests "$(sed -n 's/^\([0-9][0-9]*\) requests to GitHub.*/\1/p' "$log" | tail -n 1)"
@@ -120,8 +138,8 @@ repo_is_private() {
 
 # The artifacts and the job summary of a public repository can be read by
 # anyone. A store that holds a private repository carries its pull request
-# titles and logins, and one that holds Linear tickets carries their titles.
-# The tickets of a workspace always count as private. So in a public
+# titles and logins, and one that holds tickets of Linear or Jira carries
+# their titles. Such tickets always count as private. So in a public
 # repository such a store stays on the runner and the report is written
 # without names.
 do_share() {
@@ -130,7 +148,7 @@ do_share() {
     private="$("$fm" store info "$owner" --store "$store" --format json | jq -r '[.scopes[].private] | any' || true)"
     if [ "$private" != "false" ] && ! repo_is_private; then
       names=false
-      warn "$GITHUB_REPOSITORY is public and the store holds a private repository or Linear tickets. The report is written without names, and the store is not saved, so every run reads the whole history. Run the workflow in a private repository to keep both."
+      warn "$GITHUB_REPOSITORY is public and the store holds a private repository or tickets of Linear or Jira. The report is written without names, and the store is not saved, so every run reads the whole history. Run the workflow in a private repository to keep both."
     elif [ "${FM_STORE:-true}" = "true" ]; then
       save=true
     fi
