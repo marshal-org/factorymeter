@@ -39,7 +39,7 @@ logged in. Nothing is sent anywhere except to the GitHub API.`,
 		SilenceErrors: true,
 		Version:       version,
 	}
-	root.AddCommand(reportCmd(), syncCmd(), snapshotCmd(), trendCmd(), storeCmd(), classifyCmd(), signaturesCmd(), metricsCmd(), contractCmd())
+	root.AddCommand(reportCmd(), syncCmd(), snapshotCmd(), trendCmd(), storeCmd(), classifyCmd(), signaturesCmd(), metricsCmd(), rulesCmd(), contractCmd())
 	if err := root.ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, "factorymeter:", err)
 		os.Exit(1)

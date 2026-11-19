@@ -59,20 +59,20 @@ DELIVERY LINE: MARSHAL-ORG/RUNLEASE
 
 13 weeks, 2026-08-20 to 2026-11-19. Compared with the 13 weeks before. History: 26 weeks.
 
-Release is the constraint. It holds 100 percent of the hours changes spend on the line.
+Release is the constraint. It holds 77 percent of the hours changes spend on the line.
 
-Over the 13 weeks to 2026-11-19, changes stood 2748 hours a week at release and 4.2 a week left it.
+Over the 13 weeks to 2026-11-19, changes stood 12 hours a week at release and 2.5 a week left it. Before the merge, code holds the most: 56 percent of those hours.
 
 THE LINE
 
-  Station               Status         Out a week   Wait  Work  Rework  Queue   Held  Out, by week
+  Station               Status         Out a week   Wait  Work  Rework  Queue    Held  Out, by week
   Spec                  not connected
-  Code                  measured            3.8 ▲           0m   6% ▲!      0  <1% ▼  ▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█
-  CI                    measured            8.0 ▲      -    6m      9%           <1%  ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█
+  Code                  measured            3.8 ▲           0m   6% ▲!      0  13% ▲!  ▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█
+  CI                    measured            8.0 ▲      -    6m      9%             5%  ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█
   Verify                not connected
-  Review                measured              0.0      -     -       -      0         ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-  Merge                 measured            3.5 ▲  16m ▼            0%      0  <1% ▼  ▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█
-  Release (constraint)  partial             4.2 ▲   6.2h     -       -    0 ▼   100%  ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█
+  Review                measured              0.0      -     -       -      0          ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+  Merge                 measured            3.5 ▲  16m ▼            0%      0    6% ▼  ▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█
+  Release (constraint)  partial             2.5 ▲   4.1h     -       -      0     77%  ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█
 
 Wait and work are medians. Held is the station's share of the hours changes spend on the line. ▲ and ▼ show a move against the weeks before, ! a move for the worse, ~ a value drawn from fewer than 5 items.
 
@@ -80,11 +80,37 @@ Wait and work are medians. Held is the station's share of the hours changes spen
   * Verify: Fewer than 5 deployments to an environment that is not production were found on a commit of a change before it merged.
   * Review: No change in the store was reviewed by another person. A change that waits here may be waiting to merge.
   * Release: Published releases stand in for production deploys in marshal-org/runlease.
+
+WHERE TO INVEST
+
+  #  What to do                                                Station  Hours freed a week  Confidence
+  1  Release more often                                        Release                   0  high
+  2  Prove changes on a running environment before they merge  Verify                       high
+  3  Have agents run the checks before they push               CI                           medium
+
+Hours freed is the waiting that goes away each week if the station gets back to the pace of its own best four weeks. It is empty where a gain cannot be sized, and 0 where no four weeks of the window did better. Confidence is how much data stands behind the numbers. `factorymeter rules` lists every rule and when it fires.
+
+1. Release more often
+
+Release is the constraint: it holds 77 percent of the hours changes spend on the line. A change is held 5.0 hours here on average, and no four weeks of the window did better. The gain has to come from a change in how the station works.
+
+  * Changes were held 12 hours a week at release. No four weeks of the window did better.
+  * Share of the line's time held at release: 77 percent.
+  * Wait for a release, median: 4.1 hours.
+  * Production deploys: 0.6 a week. It was 0.0 a week in the 13 weeks before.
+  * Changes merged and not released: 0. It was 0 at the end of the 13 weeks before.
+  * Practice: https://thesoftwarefactory.site/playbook/find-the-constraint/
 ```
 
-The report goes on with agents next to people, then each station number by number with its
-history, then what was loaded and the limits of what it could see. A station that cannot be
-measured says what to connect. It is never shown as zero.
+**Where to invest** is the part to act on. Each line is a rule that fired on this line's own
+numbers. A rule says what to do, shows the numbers behind it, and where it can, names the
+changes to look at first. A gain is sized against the station's own best four weeks, not
+against an outside benchmark. `factorymeter rules` prints every rule and the exact condition
+under which it fires, and [docs/reference/rules.md](docs/reference/rules.md) has the same list.
+
+The report goes on with the other recommendations, agents next to people, then each station
+number by number with its history, then what was loaded and the limits of what it could see. A
+station that cannot be measured says what to connect. It is never shown as zero.
 
 Every number has a fixed id and an exact definition. `factorymeter metrics` prints them, and
 [docs/contract.md](docs/contract.md) says what you can rely on.
@@ -152,6 +178,8 @@ Other useful commands:
 
 ```bash
 factorymeter metrics review                # the numbers of one station, with definitions
+factorymeter rules                         # every recommendation and when it is made
+factorymeter rules review                  # the rules of one station
 factorymeter classify owner/repo#123       # why one pull request counted as agent or human
 factorymeter signatures list               # every signature in use
 ```

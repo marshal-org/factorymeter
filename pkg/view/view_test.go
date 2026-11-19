@@ -256,7 +256,19 @@ func TestMarkdown(t *testing.T) {
 
 func TestRecommendationsAndSummary(t *testing.T) {
 	r := sample()
-	r.Recommendations = []contract.Recommendation{{Title: "Review the oldest first", Why: "Three changes wait longer than a day."}}
+	r.Recommendations = []contract.Recommendation{
+		{
+			Rule: "review.slow", Station: line.Review, Title: "Cut the wait for review", Why: "Review is the constraint.",
+			HoursFreed: p(8), Confidence: contract.ConfidenceHigh, PlayURL: "https://example.invalid/play/",
+			Evidence: []contract.Evidence{
+				{Metric: "review.held.total", Value: p(12), Versus: p(4), Text: "Changes were held 12 hours a week at review."},
+				{Metric: "review.queue", Value: p(1)}, // evidence with no sentence is left out of the page
+			},
+			Items: []contract.Item{{Kind: "change", Key: "acme/app#13", Title: "Wait for me", Class: "human", Hours: 30}},
+		},
+		{Rule: "ci.failing", Station: line.CI, Title: "Cut the share of CI rounds that fail", Why: "A quarter fail.", HoursFreed: p(120.4), Confidence: contract.ConfidenceMedium},
+		{Rule: "code.stale-drafts", Station: line.Code, Title: "Finish or close the drafts that stopped moving", Why: "Three drafts stand.", Confidence: contract.ConfidenceLow},
+	}
 	r.Target, r.Summary = "", true
 	r.Window.Previous = nil
 	var b bytes.Buffer
@@ -265,7 +277,20 @@ func TestRecommendationsAndSummary(t *testing.T) {
 	}
 	out := b.String()
 	for _, want := range []string{"# Delivery line\n", "2 weeks, 2026-10-19 to 2026-11-02. History: 4 weeks.\n",
-		"## Where to invest\n\n- Review the oldest first. Three changes wait longer than a day.\n"} {
+		// Hours under ten keep one decimal. A gain that is not sized is empty.
+		"## Where to invest\n\n" +
+			"| # | What to do | Station | Hours freed a week | Confidence |\n| ---: | --- | --- | ---: | --- |\n" +
+			"| 1 | Cut the wait for review | Review | 8.0 | high |\n" +
+			"| 2 | Cut the share of CI rounds that fail | CI | 120 | medium |\n" +
+			"| 3 | Finish or close the drafts that stopped moving | Code |  | low |\n",
+		"`factorymeter rules` lists every rule and when it fires.\n",
+		"### 1. Cut the wait for review\n\nReview is the constraint.\n\n" +
+			"- Changes were held 12 hours a week at review.\n" +
+			"- Look at acme/app#13, standing 30.0h, human: Wait for me\n" +
+			"- Practice: https://example.invalid/play/\n",
+		// A recommendation with no evidence, item or practice is a heading and a paragraph.
+		"### 3. Finish or close the drafts that stopped moving\n\nThree drafts stand.\n\n## Agents and people\n",
+	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the page lacks %q:\n%s", want, out)
 		}
@@ -273,6 +298,27 @@ func TestRecommendationsAndSummary(t *testing.T) {
 	// Where to invest comes right after the line and before the detail.
 	if a, b := strings.Index(out, "## Where to invest"), strings.Index(out, "## Agents and people"); a < 0 || a > b {
 		t.Error("where to invest must come before agents and people")
+	}
+
+	b.Reset()
+	if err := Text(&b, r); err != nil {
+		t.Fatal(err)
+	}
+	out = b.String()
+	for _, want := range []string{"\nWHERE TO INVEST\n", "\n1. Cut the wait for review\n", "  * Look at acme/app#13, standing 30.0h, human: Wait for me\n"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the text lacks %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestNoRecommendationsNoSection(t *testing.T) {
+	var b bytes.Buffer
+	if err := Markdown(&b, sample()); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(b.String(), "Where to invest") {
+		t.Error("a report with no recommendations has no section for them")
 	}
 }
 

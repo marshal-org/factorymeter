@@ -123,6 +123,88 @@ review.wait.p50 to see one.`,
 	return cmd
 }
 
+// pickRules narrows the rules to a station or to one rule.
+func pickRules(arg string) ([]line.Rule, error) {
+	if arg == "" {
+		return line.Rules, nil
+	}
+	if r, ok := line.RuleByID(arg); ok {
+		return []line.Rule{r}, nil
+	}
+	var list []line.Rule
+	for _, r := range line.Rules {
+		if r.Station == arg {
+			list = append(list, r)
+		}
+	}
+	if len(list) == 0 {
+		return nil, fmt.Errorf("%q is not a rule id, and no rule belongs to a station with that id. Run \"factorymeter rules\" to see them all", arg)
+	}
+	return list, nil
+}
+
+func rulesText(w io.Writer, list []line.Rule) {
+	for i, r := range list {
+		if i > 0 {
+			fmt.Fprintln(w)
+		}
+		fmt.Fprintf(w, "%s\n  %s\n  Fires when: %s\n  Reads: %s.\n", r.ID, r.Title, r.Fires, strings.Join(r.Reads, ", "))
+		if r.Sized != "" {
+			fmt.Fprintf(w, "  Hours freed: %s\n", r.Sized)
+		}
+		if url := r.PlayURL(); url != "" {
+			fmt.Fprintf(w, "  Practice: %s\n", url)
+		}
+	}
+}
+
+func rulesCmd() *cobra.Command {
+	var format string
+	cmd := &cobra.Command{
+		Use:   "rules [station | rule-id]",
+		Short: "List every recommendation factorymeter can make, and when it makes it",
+		Long: `rules prints the rules behind "where to invest" in a report: when each one
+fires, the numbers it reads and how it sizes its gain. It reads nothing and
+needs no token.
+
+Give a station (code, ci, verify, review, merge, release) to see its rules, or
+a rule id such as review.slow to see one.`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			arg := ""
+			if len(args) == 1 {
+				arg = args[0]
+			}
+			list, err := pickRules(arg)
+			if err != nil {
+				return err
+			}
+			out := cmd.OutOrStdout()
+			switch format {
+			case "text":
+				rulesText(out, list)
+			case "json":
+				b, err := contract.JSON(list)
+				if err != nil {
+					return err
+				}
+				_, err = out.Write(b)
+				return err
+			case "markdown":
+				if arg != "" {
+					return fmt.Errorf("--format markdown prints the whole reference. Leave out %q", arg)
+				}
+				fmt.Fprint(out, contract.RulesMarkdown())
+			default:
+				return fmt.Errorf("unknown format %q. Use text, markdown or json", format)
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&format, "format", "text", "text, markdown or json")
+	return cmd
+}
+
 func contractCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "contract",

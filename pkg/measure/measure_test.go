@@ -133,6 +133,9 @@ func same(a, b []float64) bool {
 //	10     merged
 //	20     production deploy starts, done 30 minutes later
 //
+// An earlier production deploy, 30 hours before t0, shows the release station
+// was there before the change merged.
+//
 // The ticket was created 48 hours before t0 and is linked from the change.
 func TestStationsOfOneChange(t *testing.T) {
 	t0 := end.Add(-3 * day)
@@ -160,6 +163,7 @@ func TestStationsOfOneChange(t *testing.T) {
 		deployment("preview", "feat/1", "a2", false, at(12), 15*time.Minute, record.DeploySuccess),  // after the merge
 		deployment("github-pages", "feat/1", "a1", false, at(2), time.Minute, record.DeploySuccess), // a published site
 		deployment("staging", "main", "a1", false, at(2), time.Minute, record.DeploySuccess),        // the branch it merges into
+		deployment("production", "main", "yy", true, at(-30), 30*time.Minute, record.DeploySuccess),
 		deployment("production", "main", "zz", true, at(20), 30*time.Minute, record.DeploySuccess),
 	} {
 		rb.Deploy(&d)
@@ -192,7 +196,9 @@ func TestStationsOfOneChange(t *testing.T) {
 		// Merge: approved at 9, merged at 10.
 		"merge.flow": {1}, "merge.wait": {1}, "merge.rework": {0}, "merge.held": {1},
 		// Release: merged at 10, the deploy starts at 20 and is done at 20:30.
-		"release.flow": {1}, "release.wait": {10}, "release.held": {10.5}, "release.deploys": {1}, "release.work": {0.5}, "release.rework": {0},
+		"release.flow": {1}, "release.wait": {10}, "release.held": {10.5},
+		// Two production deploys, each 30 minutes, both passed.
+		"release.deploys": {1, 1}, "release.work": {0.5, 0.5}, "release.rework": {0, 0},
 		// The line: opened at 1, merged at 10, in production 20.5 hours
 		// after the first commit. 10 + 5 lines.
 		"line.flow": {1}, "line.lead": {9}, "line.delivery": {20.5}, "line.size": {15}, "line.agent_share": {0},
@@ -220,7 +226,7 @@ func TestStationsOfOneChange(t *testing.T) {
 	if len(l.stays) != len(stays) {
 		t.Errorf("queues written: %d, checked: %d", len(l.stays), len(stays))
 	}
-	if r := l.repos[0]; r.verifyJoined != 1 || r.ciRuns != 5 || r.ciJoined != 4 || !r.ciWait || r.prodDeploys != 1 || r.viaRelease {
+	if r := l.repos[0]; r.verifyJoined != 1 || r.ciRuns != 5 || r.ciJoined != 4 || !r.ciWait || r.prodDeploys != 2 || r.viaRelease {
 		t.Errorf("repository: %+v", r)
 	}
 
@@ -239,6 +245,58 @@ func TestStationsOfOneChange(t *testing.T) {
 		}
 		if n == 0 {
 			t.Errorf("%s reads the stream %s, and nothing writes it", m.ID, c.stream)
+		}
+	}
+}
+
+// The release station is measured from the first production deploy in the
+// store. Before it, the store cannot tell a line that did not release from
+// one whose releases were not recorded yet.
+//
+// Change 1 merges an hour after t0. The first production deploy is at 10
+// hours. Change 2 merges at 12 hours and the next deploy starts at 15 hours
+// and takes 30 minutes.
+func TestReleaseIsMeasuredFromItsFirstDeploy(t *testing.T) {
+	t0 := end.Add(-3 * day)
+	b := NewBuilder(registry(t))
+	rb := b.Repo(RepoScope{Name: repo, From: end.Add(-26 * week), SyncedAt: end})
+	one := change(1, t0, merged(t0.Add(h)))
+	two := change(2, t0.Add(11*h), merged(t0.Add(12*h)))
+	rb.Change(&one)
+	rb.Change(&two)
+	for _, d := range []record.Deploy{
+		deployment("production", "main", "p1", true, t0.Add(10*h), 30*time.Minute, record.DeploySuccess),
+		deployment("production", "main", "p2", true, t0.Add(15*h), 30*time.Minute, record.DeploySuccess),
+	} {
+		rb.Deploy(&d)
+	}
+	rb.Done()
+	l := b.Line()
+	// Only change 2 is counted: it waited 3 hours and was held 3.5. Change
+	// 1 is not taken as shipped by the first deploy, 9 hours after it merged.
+	for stream, want := range map[string][]float64{
+		"release.flow": {1}, "release.wait": {3}, "release.held": {3.5}, "line.delivery": {4.5}, unseenAtRelease: {1}, "release.deploys": {1, 1},
+	} {
+		if got := vals(l.obs[stream]); !same(got, want) {
+			t.Errorf("%s = %v, want %v", stream, got, want)
+		}
+	}
+	if got := l.stays["release.queue"]; len(got) != 1 || !got[0].from.Equal(t0.Add(12*h)) {
+		t.Errorf("release.queue = %+v, want only change 2", got)
+	}
+	r, err := l.Report(Options{Target: repo, Now: end})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "1 change merged in the window before the first production deploy in the store, and is not counted at release. " +
+		"The store cannot tell a line that did not release from one whose releases were not recorded yet."
+	if !strings.Contains(strings.Join(r.Limits, "\n"), want) {
+		t.Errorf("limits lack %q:\n%s", want, strings.Join(r.Limits, "\n"))
+	}
+	// No metric reads the stream of what was left out.
+	for _, m := range line.Registry {
+		if c, ok := calcOf(m); ok && c.stream == unseenAtRelease {
+			t.Errorf("%s reads %s", m.ID, unseenAtRelease)
 		}
 	}
 }
@@ -672,6 +730,8 @@ func TestStatus(t *testing.T) {
 			rb.Deploy(&d)
 		}
 	}
+	// A release before the changes merged shows the station was there.
+	rb.Deploy(&record.Deploy{Source: record.GitHub, Repo: repo, Via: "release", Production: true, Ref: "v0.9.0", CreatedAt: t0.Add(-h), Outcome: record.DeployUnknown})
 	rb.Deploy(&record.Deploy{Source: record.GitHub, Repo: repo, Via: "release", Production: true, Ref: "v1.0.0", CreatedAt: t0.Add(5 * h), Outcome: record.DeployUnknown})
 	rb.Done()
 	// A second repository with changes and nothing else.

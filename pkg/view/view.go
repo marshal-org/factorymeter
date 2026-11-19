@@ -279,11 +279,33 @@ func build(r *contract.Report) *page {
 
 	if len(r.Recommendations) > 0 {
 		p.head(2, "Where to invest")
-		var items []string
-		for _, rec := range r.Recommendations {
-			items = append(items, rec.Title+". "+rec.Why)
+		rows = nil
+		for i, rec := range r.Recommendations {
+			name := rec.Station
+			if st, ok := line.StationByID(rec.Station); ok {
+				name = st.Name
+			}
+			rows = append(rows, []string{fmt.Sprint(i + 1), rec.Title, name, freed(rec.HoursFreed), rec.Confidence})
 		}
-		p.list(items)
+		p.table([]string{">#", "What to do", "Station", ">Hours freed a week", "Confidence"}, rows)
+		p.para("Hours freed is the waiting that goes away each week if the station gets back to the pace of its own best four weeks. It is empty where a gain cannot be sized, and 0 where no four weeks of the window did better. Confidence is how much data stands behind the numbers. `factorymeter rules` lists every rule and when it fires.")
+		for i, rec := range r.Recommendations {
+			p.head(3, fmt.Sprintf("%d. %s", i+1, rec.Title))
+			p.para(rec.Why)
+			var items []string
+			for _, e := range rec.Evidence {
+				if e.Text != "" {
+					items = append(items, e.Text)
+				}
+			}
+			for _, it := range rec.Items {
+				items = append(items, "Look at "+standing(it))
+			}
+			if rec.PlayURL != "" {
+				items = append(items, "Practice: "+rec.PlayURL)
+			}
+			p.list(items)
+		}
 	}
 
 	// Agents next to people.
@@ -357,11 +379,7 @@ func build(r *contract.Report) *page {
 		if len(st.Oldest) > 0 {
 			var items []string
 			for _, it := range st.Oldest {
-				who := ""
-				if it.Class != "" {
-					who = ", " + it.Class
-				}
-				items = append(items, fmt.Sprintf("%s, standing %s%s: %s", it.Key, Number(string(line.Hours), &it.Hours), who, it.Title))
+				items = append(items, standing(it))
 			}
 			p.para("Standing longest in the queue:")
 			p.list(items)
@@ -406,6 +424,26 @@ func build(r *contract.Report) *page {
 }
 
 // label is the name of a metric with its statistic spelled the short way.
+// standing names an item and how long it has stood where it is.
+func standing(it contract.Item) string {
+	who := ""
+	if it.Class != "" {
+		who = ", " + it.Class
+	}
+	return fmt.Sprintf("%s, standing %s%s: %s", it.Key, Number(string(line.Hours), &it.Hours), who, it.Title)
+}
+
+// freed prints the hours a recommendation frees in a week.
+func freed(v *float64) string {
+	switch {
+	case v == nil:
+		return ""
+	case *v > 0 && *v < 10:
+		return fmt.Sprintf("%.1f", *v)
+	}
+	return fmt.Sprintf("%.0f", *v)
+}
+
 func label(m line.Metric) string {
 	n := m.Name
 	switch {
