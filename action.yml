@@ -17,7 +17,8 @@ branding:
 #
 # The report goes to the job summary and to a build artifact. The store, which
 # is what makes the next run quick, goes to a second build artifact of the same
-# repository. Nothing is sent anywhere except to the GitHub API.
+# repository. Nothing is sent anywhere except to the GitHub API and, when you
+# give a Linear key, to the Linear API.
 
 inputs:
   target:
@@ -36,6 +37,14 @@ inputs:
     description: A token that can read the target. The job's own token is enough for the repository the workflow runs in.
     required: false
     default: ${{ github.token }}
+  linear-api-key:
+    description: A Linear personal API key that can read the workspace. With it the tickets of Linear are read too, and the spec station is measured from them. Pass it from a secret. In a public repository the report is then written without names, and the store is not kept.
+    required: false
+    default: ""
+  linear-teams:
+    description: "The keys of the Linear teams to read, separated by commas or spaces: ENG, OPS. Empty reads every team the key can see."
+    required: false
+    default: ""
   summary:
     description: Write the report to the job summary.
     required: false
@@ -137,6 +146,8 @@ runs:
         GITHUB_TOKEN: ${{ inputs.token }}
         FM_TARGET: ${{ inputs.target }}
         FM_HISTORY: ${{ inputs.history }}
+        LINEAR_API_KEY: ${{ inputs.linear-api-key }}
+        FM_LINEAR_TEAMS: ${{ inputs.linear-teams }}
       run: bash "$GITHUB_ACTION_PATH/scripts/action.sh" sync
 
     # Runs after a sync that failed or was stopped too. Such a sync keeps what

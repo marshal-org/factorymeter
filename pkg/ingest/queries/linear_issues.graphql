@@ -1,0 +1,55 @@
+# A page of issues. Linear prices a query by the page sizes written in it, so
+# every size here is a number and not a variable. The sync writes a smaller
+# number in place of the 50 when Linear finds the page too heavy.
+query ($after: String, $filter: IssueFilter) {
+  issues(first: 50, after: $after, filter: $filter, includeArchived: true, orderBy: updatedAt) {
+    nodes {
+      id
+      identifier
+      previousIdentifiers
+      title
+      url
+      createdAt
+      updatedAt
+      startedAt
+      completedAt
+      canceledAt
+      archivedAt
+      trashed
+      state {
+        name
+        type
+      }
+      team {
+        key
+      }
+      creator {
+        displayName
+        app
+      }
+      botActor {
+        name
+      }
+      labels(first: 10) {
+        nodes {
+          name
+        }
+      }
+      attachments(first: 10, filter: { url: { contains: "/pull/" } }) {
+        nodes {
+          url
+        }
+      }
+      stateHistory(first: 20) {
+        nodes {
+          startedAt
+          stateId
+        }
+      }
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}

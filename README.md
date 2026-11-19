@@ -24,7 +24,8 @@ factorymeter sync my-org && factorymeter report my-org   # every active reposito
 ```
 
 It only reads. It needs a read-only GitHub token, it runs on your machine, and it sends nothing
-anywhere except to the GitHub API.
+anywhere except to the GitHub API. When you ask for it, it also reads the tickets of a Linear
+workspace, from the Linear API.
 
 ---
 
@@ -148,6 +149,22 @@ rate limit.
 The client refuses to send a GraphQL mutation and only sends `GET` requests to the REST API, so
 it cannot change anything even with a token that could.
 
+### A Linear key, if your tickets live in Linear
+
+`sync --linear` also reads the tickets of a Linear workspace. Make a personal API key in Linear
+under Settings, Security and access, and put it in `LINEAR_API_KEY`. Read access is all it
+needs. There is no flag for the key, so it never lands in your shell history. factorymeter never
+prints it and never writes it to a file.
+
+```bash
+export LINEAR_API_KEY=...                      # a personal API key, read only
+factorymeter sync my-org --linear              # GitHub, then every team the key can see
+factorymeter sync my-org --linear-team ENG --linear-team OPS   # only these teams
+```
+
+A key belongs to one workspace, and that is the workspace that is read. The client sends
+queries only and refuses a mutation, the same as the GitHub client.
+
 ## Sync, then report
 
 `sync` reads the history from GitHub into a store on your machine. The first sync reads 26
@@ -161,6 +178,7 @@ factorymeter report my-org --since 26w         # a longer window
 factorymeter report owner/repo --until 4w      # the line as it stood four weeks ago
 factorymeter serve my-org                      # the same report as a page in the browser
 factorymeter store info my-org                 # what the store holds
+factorymeter sync my-org --linear              # also read the tickets of a Linear workspace
 ```
 
 Run both once a week and the report follows the line week after week. A sync that is stopped
@@ -273,9 +291,18 @@ The report prints the limits that apply every time. They are not fine print.
 - **A branch prefix alone is not proof.** People type `claude/` and `codex/` by hand.
 - **Times are hours on the clock.** Nights and weekends count.
 - **Writing time starts at the first commit of a change.** Work before that commit is not seen.
-- **A ticket is a GitHub issue.** An issue has no started state, so it starts when the first pull
-  request that closes it is opened. An issue closed with no such pull request never counts as
-  started. Linear and Jira are not read yet.
+- **A ticket is a GitHub issue, or a Linear issue with `sync --linear`.** A GitHub issue has no
+  started state, so it starts when the first pull request that closes it is opened. An issue
+  closed with no such pull request never counts as started. Jira is not read yet.
+- **A Linear ticket starts when it first enters a started state, or when the first pull request
+  linked to it is opened, whichever is earlier.** A pull request is linked when Linear has it
+  attached, or when its branch, title or description names the key of the ticket, such as
+  `ENG-123`. A word that only looks like a key is taken for one.
+- **A Linear ticket has no repository of its own.** It counts for the repository of the first
+  pull request linked to it. The report of one repository counts only the tickets linked to its
+  pull requests. The report of the owner counts them all.
+- **The Linear adapter is proven against Linear's published schema and a stand-in server, not
+  yet against a live workspace.** Tell us what you see.
 - **CI means GitHub Actions.** Other CI systems are not read.
 - **A run of the merge queue belongs to one pull request.** The queue runs CI on a branch it makes
   and names after a pull request. The run counts for that one, also when the branch carries the
@@ -328,6 +355,8 @@ jobs:
 | `since` | `13w` | the window the report covers, in whole weeks |
 | `history` | `26w` | how far back the first run reads. The report compares the window with the one before it, so give at least twice the window |
 | `token` | the job's own token | a token that can read the target. An owner-wide report needs your own read-only token |
+| `linear-api-key` | empty | a Linear personal API key. With it the tickets of Linear are read too. Pass it from a secret |
+| `linear-teams` | empty | the keys of the Linear teams to read, separated by commas or spaces. Empty reads every team the key can see |
 | `summary` | `true` | write the report to the job summary |
 | `artifact` | `true` | upload the HTML, JSON and Markdown as a build artifact |
 | `artifact-name` | `factorymeter-report` | name of the artifact that holds the report |
@@ -344,7 +373,8 @@ What to know about the store artifact:
   in can download its artifacts. The store of a private repository holds its pull request
   titles and logins. So when the workflow runs in a public repository and the target has a
   private repository in it, the Action does not save the store, writes the report without
-  names, and says so in a warning.
+  names, and says so in a warning. Linear tickets always count as private, so the same holds
+  for a store with Linear tickets in a public repository.
 - **It is only taken from a run of your own repository.** A pull request from a fork can upload
   an artifact under any name. The Action never restores one of those.
 - **A run that stopped still saves what it read.** The next run goes on from there.
@@ -354,6 +384,18 @@ What to know about the store artifact:
 
 The job needs `actions: read` to find the store, and the GitHub CLI, which GitHub's own runners
 have. Without either, the run still works: it reads the whole history and prints a warning.
+
+To read Linear as well, give the key from a secret:
+
+```yaml
+      - uses: marshal-org/factorymeter@v0.1.0
+        with:
+          linear-api-key: ${{ secrets.LINEAR_API_KEY }}
+          linear-teams: ENG, OPS      # leave out to read every team
+```
+
+When the secret is empty, as it is for a pull request from a fork, Linear is not read and the
+run goes on.
 
 The Action builds the binary from the commit you pinned, so the code that runs is the code you
 can read.

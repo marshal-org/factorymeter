@@ -15,6 +15,7 @@ import (
 
 	"github.com/marshal-org/factorymeter/pkg/contract"
 	"github.com/marshal-org/factorymeter/pkg/measure"
+	"github.com/marshal-org/factorymeter/pkg/record"
 	"github.com/marshal-org/factorymeter/pkg/signature"
 	"github.com/marshal-org/factorymeter/pkg/store"
 	"github.com/marshal-org/factorymeter/pkg/web"
@@ -38,26 +39,29 @@ type keptLine struct {
 }
 
 // scopes reads the manifest of the store as it is now: a sync that ran since
-// the last request shows up here.
-func (l *lines) scopes(target string) ([]store.Scope, *store.Store, error) {
-	s, err := store.Open(l.dir)
+// the last request shows up here. It returns the repositories of the target,
+// and the scopes of other sources, which hold tickets for every target.
+func (l *lines) scopes(target string) (repos, others []store.Scope, s *store.Store, err error) {
+	s, err = store.Open(l.dir)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	var out []store.Scope
 	for _, sc := range s.Scopes("") {
-		if !strings.Contains(target, "/") || strings.EqualFold(sc.Name, target) {
-			out = append(out, sc)
+		switch {
+		case sc.Source != record.GitHub:
+			others = append(others, sc)
+		case !strings.Contains(target, "/") || strings.EqualFold(sc.Name, target):
+			repos = append(repos, sc)
 		}
 	}
-	return out, s, nil
+	return repos, others, s, nil
 }
 
 func (l *lines) Repos() ([]string, error) {
 	if l.summary || strings.Contains(l.target, "/") {
 		return nil, nil
 	}
-	scopes, s, err := l.scopes(l.target)
+	scopes, _, s, err := l.scopes(l.target)
 	if err != nil {
 		return nil, err
 	}
@@ -80,13 +84,15 @@ func (l *lines) Report(q web.Query) (*contract.Report, error) {
 	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	scopes, s, err := l.scopes(target)
+	scopes, others, s, err := l.scopes(target)
 	if err != nil {
 		return nil, err
 	}
 	defer s.Close()
+	// The tickets of another source change the report of every target, so a
+	// sync of them makes the kept line stale as well.
 	var stamp strings.Builder
-	for _, sc := range scopes {
+	for _, sc := range append(append([]store.Scope{}, scopes...), others...) {
 		fmt.Fprintf(&stamp, "%s %s %d;", store.Key(sc.Source, sc.Name), sc.SyncedAt.UTC().Format(time.RFC3339Nano), len(sc.Notes))
 	}
 	k, ok := l.kept[target]

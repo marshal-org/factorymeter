@@ -2,29 +2,69 @@ package measure
 
 import (
 	"fmt"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/marshal-org/factorymeter/pkg/record"
 	"github.com/marshal-org/factorymeter/pkg/signature"
 	"github.com/marshal-org/factorymeter/pkg/store"
 )
 
 // Load reads a target out of a store: one repository for owner/repo, every
 // repository of the store for an owner. It reads one repository at a time.
+//
+// A scope of GitHub is a repository. A scope of another source, such as a
+// Linear workspace, holds tickets only. Its tickets are tied to changes by the
+// links the source stores and by the ticket keys that the branch, the title
+// and the description of a change name.
 func Load(s *store.Store, reg *signature.Registry, target string) (*Line, error) {
 	b := NewBuilder(reg)
-	var scopes []store.Scope
+	one := strings.Contains(target, "/")
+	var repos, sources []store.Scope
 	for _, sc := range s.Scopes("") {
-		if !strings.Contains(target, "/") || strings.EqualFold(sc.Name, target) {
-			scopes = append(scopes, sc)
+		switch {
+		case sc.Source != record.GitHub:
+			sources = append(sources, sc)
+		case !one || strings.EqualFold(sc.Name, target):
+			repos = append(repos, sc)
 		}
 	}
-	if len(scopes) == 0 {
+	if len(repos) == 0 {
 		return nil, fmt.Errorf("the store holds nothing for %s. Run \"factorymeter sync %s\" first", target, target)
 	}
-	for _, sc := range scopes {
+	keys := ticketKeys{id: map[string]string{}}
+	stored := map[string][]pullLink{}
+	for _, sc := range sources {
+		if err := each(store.Tickets, s, sc, keys.add); err != nil {
+			return nil, err
+		}
+		err := each(store.Links, s, sc, func(l *record.Link) {
+			if l.FromKind != record.KindChange || l.ToKind != record.KindTicket {
+				return
+			}
+			if repo, num, ok := pullOf(l.From); ok {
+				stored[repo] = append(stored[repo], pullLink{num: num, ticket: l.To})
+			}
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	keys.done()
+
+	for _, sc := range repos {
 		rb := b.Repo(RepoScope{Name: sc.Name, Private: sc.Private, From: sc.From, SyncedAt: sc.SyncedAt, Notes: sc.Notes})
-		if err := each(store.Changes, s, sc, rb.Change); err != nil {
+		var named []pullLink
+		err := each(store.Changes, s, sc, func(c *record.Change) {
+			rb.Change(c)
+			for _, id := range keys.in(c.HeadRef, c.Title, c.Body) {
+				named = append(named, pullLink{num: c.Number, ticket: id})
+			}
+		})
+		if err != nil {
 			return nil, err
 		}
 		if err := each(store.CIRuns, s, sc, rb.CIRun); err != nil {
@@ -36,16 +76,134 @@ func Load(s *store.Store, reg *signature.Registry, target string) (*Line, error)
 		if err := each(store.Links, s, sc, rb.Link); err != nil {
 			return nil, err
 		}
+		for _, l := range stored[strings.ToLower(sc.Name)] {
+			rb.linkTo(l.num, l.ticket)
+		}
+		for _, l := range named {
+			rb.linkTo(l.num, l.ticket)
+		}
 		rb.Done()
 	}
 	// Tickets come last: a ticket starts when its first linked change opens,
 	// and the links are known only once every repository is read.
-	for _, sc := range scopes {
+	for _, sc := range repos {
 		if err := each(store.Tickets, s, sc, b.Ticket); err != nil {
 			return nil, err
 		}
 	}
+	for _, sc := range sources {
+		ticket := b.TicketSource(SourceScope{Source: sc.Source, SyncedAt: sc.SyncedAt, Notes: sc.Notes, LinkedOnly: one})
+		if err := each(store.Tickets, s, sc, ticket); err != nil {
+			return nil, err
+		}
+	}
 	return b.Line(), nil
+}
+
+// pullLink ties a change, by its number in its repository, to a ticket.
+type pullLink struct {
+	num    int
+	ticket string
+}
+
+// pullOf reads the repository, in lower case, and the number out of the ID of
+// a change on GitHub.
+func pullOf(id string) (repo string, num int, ok bool) {
+	rest, found := strings.CutPrefix(id, record.GitHub+":")
+	if !found {
+		return "", 0, false
+	}
+	i := strings.LastIndex(rest, "#")
+	if i <= 0 {
+		return "", 0, false
+	}
+	n, err := strconv.Atoi(rest[i+1:])
+	return strings.ToLower(rest[:i]), n, err == nil && n > 0
+}
+
+// ticketKeys finds the keys of tickets, such as ENG-123, in text.
+type ticketKeys struct {
+	// id holds the ID of a ticket by its key and by every key it had before,
+	// in upper case.
+	id       map[string]string
+	prefixes map[string]bool
+	re       *regexp.Regexp
+}
+
+func (k *ticketKeys) add(t *record.Ticket) {
+	for _, key := range append([]string{t.Key}, t.Aliases...) {
+		key = strings.ToUpper(key)
+		i := strings.LastIndex(key, "-")
+		if i <= 0 || i == len(key)-1 {
+			continue
+		}
+		// A key a ticket has now wins over the same key another ticket had.
+		if _, taken := k.id[key]; taken && key != strings.ToUpper(t.Key) {
+			continue
+		}
+		k.id[key] = t.ID
+		if k.prefixes == nil {
+			k.prefixes = map[string]bool{}
+		}
+		k.prefixes[key[:i]] = true
+	}
+}
+
+// done builds the search from the prefixes of the keys that were added. Only
+// a prefix a ticket has can match, so "utf-8" is a key only where a team is
+// called UTF.
+func (k *ticketKeys) done() {
+	if len(k.prefixes) == 0 {
+		return
+	}
+	var list []string
+	for p := range k.prefixes {
+		list = append(list, regexp.QuoteMeta(p))
+	}
+	// Longest first: where one prefix ends another, the longer one is tried.
+	sort.Slice(list, func(i, j int) bool {
+		if len(list[i]) != len(list[j]) {
+			return len(list[i]) > len(list[j])
+		}
+		return list[i] < list[j]
+	})
+	k.re = regexp.MustCompile(`(?i)(?:` + strings.Join(list, "|") + `)-[0-9]{1,9}`)
+}
+
+func alnum(c byte) bool {
+	return c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+}
+
+// in returns the IDs of the tickets whose keys the texts name, each once. A
+// key counts when it stands alone: no letter or digit right before it, and no
+// digit right after.
+func (k *ticketKeys) in(texts ...string) []string {
+	if k.re == nil {
+		return nil
+	}
+	var out []string
+	for _, text := range texts {
+		for _, m := range k.re.FindAllStringIndex(text, -1) {
+			if m[0] > 0 && alnum(text[m[0]-1]) {
+				continue
+			}
+			if m[1] < len(text) && text[m[1]] >= '0' && text[m[1]] <= '9' {
+				continue
+			}
+			id, ok := k.id[strings.ToUpper(text[m[0]:m[1]])]
+			if !ok {
+				continue
+			}
+			seen := false
+			for _, o := range out {
+				seen = seen || o == id
+			}
+			if !seen {
+				out = append(out, id)
+			}
+		}
+	}
+	return out
 }
 
 func each[T any](t store.Table[T], s *store.Store, sc store.Scope, fn func(*T)) error {

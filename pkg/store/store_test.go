@@ -410,6 +410,75 @@ func TestManifestSurvivesAReopen(t *testing.T) {
 	}
 }
 
+func TestDropScopeForgetsTheRowAndTheFiles(t *testing.T) {
+	s := open(t)
+	ticket := func(source, key string) record.Ticket {
+		return record.Ticket{Source: source, ID: record.TicketID(source, key), Key: key, Aliases: []string{}, Labels: []string{}, CreatedAt: t0, UpdatedAt: t0}
+	}
+	link := record.Link{Kind: record.LinkMentions, From: "github:acme/app#1", FromKind: record.KindChange, To: "linear:u1", ToKind: record.KindTicket, Found: "source"}
+	for _, sc := range []Scope{{Source: record.Linear, Name: "acme"}, {Source: record.GitHub, Name: "acme/app"}} {
+		if err := s.PutScope(sc); err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := Tickets.Put(s, sc.Source, sc.Name, []record.Ticket{ticket(sc.Source, "k1")}); err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := Links.Put(s, sc.Source, sc.Name, []record.Link{link}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := s.DropScope(record.Linear, "Acme"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := s.Scope(record.Linear, "acme"); ok {
+		t.Error("the row is still in the manifest")
+	}
+	for _, table := range TableNames {
+		if n, err := s.Count(table, record.Linear, "acme"); err != nil || n != 0 {
+			t.Errorf("%s still holds %d rows of the scope, %v", table, n, err)
+		}
+	}
+	// The other scope is as it was.
+	if _, ok := s.Scope(record.GitHub, "acme/app"); !ok {
+		t.Error("the other scope lost its row")
+	}
+	if n, _ := Tickets.Count(s, record.GitHub, "acme/app"); n != 1 {
+		t.Errorf("the other scope holds %d tickets, want 1", n)
+	}
+	if n, _ := Links.Count(s, record.GitHub, "acme/app"); n != 1 {
+		t.Errorf("the other scope holds %d links, want 1", n)
+	}
+
+	// Dropping what is not there is no error, and it clears files no row names.
+	if _, _, err := Tickets.Put(s, record.Linear, "acme", []record.Ticket{ticket(record.Linear, "k2")}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DropScope(record.Linear, "acme"); err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := Tickets.Count(s, record.Linear, "acme"); n != 0 {
+		t.Errorf("files without a row were kept: %d tickets", n)
+	}
+	if err := s.DropScope(record.Linear, "../x"); err == nil {
+		t.Error("a scope name that leaves the store must be refused")
+	}
+
+	// The drop is on disk, not only in memory.
+	dir := s.Dir
+	s.Close()
+	r, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := r.Scopes(""); len(got) != 1 || got[0].Name != "acme/app" {
+		t.Errorf("after a reopen the scopes are %+v", got)
+	}
+	if err := r.DropScope(record.GitHub, "acme/app"); err == nil {
+		t.Error("a store opened for reading must refuse a drop")
+	}
+}
+
 func TestOpenRefusesWhatItCannotRead(t *testing.T) {
 	dir := t.TempDir()
 	if _, err := Open(dir); !errors.Is(err, ErrNoStore) {

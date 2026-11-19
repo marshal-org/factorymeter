@@ -305,6 +305,35 @@ func (s *Store) PutScope(sc Scope) error {
 	return s.save()
 }
 
+// DropScope forgets a scope: its row in the manifest and its files in every
+// table. A source calls it before it reads a scope again from nothing, so no
+// record of the earlier read is left behind. The row goes first. A crash
+// between the two leaves files without a row, and the next read from nothing
+// drops them.
+func (s *Store) DropScope(source, name string) error {
+	d, err := scopeDir(source, name)
+	if err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.writable {
+		return errors.New("store: opened for reading")
+	}
+	if _, ok := s.m.Scopes[Key(source, name)]; ok {
+		delete(s.m.Scopes, Key(source, name))
+		if err := s.save(); err != nil {
+			return err
+		}
+	}
+	for _, table := range TableNames {
+		if err := os.RemoveAll(filepath.Join(s.Dir, table, d)); err != nil {
+			return fmt.Errorf("store: drop %s: %w", name, err)
+		}
+	}
+	return nil
+}
+
 func (s *Store) save() error {
 	b, err := json.MarshalIndent(s.m, "", "  ")
 	if err != nil {
