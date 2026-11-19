@@ -7,9 +7,19 @@ name: CI
 #     token and no secrets.
 #   - GitHub-hosted runners only. No organisation secret or variable is used.
 #   - Every action is pinned to a full commit SHA.
+#
+# The release pull request of release-please changes only the changelog and
+# the version file. GitHub opens it with the workflow token, and GitHub holds
+# a run on such a pull request until a person approves it. A run nobody
+# approves expires after an hour and shows as a failure. So a pull request
+# that changes only those two files starts no run. The code it releases was
+# tested by the run on main.
 
 on:
   pull_request:
+    paths-ignore:
+      - CHANGELOG.md
+      - .release-please-manifest.json
   push:
     branches: [main]
 
