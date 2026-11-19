@@ -35,7 +35,7 @@ func weeksOf(s string) (int, error) {
 }
 
 func reportCmd() *cobra.Command {
-	var dir, since, until, format, jsonPath, registryPath string
+	var dir, since, until, format, jsonPath, htmlPath, registryPath string
 	var summary bool
 	cmd := &cobra.Command{
 		Use:   "report <owner/repo | owner>",
@@ -51,18 +51,21 @@ The window is the last 13 weeks before the last sync. Every number is compared
 with the 13 weeks before, and carries one point per week for up to 26 weeks.
 
 --json writes the report as factorymeter/v1 JSON, the layout that
-docs/contract.md describes. --summary leaves out every repository name, title
-and link, so the file holds station numbers only and is safe to share.`,
+docs/contract.md describes. --html writes it as one page with charts: the page
+"factorymeter serve" shows, in a file that loads nothing from the network.
+--summary leaves out every repository name, title and link, so the file holds
+station numbers only and is safe to share.`,
 		Example: `  factorymeter sync my-org && factorymeter report my-org
   factorymeter report owner/repo --since 26w
   factorymeter report my-org --format markdown >> "$GITHUB_STEP_SUMMARY"
+  factorymeter report my-org --html line.html --format none
   factorymeter report my-org --summary --json line.json --format none`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch format {
-			case "text", "markdown", "json", "none":
+			case "text", "markdown", "html", "json", "none":
 			default:
-				return fmt.Errorf("unknown format %q. Use text, markdown, json or none", format)
+				return fmt.Errorf("unknown format %q. Use text, markdown, html, json or none", format)
 			}
 			weeks, err := weeksOf(since)
 			if err != nil {
@@ -102,8 +105,15 @@ and link, so the file holds station numbers only and is safe to share.`,
 					return err
 				}
 			}
+			if htmlPath != "" {
+				if err := writeFile(htmlPath, func(w io.Writer) error { return view.HTML(w, rep, view.HTMLOptions{}) }); err != nil {
+					return err
+				}
+			}
 			out := cmd.OutOrStdout()
 			switch format {
+			case "html":
+				return view.HTML(out, rep, view.HTMLOptions{})
 			case "json":
 				return writeJSON(out, rep)
 			case "markdown":
@@ -118,8 +128,9 @@ and link, so the file holds station numbers only and is safe to share.`,
 	f.StringVar(&dir, "store", "", "store directory (default: the owner's directory in the user cache)")
 	f.StringVar(&since, "since", "13w", "length of the window in whole weeks, such as 13w or 26w")
 	f.StringVar(&until, "until", "", "end of the window: a date, or days or weeks back (default: the last sync)")
-	f.StringVar(&format, "format", "text", "what to print: text, markdown, json or none")
+	f.StringVar(&format, "format", "text", "what to print: text, markdown, html, json or none")
 	f.StringVar(&jsonPath, "json", "", "also write the report as JSON to this file")
+	f.StringVar(&htmlPath, "html", "", "also write the report as one HTML page to this file")
 	f.BoolVar(&summary, "summary", false, "leave out every repository name, title and link")
 	f.StringVar(&registryPath, "registry", "", "signature registry file to use instead of the built-in one")
 	return cmd

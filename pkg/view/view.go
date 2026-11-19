@@ -1,5 +1,6 @@
 // Package view prints a factorymeter/v1 report for people: as text for a
-// terminal and as Markdown for a job summary or a pull request.
+// terminal, as Markdown for a job summary or a pull request, and as one HTML
+// page with charts.
 //
 // It reads the report and nothing else, so anything it shows can also be
 // read out of the JSON. The page follows the line: the verdict, the seven
@@ -137,10 +138,10 @@ func mark(s *contract.Series) string {
 	}
 	out := ""
 	if s.Previous != nil && s.Trend != contract.TrendFlat && !(s.Trend == contract.TrendUnknown && s.Thin) {
-		switch {
-		case *s.Value > *s.Previous:
+		switch moved(s) {
+		case 1:
 			out = " ▲"
-		case *s.Value < *s.Previous:
+		case -1:
 			out = " ▼"
 		}
 		if s.Trend == contract.TrendWorse {
@@ -151,6 +152,21 @@ func mark(s *contract.Series) string {
 		out += " ~"
 	}
 	return out
+}
+
+// moved says which way a value went against the weeks before: 1 up, -1 down,
+// and 0 when it stood still or the move cannot be called.
+func moved(s *contract.Series) int {
+	if s == nil || s.Value == nil || s.Previous == nil || s.Trend == contract.TrendFlat || s.Trend == contract.TrendUnknown && s.Thin {
+		return 0
+	}
+	switch {
+	case *s.Value > *s.Previous:
+		return 1
+	case *s.Value < *s.Previous:
+		return -1
+	}
+	return 0
 }
 
 func cell(s *contract.Series) string {

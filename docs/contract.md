@@ -172,8 +172,10 @@ measured. It is never reported as zero.
 | Store and incremental sync: `factorymeter sync`, [store.md](store.md) | Built |
 | `factorymeter report`: `factorymeter/v1` from the store, by station, with weekly history | Built |
 | Recommendations: rules with stable ids, sized against the line's own best four weeks, [reference/rules.md](reference/rules.md) | Built |
-| A local page: `factorymeter serve` | Next |
-| Tickets from GitHub Issues, Linear and Jira | After the page |
+| A local page: `factorymeter serve`, and the same page as one file: `factorymeter report --html` | Built |
+| Tickets from GitHub Issues, deploy and verify depth | Next |
+| The store kept between runs of the GitHub Action | After that |
+| Tickets from Linear and Jira | After that |
 
 `snapshot` and `trend` are the first generation. They read GitHub on every run,
 and [metrics.md](metrics.md) describes what they print.

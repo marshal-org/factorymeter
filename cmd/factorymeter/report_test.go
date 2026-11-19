@@ -133,6 +133,37 @@ func TestReportCommand(t *testing.T) {
 		t.Errorf("the summary file: %.300s", raw)
 	}
 
+	// The page: printed, and written to a file beside another format. It is
+	// the page "serve" shows, with nothing that needs a server.
+	web, err := run("acme/app", "--store", dir, "--since", "2w", "--format", "html")
+	if err != nil || !strings.HasPrefix(web, "<!doctype html>") {
+		t.Fatalf("html, err %v: %.200s", err, web)
+	}
+	for _, want := range []string{"<title>Delivery line: acme/app</title>", "<h1>Review is the constraint. It holds 67 percent of the hours changes spend on the line.</h1>", `id="station-review" data-name="Review" data-constraint`,
+		`<a href="https://example.invalid/7" rel="noreferrer noopener">acme/app#7</a>`} {
+		if !strings.Contains(web, want) {
+			t.Errorf("the page lacks %q", want)
+		}
+	}
+	for _, not := range []string{"report.json", `class="seg"`, `class="menu"`} {
+		if strings.Contains(web, not) {
+			t.Errorf("the page holds %q", not)
+		}
+	}
+	path = filepath.Join(t.TempDir(), "line.html")
+	out, err = run("acme/app", "--store", dir, "--summary", "--html", path, "--format", "none")
+	if err != nil || out != "" {
+		t.Fatalf("out = %q, err = %v", out, err)
+	}
+	if raw, err = os.ReadFile(path); err != nil || !strings.HasPrefix(string(raw), "<!doctype html>") {
+		t.Fatalf("the html file, err %v: %.100s", err, raw)
+	}
+	for _, not := range []string{"acme", "Secret", "example.invalid"} {
+		if strings.Contains(string(raw), not) {
+			t.Errorf("the summary page holds %q", not)
+		}
+	}
+
 	md, err := run("acme/app", "--store", dir, "--format", "markdown", "--until", "2026-11-01")
 	if err != nil || !strings.Contains(md, "# Delivery line: acme/app") || !strings.Contains(md, "to 2026-11-01.") {
 		t.Errorf("markdown, err %v:\n%.400s", err, md)
