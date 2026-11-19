@@ -1,0 +1,14 @@
+# Every workflow state of the workspace. The state history of an issue names
+# states by id, and the type of a state says what it means.
+query ($after: String) {
+  workflowStates(first: 250, after: $after, includeArchived: true) {
+    nodes {
+      id
+      type
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}

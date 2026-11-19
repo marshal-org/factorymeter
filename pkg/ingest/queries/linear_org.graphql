@@ -1,0 +1,7 @@
+# The workspace the key belongs to. Its URL key names the scope in the store.
+query {
+  organization {
+    urlKey
+    name
+  }
+}

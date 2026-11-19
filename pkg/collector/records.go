@@ -212,7 +212,7 @@ func (g gqlIssue) toRecord(repo string) record.Ticket {
 	key := ticketKey(repo, g.Number)
 	t := record.Ticket{
 		Source: record.GitHub, ID: record.TicketID(record.GitHub, key), Key: key, Project: repo,
-		URL: g.URL, Title: g.Title, Labels: []string{}, Author: recordActor(g.Author),
+		URL: g.URL, Title: g.Title, Aliases: []string{}, Labels: []string{}, Author: recordActor(g.Author),
 		State: record.TicketUnstarted, RawState: strings.ToLower(g.State),
 		CreatedAt: g.CreatedAt.UTC(), UpdatedAt: g.UpdatedAt.UTC(), Reopened: g.TimelineItems.TotalCount,
 	}

@@ -1,7 +1,8 @@
 # Security policy
 
 factorymeter reads a GitHub repository with a token you give it. It only reads, and it sends
-nothing anywhere except the GitHub API. A bug that breaks either of those is a security bug.
+nothing anywhere except the GitHub API and, when you run `sync --linear`, the Linear API. A bug
+that breaks either of those is a security bug.
 
 ## Reporting a vulnerability
 
@@ -30,7 +31,12 @@ Useful things to include:
 
 - **Read only.** The client sends `GET` requests and GraphQL queries. It refuses a GraphQL
   mutation before it reaches the network.
-- **No telemetry.** The only host it talks to is the GitHub API.
-- **The token stays in memory.** It is never printed, logged or written to a report.
+- **No telemetry.** The only host it talks to is the GitHub API. With `sync --linear` it also
+  talks to the Linear API, and to no other host.
+- **The token stays in memory.** It is never printed, logged or written to a report. The same
+  holds for the Linear key, which is read from `LINEAR_API_KEY` only.
+- **`GITHUB_API_URL`, `GITHUB_GRAPHQL_URL` and `LINEAR_API_URL` name the host the token or the key
+  is sent to.** They are there for GitHub Enterprise Server and for tests. Set them only to a
+  host you trust with the token.
 - **Reports hold no secrets**, but they do hold your numbers. The link to Lights Out carries
   the measured numbers in the URL. Share a report the way you would share the numbers.

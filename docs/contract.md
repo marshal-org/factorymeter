@@ -23,7 +23,7 @@ defined in `pkg/line` and listed in [reference/rules.md](reference/rules.md).
 The numbers a rule compares with are constants in the code, and the sentence
 is built from them, so the two cannot drift apart.
 
-The layers are separate on purpose. A source adapter (GitHub today, Linear and
+The layers are separate on purpose. A source adapter (GitHub and Linear today,
 Jira next) only writes records. A metric only reads records. A page only reads
 the report. So a new source needs no change to a metric, and a new metric needs
 no change to a source or to the page.
@@ -115,7 +115,9 @@ up on GitHub alone:
 
 - `spec` is not connected while the store holds no tickets. On GitHub a ticket
   is an issue. An issue has no started state, so it starts when the first pull
-  request that closes it is opened.
+  request that closes it is opened. A Linear ticket starts when it first enters
+  a started state, or when the first pull request linked to it is opened,
+  whichever is earlier. See [store.md](store.md#tickets-from-linear).
 - `verify` counts a deployment to an environment that is not production, made
   from a commit of a change before the change merged. Deployments of the
   branch a change merges into, and GitHub Pages, do not count. With fewer than
@@ -192,7 +194,8 @@ measured. It is never reported as zero.
 | Tickets from GitHub Issues, the links from changes to the tickets they close, and the rules of the spec station | Built |
 | CI and release depth: failing workflows by name, merge queue runs, deploys matched by commit | Built |
 | The store kept between runs of the GitHub Action, [store.md](store.md#the-store-in-the-github-action) | Built |
-| Tickets from Linear and Jira | Next |
+| Tickets from Linear: `factorymeter sync --linear`, [store.md](store.md#tickets-from-linear). Checked against Linear's schema and a stand-in server, not yet against a live workspace | Built |
+| Tickets from Jira | Next |
 
 `snapshot` and `trend` are the first generation. They read GitHub on every run,
 and [metrics.md](metrics.md) describes what they print.

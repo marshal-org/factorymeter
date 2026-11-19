@@ -13,6 +13,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/marshal-org/factorymeter/pkg/ingest"
+	"github.com/marshal-org/factorymeter/pkg/linear"
+	"github.com/marshal-org/factorymeter/pkg/record"
 	"github.com/marshal-org/factorymeter/pkg/store"
 )
 
@@ -30,7 +32,8 @@ func storeDir(flag, target string) (dir, owner string, err error) {
 func syncCmd() *cobra.Command {
 	var dir, since string
 	var opt ingest.Options
-	var quiet bool
+	var quiet, withLinear bool
+	var linearTeams []string
 	cmd := &cobra.Command{
 		Use:   "sync <owner/repo | owner>",
 		Short: "Read what changed on GitHub into the local store",
@@ -46,10 +49,19 @@ Give owner/repo for one repository, or an owner for all of its active
 repositories. One store holds one owner. It lives in the user cache directory
 unless --store or FACTORYMETER_STORE names another place.
 
+With --linear, sync also reads the tickets of a Linear workspace into the
+same store, and the pull requests Linear has attached to them. The key comes
+from LINEAR_API_KEY: a personal API key that can read the workspace. The
+workspace is the one the key belongs to. --linear-team limits the read to
+some teams. A report then counts the Linear tickets at the spec station, next
+to GitHub issues.
+
 The store is a directory of Parquet files. Nothing leaves this machine.`,
 		Example: `  factorymeter sync marshal-org/runlease
   factorymeter sync my-org --since 13w --workers 8
-  factorymeter sync my-org --store ./factorymeter-store`,
+  factorymeter sync my-org --store ./factorymeter-store
+  LINEAR_API_KEY=... factorymeter sync my-org --linear
+  LINEAR_API_KEY=... factorymeter sync my-org --linear-team ENG --linear-team OPS`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target := strings.Trim(strings.TrimSpace(args[0]), "/")
@@ -68,6 +80,14 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 			if err != nil {
 				return err
 			}
+			// A missing key is an error before the first request, not after
+			// the whole of GitHub is read.
+			var lc *linear.Client
+			if withLinear || len(linearTeams) > 0 {
+				if lc, err = linearClient(quiet); err != nil {
+					return err
+				}
+			}
 			s, err := store.OpenWrite(path, owner, now)
 			if err != nil {
 				return err
@@ -79,8 +99,23 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 			}
 			g := &ingest.GitHub{C: c, S: s, Opt: opt}
 			res, serr := g.Sync(cmd.Context(), target)
-			printSync(cmd.OutOrStdout(), res, c.Calls, time.Since(now))
-			return serr
+			w := cmd.OutOrStdout()
+			printSync(w, res, c.Calls, time.Since(now))
+			switch {
+			case lc == nil:
+				if len(s.Scopes(record.Linear)) > 0 {
+					fmt.Fprintln(w, "note: the store holds Linear tickets, and this sync did not read Linear. Pass --linear to read what changed on them.")
+				}
+				return serr
+			case cmd.Context().Err() != nil, serr != nil && !anyRead(res):
+				// Stopped, or nothing of GitHub could be read at all.
+				return serr
+			}
+			began := time.Now()
+			l := &ingest.Linear{C: lc, S: s, Opt: opt, Teams: linearTeams}
+			lres, lerr := l.Sync(cmd.Context())
+			printLinear(w, lres, lerr, lc.Calls, time.Since(began))
+			return errors.Join(serr, lerr)
 		},
 	}
 	f := cmd.Flags()
@@ -93,6 +128,8 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 	f.BoolVar(&opt.SkipTickets, "skip-tickets", false, "do not read issues")
 	f.BoolVar(&opt.IncludeForks, "include-forks", false, "with an owner: include forks")
 	f.BoolVar(&opt.IncludeArchived, "include-archived", false, "with an owner: include archived repositories")
+	f.BoolVar(&withLinear, "linear", false, "also read the tickets of the Linear workspace that LINEAR_API_KEY belongs to")
+	f.StringArrayVar(&linearTeams, "linear-team", nil, "read only this Linear team, by its key, such as ENG. Repeat for more. Implies --linear")
 	f.BoolVar(&quiet, "quiet", false, "no progress on standard error")
 	return cmd
 }
@@ -145,6 +182,45 @@ func printSync(w io.Writer, res ingest.Result, calls int, took time.Duration) {
 	fmt.Fprintf(w, "%d requests to GitHub in %s.\n", calls, took.Round(time.Second))
 }
 
+// printLinear prints what a sync of a Linear workspace did. It comes after the
+// anyRead says whether the sync read at least one repository to the end.
+// When none was read there is no pull request to tie a ticket to.
+func anyRead(res ingest.Result) bool {
+	for _, r := range res.Repos {
+		if r.Err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// lines of GitHub, which other tools read.
+func printLinear(w io.Writer, r ingest.SourceResult, err error, calls int, took time.Duration) {
+	name := "Linear"
+	if r.Name != "" {
+		name = "Linear " + r.Name
+		from := "-"
+		if !r.From.IsZero() {
+			from = r.From.Format("2006-01-02")
+		}
+		state := ""
+		switch {
+		case stopped(err):
+			state = ", stopped"
+		case err != nil:
+			state = ", failed"
+		}
+		fmt.Fprintf(w, "%s: tickets %s, links to pull requests %s, from %s%s\n", name, delta(r.Tickets), delta(r.Links), from, state)
+	}
+	if r.Again {
+		fmt.Fprintf(w, "note: %s: the list of teams changed, so the tickets were read again from the start.\n", name)
+	}
+	if err != nil && !stopped(err) {
+		fmt.Fprintf(w, "failed: %s: %v\n", name, err)
+	}
+	fmt.Fprintf(w, "%d requests to Linear in %s.\n", calls, took.Round(time.Second))
+}
+
 // storeInfo is what "store info --format json" prints.
 type storeInfo struct {
 	Dir       string      `json:"dir"`
@@ -162,6 +238,15 @@ type scopeInfo struct {
 	SyncedAt time.Time        `json:"synced_at"`
 	Records  map[string]int64 `json:"records"`
 	Notes    []string         `json:"notes"`
+}
+
+// label is how a scope is written in a table: a repository by its name, a
+// scope of another source with the source after it.
+func (si scopeInfo) label() string {
+	if si.Source == record.GitHub {
+		return si.Name
+	}
+	return si.Name + " (" + record.SourceName(si.Source) + ")"
 }
 
 func size(n int64) string {
@@ -185,8 +270,9 @@ func storeCmd() *cobra.Command {
 		Use:   "info <owner>",
 		Short: "Print what the store holds",
 		Long: `info prints the repositories in an owner's store, how many records each
-has, how far back they go and when each was last synced. It reads the store
-only. It does not need a token and makes no request.`,
+has, how far back they go and when each was last synced. A Linear workspace
+is listed after them, with its name followed by "(Linear)". It reads the
+store only. It does not need a token and makes no request.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if format != "text" && format != "json" {
@@ -224,7 +310,17 @@ only. It does not need a token and makes no request.`,
 				enc.SetIndent("", "  ")
 				return enc.Encode(out)
 			}
-			fmt.Fprintf(w, "%s: %d repositories, %s, in %s\n", out.Owner, len(out.Scopes), size(out.Bytes), out.Dir)
+			// A scope of GitHub is a repository. Any other scope holds the
+			// tickets of another system.
+			repos, others := 0, ""
+			for _, si := range out.Scopes {
+				if si.Source == record.GitHub {
+					repos++
+				} else if name := record.SourceName(si.Source) + " tickets"; !strings.Contains(others, name) {
+					others += ", " + name
+				}
+			}
+			fmt.Fprintf(w, "%s: %d repositories%s, %s, in %s\n", out.Owner, repos, others, size(out.Bytes), out.Dir)
 			tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
 			fmt.Fprintln(tw, "REPOSITORY\tCHANGES\tCI RUNS\tDEPLOYS\tTICKETS\tFROM\tSYNCED\t")
 			for _, si := range out.Scopes {
@@ -235,12 +331,16 @@ only. It does not need a token and makes no request.`,
 				if !si.SyncedAt.IsZero() {
 					synced = si.SyncedAt.Format("2006-01-02 15:04") + " UTC"
 				}
+				if si.Source != record.GitHub {
+					fmt.Fprintf(tw, "%s\t-\t-\t-\t%d\t%s\t%s\t\n", si.label(), si.Records["tickets"], from, synced)
+					continue
+				}
 				fmt.Fprintf(tw, "%s\t%d\t%d\t%d\t%d\t%s\t%s\t\n", si.Name, si.Records["changes"], si.Records["ci_runs"], si.Records["deploys"], si.Records["tickets"], from, synced)
 			}
 			tw.Flush()
 			for _, si := range out.Scopes {
 				for _, n := range si.Notes {
-					fmt.Fprintf(w, "note: %s: %s\n", si.Name, n)
+					fmt.Fprintf(w, "note: %s: %s\n", si.label(), n)
 				}
 			}
 			return nil

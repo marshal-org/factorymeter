@@ -10,6 +10,7 @@ factorymeter sync owner/repo          # one repository
 factorymeter sync my-org              # every active repository of an owner
 factorymeter store info my-org        # what the store holds
 factorymeter store path my-org        # where it is
+factorymeter sync my-org --linear     # also the tickets of a Linear workspace
 ```
 
 `snapshot` and `trend` do not read the store. They read GitHub on every run.
@@ -24,6 +25,8 @@ See [What is built](contract.md#what-is-built).
 | Tickets | Issues | Every issue updated since the floor, and every one still open |
 | Links | The issues each pull request closes, as GitHub lists them | With the pull requests |
 | Deploys | Deployments with their statuses, and published releases | Created since the floor |
+| Tickets, with `--linear` | The issues of a Linear workspace | Every issue updated since the floor, and every one still open |
+| Links, with `--linear` | The pull requests Linear has attached to each issue | With the issues |
 
 The floor is `--since`, 26 weeks by default. It is cut to a whole day. A later
 sync with an earlier `--since` reads the missing part. A later `--since` never
@@ -65,6 +68,57 @@ what is stored and writes the links. It happens once.
 needs it, because GitHub may refuse a page of pull requests that asks which
 issues they close. A later sync without the flag reads the window once more
 for the links, as above.
+
+## Tickets from Linear
+
+`sync --linear` reads the workspace the key in `LINEAR_API_KEY` belongs to,
+after it has read GitHub. `--linear-team ENG` reads one team, and can be given
+more than once. Without it every team the key can see is read.
+
+```sh
+export LINEAR_API_KEY=...
+factorymeter sync my-org --linear
+factorymeter sync my-org --linear-team ENG --linear-team OPS
+```
+
+What is kept of a Linear issue: its key and the keys it had before, its team,
+title, labels, state, the display name of the person or integration that made
+it, and its times. The description, the comments and the assignee are not read.
+No email address is read.
+
+- **When work started.** Linear lists the states an issue went through. The
+  ticket starts the first time it entered a state of the type started, also
+  when it went back to the backlog since. At most 20 state changes are read
+  per issue.
+- **Reopened.** A ticket counts as reopened each time it left a completed
+  state for an open one.
+- **States.** Linear gives every workflow state a type. Triage and backlog are
+  stored as backlog, unstarted as unstarted, started as started and completed
+  as done. Canceled and duplicate are stored as cancelled. An issue in the
+  trash counts as cancelled.
+- **Links.** Linear's GitHub integration attaches a pull request to an issue.
+  Each attachment with the URL of a pull request becomes a link, at most 10 per
+  issue. The report also ties a pull request to a ticket when its branch, title
+  or description names the key of the ticket. Those are found when the report
+  is made and are not stored.
+- **A later sync** reads the issues updated since the last one. Linear is read
+  a week of update times at a time, and the place is saved after each, so a
+  sync that stops goes on from there.
+- **Another list of teams** makes the sync drop the stored tickets of the
+  workspace and read them again. Otherwise the tickets of a team that is no
+  longer read would stay open for good.
+- **A sync without `--linear`** leaves the stored Linear tickets as they are
+  and says so. The report says when they are more than a day behind.
+- **Deleted issues** stay in the store.
+- **One workspace per key.** A key belongs to one workspace, and that is the
+  one that is read.
+
+The workspace is a scope of its own in the store, named by the URL key of the
+workspace, and always counts as private. `store info` lists it as
+`<workspace> (Linear)`.
+
+This adapter is checked against Linear's published GraphQL schema and a
+stand-in server. It has not yet run against a live workspace.
 
 ## A store from an older version
 
@@ -134,6 +188,8 @@ ci_runs/github/<owner>__<repo>/2026-11.parquet
 deploys/github/<owner>__<repo>/2026-11.parquet
 tickets/github/<owner>__<repo>/2026-11.parquet
 links/github/<owner>__<repo>/all.parquet
+tickets/linear/<workspace>/2026-11.parquet
+links/linear/<workspace>/all.parquet
 ```
 
 A record lives in the file of the month it was created in, and never moves.
@@ -182,8 +238,9 @@ downloads the artifact, and needs `actions: read`. The `token` input reads the
 target, and is given to the sync only.
 
 Anyone who can read the repository can download its artifacts. So in a public
-repository, a store that holds a private repository is not uploaded, and the
-report is written with `--summary`, which leaves out every name. The run prints
+repository, a store that holds a private repository or Linear tickets is not
+uploaded, and the report is written with `--summary`, which leaves out every
+name. The run prints
 a warning and reads the whole history each time. Run the workflow in a private
 repository to keep the store and the names.
 
@@ -194,7 +251,8 @@ artifact.
 ## What stays on your machine
 
 Everything. A sync talks to the GitHub API with your read-only token and writes
-to the store directory. A store of a private repository holds its pull request
+to the store directory. With `--linear` it also talks to the Linear API with
+your key. Titles of Linear issues are in the store too. A store of a private repository holds its pull request
 titles, bodies, commit authors, branch names and issue titles, so treat the directory like
 the repository itself.
 

@@ -55,9 +55,31 @@ type Line struct {
 	// one on a change, oldest first.
 	flows    []flow
 	flowRuns []flowRun
+	// tickets holds the ticket systems that are not repositories.
+	tickets []ticketSource
 
 	obsPart  map[string]*parts[obs]
 	stayPart map[string]*parts[stay]
+}
+
+// ticketSource is what the report says about a ticket system that is not a
+// repository, such as a Linear workspace.
+type ticketSource struct {
+	source     string
+	synced     time.Time
+	notes      []string
+	unfinished bool
+	// linkedOnly says only the tickets a change links to were counted.
+	linkedOnly bool
+	// skipped counts the tickets left out for that reason.
+	skipped int
+}
+
+// firstLink is the first change linked to a ticket: when it was opened, and
+// in which repository.
+type firstLink struct {
+	at   time.Time
+	repo int32
 }
 
 // flow is a CI workflow of a repository.
@@ -111,8 +133,8 @@ type Builder struct {
 	l        *Line
 	nameIdx  map[string]int32
 	agentIdx map[string]int16
-	// linked is when the first change linked to a ticket was opened.
-	linked  map[string]time.Time
+	// linked is the first change linked to each ticket.
+	linked  map[string]firstLink
 	flowIdx map[flow]int32
 }
 
@@ -122,7 +144,7 @@ func NewBuilder(reg *signature.Registry) *Builder {
 		reg: reg,
 		l: &Line{obs: map[string][]obs{}, stays: map[string][]stay{}, seen: map[string][]int64{},
 			sources: map[string]map[string]bool{}},
-		nameIdx: map[string]int32{}, agentIdx: map[string]int16{}, linked: map[string]time.Time{},
+		nameIdx: map[string]int32{}, agentIdx: map[string]int16{}, linked: map[string]firstLink{},
 		flowIdx: map[flow]int32{},
 	}
 }
@@ -517,13 +539,18 @@ func (r *RepoBuilder) Link(l *record.Link) {
 	if err != nil {
 		return
 	}
+	r.linkTo(num, l.To)
+}
+
+// linkTo ties a change of this repository, by its number, to a ticket.
+func (r *RepoBuilder) linkTo(num int, ticket string) {
 	i, ok := r.byNumber[num]
 	if !ok {
 		return
 	}
 	at := r.chgs[i].created
-	if old, ok := r.b.linked[l.To]; !ok || at.Before(old) {
-		r.b.linked[l.To] = at
+	if old, ok := r.b.linked[ticket]; !ok || at.Before(old.at) {
+		r.b.linked[ticket] = firstLink{at: at, repo: r.idx}
 	}
 }
 
@@ -821,18 +848,57 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 	l.stand("release.queue", c.merged, reach, k, c.item)
 }
 
+// SourceScope is what the store knows about a ticket system that is not a
+// repository.
+type SourceScope struct {
+	// Source is the system, such as "linear".
+	Source   string
+	SyncedAt time.Time
+	Notes    []string
+	// LinkedOnly says the report is of one repository, so only the tickets
+	// that a change of it links to are counted.
+	LinkedOnly bool
+}
+
+// TicketSource starts a ticket system that is not a repository. Call it after
+// every repository, then pass its tickets to the Ticket it returns.
+func (b *Builder) TicketSource(sc SourceScope) func(*record.Ticket) {
+	l := b.l
+	i := len(l.tickets)
+	l.tickets = append(l.tickets, ticketSource{source: sc.Source, synced: sc.SyncedAt, notes: sc.Notes,
+		unfinished: sc.SyncedAt.IsZero(), linkedOnly: sc.LinkedOnly})
+	return func(t *record.Ticket) {
+		if _, ok := b.linked[t.ID]; !ok && sc.LinkedOnly {
+			l.tickets[i].skipped++
+			return
+		}
+		b.Ticket(t)
+	}
+}
+
 // Ticket adds a ticket. Call it after every repository, so the links from
 // changes are known.
+//
+// An issue of a repository belongs to that repository. A ticket of another
+// system belongs to the repository of the first change linked to it, and to
+// none while no change is.
 func (b *Builder) Ticket(t *record.Ticket) {
 	l := b.l
 	l.saw(record.KindTicket, t.Source, t.CreatedAt)
-	k := key{class: classNone, agent: -1, repo: b.name(t.Project)}
+	first, linked := b.linked[t.ID]
+	k := key{class: classNone, agent: -1, repo: -1}
+	switch {
+	case t.Source == record.GitHub:
+		k.repo = b.name(t.Project)
+	case linked:
+		k.repo = first.repo
+	}
 	it := int32(len(l.items))
 	l.items = append(l.items, item{kind: record.KindTicket, key: t.Key, url: t.URL, title: t.Title, class: classNone})
 
 	start := val(t.StartedAt)
-	if at, ok := b.linked[t.ID]; ok && (start.IsZero() || at.Before(start)) {
-		start = at
+	if linked && (start.IsZero() || first.at.Before(start)) {
+		start = first.at
 	}
 	// A ticket written up after the work began did not wait.
 	if !start.IsZero() && start.Before(t.CreatedAt) {

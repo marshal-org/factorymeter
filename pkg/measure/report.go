@@ -648,9 +648,14 @@ func (l *Line) coverage(o Options, w window, status map[string]stationState, lim
 		sc := contract.SourceCoverage{Kind: kind, Source: strings.Join(src, ", "), Records: inWindow(kind)}
 		switch kind {
 		case record.KindTicket:
+			var say []string
 			if l.sources[kind][record.GitHub] {
-				sc.Note = "A GitHub issue has no started state. It starts when the first pull request that closes it is opened."
+				say = append(say, "A GitHub issue has no started state. It starts when the first pull request that closes it is opened.")
 			}
+			for _, name := range l.ticketSystems() {
+				say = append(say, fmt.Sprintf("A %s ticket starts when it first enters a started state, or when the first pull request linked to it is opened, whichever is earlier.", name))
+			}
+			sc.Note = strings.Join(say, " ")
 		case record.KindCIRun:
 			if unjoined > 0 {
 				sc.Note = fmt.Sprintf("%d of the %d runs in the store are on commits of no change, such as runs on the main branch. They are left out.", unjoined, runs)
@@ -689,6 +694,29 @@ func (l *Line) coverage(o Options, w window, status map[string]stationState, lim
 		}
 		limits = append(limits, n)
 	}
+	for i := range l.tickets {
+		t := &l.tickets[i]
+		name := record.SourceName(t.source)
+		switch {
+		case t.unfinished:
+			limits = append(limits, fmt.Sprintf("The first sync of %s has not finished. Its tickets are not complete. Run sync again.", name))
+		case w.until.Sub(t.synced) > day:
+			limits = append(limits, fmt.Sprintf("The last sync of %s is more than a day older than the end of the window. What changed on its tickets since is missing. Run sync with %s again.", name, name))
+		}
+		for _, n := range t.notes {
+			limits = append(limits, name+": "+n)
+		}
+		limits = append(limits, fmt.Sprintf("A pull request counts as linked to a %s ticket when %s has it attached, or when its branch, title or description names the key of the ticket. A word that only looks like a key is taken for one. A ticket deleted in %s stays in the store.", name, name, name))
+		switch {
+		case t.linkedOnly && t.skipped > 0:
+			limits = append(limits, fmt.Sprintf("Only the %s tickets that a pull request of this repository is linked to are counted. %s in the store %s left out. The report of the owner counts them all.",
+				name, capital(count(t.skipped, "ticket")), plural(t.skipped, "is", "are")))
+		case t.linkedOnly:
+			limits = append(limits, fmt.Sprintf("Only the %s tickets that a pull request of this repository is linked to are counted.", name))
+		case total > 1:
+			limits = append(limits, fmt.Sprintf("A %s ticket counts for the repository of the first pull request linked to it. A ticket with no pull request counts in the whole line only.", name))
+		}
+	}
 	if cut > 0 {
 		limits = append(limits, fmt.Sprintf("%s more commits than were read. Rework after review and CI rounds on their later commits can be missed.", capital(count(cut, "change")+" "+plural(cut, "has", "have"))))
 	}
@@ -720,6 +748,18 @@ func (l *Line) coverage(o Options, w window, status map[string]stationState, lim
 		}
 	}
 	return cov, limits
+}
+
+// ticketSystems names the ticket systems of the line that are not
+// repositories, each once.
+func (l *Line) ticketSystems() []string {
+	var out []string
+	for i := range l.tickets {
+		if name := record.SourceName(l.tickets[i].source); !has(out, name) {
+			out = append(out, name)
+		}
+	}
+	return out
 }
 
 func plural(n int, one, many string) string {

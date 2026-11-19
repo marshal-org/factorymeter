@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/marshal-org/factorymeter/pkg/github"
+	"github.com/marshal-org/factorymeter/pkg/linear"
 )
 
 // version is set at build time with -ldflags "-X main.version=...".
@@ -34,7 +35,9 @@ names the stage where work waits the longest.
 
 It only reads. It needs a token that can read the repository, taken from
 GITHUB_TOKEN or GH_TOKEN, or from "gh auth token" when the GitHub CLI is
-logged in. Nothing is sent anywhere except to the GitHub API.`,
+logged in. "sync --linear" also reads the tickets of a Linear workspace, with
+the key in LINEAR_API_KEY. Nothing is sent anywhere except to the GitHub API
+and, when you ask for it, the Linear API.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Version:       version,
@@ -73,6 +76,25 @@ func newClient(quiet bool) (*github.Client, error) {
 	}
 	if v := os.Getenv("GITHUB_GRAPHQL_URL"); v != "" {
 		c.GraphQLURL = v
+	}
+	if !quiet {
+		c.Logf = progress
+	}
+	return c, nil
+}
+
+// linearClient builds a client for Linear. The key comes from the environment
+// only, never from a flag, so it does not end up in the shell history or in
+// the list of processes. It is never printed.
+func linearClient(quiet bool) (*linear.Client, error) {
+	key := strings.TrimSpace(os.Getenv("LINEAR_API_KEY"))
+	if key == "" {
+		return nil, errors.New("no Linear key. Set LINEAR_API_KEY to a personal API key that can read the workspace")
+	}
+	c := linear.New(key)
+	c.UserAgent = "factorymeter/" + version
+	if v := strings.TrimSpace(os.Getenv("LINEAR_API_URL")); v != "" {
+		c.URL = v
 	}
 	if !quiet {
 		c.Logf = progress

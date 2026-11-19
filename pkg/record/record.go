@@ -172,8 +172,9 @@ const (
 // Ticket is an issue on GitHub, Linear or Jira.
 type Ticket struct {
 	Source    string     `json:"source" parquet:"source" doc:"Where the record came from." enum:"github,linear,jira"`
-	ID        string     `json:"id" parquet:"id" doc:"Stable id, unique among tickets: source:key."`
+	ID        string     `json:"id" parquet:"id" doc:"Stable id, unique among tickets: the source, a colon, and the name the source never changes. That is the key on GitHub and the issue id on Linear, where a key changes when a ticket moves to another team."`
 	Key       string     `json:"key" parquet:"key" doc:"The name people use for the ticket: owner/repo#12 on GitHub, ENG-123 on Linear or Jira."`
+	Aliases   []string   `json:"aliases" parquet:"aliases,list" doc:"Keys the ticket had before, such as its key in the team it was moved out of. A change that names one is still linked to the ticket. Empty on GitHub."`
 	Project   string     `json:"project" parquet:"project" doc:"The repository, team or project the ticket belongs to."`
 	URL       string     `json:"url" parquet:"url" doc:"Link to the ticket on the source."`
 	Title     string     `json:"title" parquet:"title" doc:"The title."`
@@ -229,6 +230,19 @@ func DeployID(source, repo, via, name string) string {
 // TicketID builds the id of a ticket from its key.
 func TicketID(source, key string) string {
 	return source + ":" + key
+}
+
+// SourceName is how a source is written for a reader.
+func SourceName(source string) string {
+	switch source {
+	case GitHub:
+		return "GitHub"
+	case Linear:
+		return "Linear"
+	case Jira:
+		return "Jira"
+	}
+	return source
 }
 
 // SourceOf reads the source back out of a record id.
