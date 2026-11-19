@@ -82,7 +82,16 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
   JIRA_EMAIL=... JIRA_API_TOKEN=... factorymeter sync my-org --jira acme.atlassian.net --jira-project ENG`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			target := strings.Trim(strings.TrimSpace(args[0]), "/")
+			target, err := parseTarget(args[0])
+			if err != nil {
+				return err
+			}
+			if linearTeams, err = parseKeys("linear-team", linearTeams); err != nil {
+				return err
+			}
+			if jiraProjects, err = parseKeys("jira-project", jiraProjects); err != nil {
+				return err
+			}
 			now := time.Now().UTC()
 			floor, err := parseWhen(since, now)
 			if err != nil {
@@ -402,13 +411,17 @@ or a Jira site is listed with them, with its name followed by "(Linear)" or
 			if format != "text" && format != "json" {
 				return fmt.Errorf("unknown format %q. Use text or json", format)
 			}
-			path, _, err := storeDir(dir, args[0])
+			target, err := parseTarget(args[0])
+			if err != nil {
+				return err
+			}
+			path, _, err := storeDir(dir, target)
 			if err != nil {
 				return err
 			}
 			s, err := store.Open(path)
 			if errors.Is(err, store.ErrNoStore) {
-				return fmt.Errorf("%w. Run \"factorymeter sync %s\" first", err, args[0])
+				return fmt.Errorf("%w. Run \"factorymeter sync %s\" first", err, target)
 			}
 			if err != nil {
 				return err
@@ -477,7 +490,11 @@ or a Jira site is listed with them, with its name followed by "(Linear)" or
 		Short: "Print the directory of an owner's store",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			p, _, err := storeDir("", args[0])
+			target, err := parseTarget(args[0])
+			if err != nil {
+				return err
+			}
+			p, _, err := storeDir("", target)
 			if err != nil {
 				return err
 			}

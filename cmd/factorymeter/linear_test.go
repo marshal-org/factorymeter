@@ -453,7 +453,7 @@ func TestActionSyncReadsLinear(t *testing.T) {
 	}
 
 	// Teams are split on commas, spaces and line breaks, and are not globbed:
-	// a star stays a team that Linear does not know.
+	// a star is not a key, and is refused before any request.
 	text, _ = r.step("sync", append(env, "LINEAR_API_KEY="+fakeLinearKey, "FM_LINEAR_TEAMS= eng,\n ENG ")...)
 	if !strings.Contains(text, "Linear acme: tickets 2") || strings.Contains(text, "failed") {
 		t.Errorf("teams:\n%s", text)
@@ -464,7 +464,7 @@ func TestActionSyncReadsLinear(t *testing.T) {
 	}
 	cmd.Env = append(cmd.Env, append(env, "LINEAR_API_KEY="+fakeLinearKey, "FM_LINEAR_TEAMS=ENG *")...)
 	b, err := cmd.CombinedOutput()
-	if err == nil || !strings.Contains(string(b), "no team with the key * that") {
+	if err == nil || !strings.Contains(string(b), `cannot read --linear-team "*" as a key`) {
 		t.Errorf("a star as a team: %v\n%s", err, b)
 	}
 
