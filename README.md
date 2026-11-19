@@ -13,15 +13,27 @@
 </p>
 
 <p align="center">
+  <a href="https://marshal-org.github.io/factorymeter/"><strong>Website</strong></a> ·
+  <a href="#install">Install</a> ·
+  <a href="#see-it-as-a-page">The page</a> ·
+  <a href="#run-it-on-a-schedule">GitHub Action</a> ·
+  <a href="docs/contract.md">What every number means</a>
+</p>
+
+<p align="center">
   Built by <a href="https://marshal.codes/?utm_source=github&amp;utm_medium=readme&amp;utm_campaign=factorymeter&amp;utm_content=top"><strong>Marshal</strong></a>: AI coding agents at full speed, with full receipts.<br>
   Marshal runs coding agents in isolated pods inside your own VPC. factorymeter is how we look at our own delivery line.
 </p>
 
 ```bash
 factorymeter sync owner/repo      # read the history into a store on your machine
-factorymeter report owner/repo    # the line, station by station, with 26 weeks of history
-factorymeter sync my-org && factorymeter report my-org   # every active repository of an owner
+factorymeter serve owner/repo     # see the line in the browser, at http://127.0.0.1:7377
+factorymeter report owner/repo    # or print it, as text, Markdown, JSON or one HTML file
 ```
+
+<p align="center">
+  <img src="site/img/overview.webp" width="900" alt="The factorymeter page for openstatusHQ/openstatus: the headline names the constraint, five numbers of the whole line, and the seven stations graded flowing, watch or strained.">
+</p>
 
 It only reads. It needs a read-only GitHub token, it runs on your machine, and it sends nothing
 anywhere except to the GitHub API. When you ask for it, it also reads the tickets of a Linear
@@ -50,57 +62,24 @@ Speeding up any other station changes little.
 
 ## What you get
 
-This is the top of a real report. It was run on
-[`marshal-org/runlease`](https://github.com/marshal-org/runlease) on 2026-11-19, from a store that
-held 73 changes, 319 CI runs, 55 deploys and 6 issues.
+These pictures are the page of
+[`openstatusHQ/openstatus`](https://github.com/openstatusHQ/openstatus), an open source project
+with steady activity, read from its public history over the 13 weeks to <!-- x-shot-date -->Nov 19, 2026<!-- /x-shot-date -->.
 
-```text
-DELIVERY LINE: MARSHAL-ORG/RUNLEASE
-===================================
+**The line.** Seven stations, each graded flowing, watch or strained. Above them, the constraint,
+the station next in line, and the way to where to invest.
 
-13 weeks, 2026-08-20 to 2026-11-19. Compared with the 13 weeks before. History: 26 weeks.
+<img src="site/img/line.webp" width="900" alt="The line of seven stations, each with a colored top edge and a grade, what leaves it a week, its median wait and its share of the hours.">
 
-Release is the constraint. It holds 77 percent of the hours changes spend on the line.
+**A station, opened in place.** Its grade and the reasons for it, the recommendations about it,
+and a chart per number with up to 26 weeks of history. A median and its 90th percentile share one
+chart.
 
-Over the 13 weeks to 2026-11-19, changes stood 12 hours a week at release and 2.5 a week left it. Before the merge, code holds the most: 56 percent of those hours.
+<img src="site/img/station.webp" width="900" alt="A station opened below the line: its grade and reasons, the recommendation about it, and a chart per number.">
 
-THE LINE
+**Where to invest.** Ranked by the hours a week each one frees.
 
-  Station               Status         Out a week   Wait  Work  Rework  Queue    Held  Out, by week
-  Spec                  measured            0.2 ▲   7m ~          0% ~   2 ▲!          ▁▁▁▁▁▁▁▁▅▁▁▁▁▁▁▁▁▁▁▁▅▁▁▁▁█
-  Code                  measured            3.8 ▲           0m   6% ▲!      0  13% ▲!  ▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█
-  CI                    measured            8.0 ▲      -    6m      9%             5%  ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█
-  Verify                not connected
-  Review                measured              0.0      -     -       -      0          ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-  Merge                 measured            3.5 ▲  16m ▼            0%      0    6% ▼  ▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█
-  Release (constraint)  partial             2.5 ▲   4.1h     -       -      0     77%  ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█
-
-Wait and work are medians. Held is the station's share of the hours changes spend on the line. ▲ and ▼ show a move against the weeks before, ! a move for the worse, ~ a value drawn from fewer than 5 items.
-
-  * Verify: Fewer than 5 deployments to an environment that is not production were found on a commit of a change before it merged.
-  * Review: No change in the store was reviewed by another person. A change that waits here may be waiting to merge.
-  * Release: Published releases stand in for production deploys in marshal-org/runlease.
-
-WHERE TO INVEST
-
-  #  What to do                                                Station  Hours freed a week  Confidence
-  1  Release more often                                        Release                   0  high
-  2  Prove changes on a running environment before they merge  Verify                       high
-  3  Have agents run the checks before they push               CI                           medium
-
-Hours freed is the waiting that goes away each week if the station gets back to the pace of its own best four weeks. It is empty where a gain cannot be sized, and 0 where no four weeks of the window did better. Confidence is how much data stands behind the numbers. `factorymeter rules` lists every rule and when it fires.
-
-1. Release more often
-
-Release is the constraint: it holds 77 percent of the hours changes spend on the line. A change is held 5.0 hours here on average, and no four weeks of the window did better. The gain has to come from a change in how the station works.
-
-  * Changes were held 12 hours a week at release. No four weeks of the window did better.
-  * Share of the line's time held at release: 77 percent.
-  * Wait for a release, median: 4.1 hours.
-  * Production deploys: 0.6 a week. It was 0.0 a week in the 13 weeks before.
-  * Changes merged and not released: 0. It was 0 at the end of the 13 weeks before.
-  * Practice: https://thesoftwarefactory.site/playbook/find-the-constraint/
-```
+<img src="site/img/invest.webp" width="900" alt="Where to invest: ranked recommendations, each with the hours a week it frees, its evidence and the changes to look at.">
 
 **Where to invest** is the part to act on. Each line is a rule that fired on this line's own
 numbers. A rule says what to do, shows the numbers behind it, and where it can, names the
@@ -108,9 +87,9 @@ changes to look at first. A gain is sized against the station's own best four we
 against an outside benchmark. `factorymeter rules` prints every rule and the exact condition
 under which it fires, and [docs/reference/rules.md](docs/reference/rules.md) has the same list.
 
-The report goes on with the other recommendations, agents next to people, then each station
-number by number with its history, then what was loaded and the limits of what it could see. A
-station that cannot be measured says what to connect. It is never shown as zero.
+The page goes on with agents next to people, and with what was loaded and the limits of what
+it could see. A station that cannot be measured says what to connect. It is never shown as zero.
+`factorymeter report` prints the same report in a terminal.
 
 Every number has a fixed id and an exact definition. `factorymeter metrics` prints them, and
 [docs/contract.md](docs/contract.md) says what you can rely on.
@@ -124,7 +103,16 @@ go install github.com/marshal-org/factorymeter/cmd/factorymeter@latest
 ```
 
 Or download a binary for Linux, macOS or Windows from the
-[releases page](https://github.com/marshal-org/factorymeter/releases). Each release has a
+[releases page](https://github.com/marshal-org/factorymeter/releases). The latest one is always at
+the same address:
+
+```bash
+curl -fsSL -o factorymeter https://github.com/marshal-org/factorymeter/releases/latest/download/factorymeter-darwin-arm64
+chmod +x factorymeter
+```
+
+The files are `factorymeter-darwin-arm64`, `-darwin-amd64`, `-linux-amd64`, `-linux-arm64` and
+`-windows-amd64.exe`. Each release has a
 `checksums.txt`, a cosign signature and a build provenance attestation.
 
 Or build from source:
@@ -280,21 +268,12 @@ What `serve` does and does not do:
 - The page allows only its own style and script by their hashes. A title or a name in the data
   cannot run as script.
 
-## Without a store
+## The first generation
 
-The first generation of factorymeter is still here. `snapshot` and `trend` read a window straight
-from GitHub on every run and keep nothing. They measure pull requests between open and merge, and
-write a one-page HTML report.
-
-```bash
-factorymeter snapshot owner/repo --html report.html        # the last 30 days
-factorymeter trend owner/repo --since 26w --every 2w       # the same numbers over time
-factorymeter snapshot owner/repo --save-raw raw.json       # keep what was collected
-factorymeter trend --from-raw raw.json --every 4w          # another cut, offline
-```
-
-[docs/metrics.md](docs/metrics.md) defines their numbers. They are not the numbers of the
-contract: `report` is where new work goes.
+`snapshot` and `trend`, the commands of the first generation, read a window straight from GitHub
+on every run and keep nothing. They still work for the scripts that call them, and they are left
+out of the help. [docs/metrics.md](docs/metrics.md) defines their numbers. `sync`, then `report`
+or `serve`, is the way in, and where new work goes.
 
 ## How agents are detected
 
@@ -374,6 +353,7 @@ The Action keeps the store between runs as a second build artifact. The first ru
 weeks of history. Every run after it starts from the store the run before saved and reads only
 what changed, so a weekly run takes a few requests.
 
+<!-- x-release-please-start-version -->
 ```yaml
 name: factorymeter
 on:
@@ -392,10 +372,11 @@ jobs:
   report:
     runs-on: ubuntu-latest
     steps:
-      - uses: marshal-org/factorymeter@v0.1.0   # or pin a commit SHA
+      - uses: marshal-org/factorymeter@v0.3.0   # or pin a commit SHA
         with:
           since: 13w
 ```
+<!-- x-release-please-end -->
 
 | Input | Default | Meaning |
 |---|---|---|
@@ -439,26 +420,30 @@ have. Without either, the run still works: it reads the whole history and prints
 
 To read Linear as well, give the key from a secret:
 
+<!-- x-release-please-start-version -->
 ```yaml
-      - uses: marshal-org/factorymeter@v0.1.0
+      - uses: marshal-org/factorymeter@v0.3.0
         with:
           linear-api-key: ${{ secrets.LINEAR_API_KEY }}
           linear-teams: ENG, OPS      # leave out to read every team
 ```
+<!-- x-release-please-end -->
 
 When the secret is empty, as it is for a pull request from a fork, Linear is not read and the
 run goes on.
 
 To read Jira as well, give the site, and the account from secrets:
 
+<!-- x-release-please-start-version -->
 ```yaml
-      - uses: marshal-org/factorymeter@v0.1.0
+      - uses: marshal-org/factorymeter@v0.3.0
         with:
           jira-site: acme.atlassian.net
           jira-email: ${{ secrets.JIRA_EMAIL }}
           jira-api-token: ${{ secrets.JIRA_API_TOKEN }}
           jira-projects: ENG, OPS     # leave out to read every project
 ```
+<!-- x-release-please-end -->
 
 When one of the three is empty, Jira is not read, a warning names what is empty, and the run
 goes on.
@@ -468,9 +453,12 @@ can read.
 
 ## Try a fix before you make it
 
-`snapshot` ends with a link to [Lights Out](https://thesoftwarefactory.site/lights-out/), a
-simulator of a delivery line. The link fills its "My factory" form with your measured numbers, so
-you can see what happens to your line when you add review capacity, faster CI or more agents.
+The page and the report link to [Lights Out](https://thesoftwarefactory.site/lights-out/), the
+simulator of a delivery line on The Software Factory. The link fills its "My factory" form with
+the numbers of your line: changes merged a week, CI time, the wait for a first review, deploys a
+week and rework. Then you can see what your line does when you add review capacity, faster CI or
+more agents. The number of developers is not in the report, so the simulator keeps its own until
+you change it.
 
 Your numbers ride after the `#` in the link. A browser never sends that part of an address to a
 server, so opening the link shares nothing.

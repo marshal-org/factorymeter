@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>factorymeter: find the station that holds your delivery line</title>
+<meta name="description" content="factorymeter reads your GitHub history with a read-only token and shows your delivery line: seven stations from spec to release, graded, with the constraint, the next station in line and where to invest. Agents next to people. Open source, local, no telemetry.">
+<link rel="canonical" href="https://marshal-org.github.io/factorymeter/">
+<meta name="theme-color" content="#f1f2ec">
+<meta property="og:site_name" content="factorymeter">
+<meta property="og:type" content="website">
+<meta property="og:title" content="factorymeter: find the station that holds your delivery line">
+<meta property="og:description" content="Seven stations from spec to release, graded. The constraint, the next station in line, and where to invest. Agents next to people. Read only, local, open source.">
+<meta property="og:url" content="https://marshal-org.github.io/factorymeter/">
+<meta property="og:image" content="https://marshal-org.github.io/factorymeter/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="factorymeter: find the station that holds your delivery line">
+<meta name="twitter:description" content="Seven stations from spec to release, graded. The constraint, the next station in line, and where to invest. Agents next to people.">
+<meta name="twitter:image" content="https://marshal-org.github.io/factorymeter/img/og.png">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"factorymeter","applicationCategory":"DeveloperApplication","operatingSystem":"Linux, macOS, Windows","license":"https://www.apache.org/licenses/LICENSE-2.0","url":"https://marshal-org.github.io/factorymeter/","downloadUrl":"https://github.com/marshal-org/factorymeter/releases/latest","codeRepository":"https://github.com/marshal-org/factorymeter","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Organization","name":"Marshal","url":"https://marshal.codes"}}</script>
+</head>
+<body>
+<div class="shell">
+<nav class="nav" aria-label="Main">
+<a class="home" href="./">factorymeter</a>
+<ul>
+<li><a href="#line">The line</a></li>
+<li><a href="#page">The page</a></li>
+<li><a href="#install">Install</a></li>
+<li><a class="gh" href="https://github.com/marshal-org/factorymeter">GitHub</a></li>
+</ul>
+</nav>
+</div>
+
+<header class="shell hero">
+<p class="kicker">Open source · read only · runs on your machine</p>
+<h1>Find the station that holds your line.</h1>
+<p class="lede">Coding agents open pull requests faster than people do. The line does not get faster by the same amount: the work piles up at review, at CI, at release. factorymeter reads your GitHub history and shows where.</p>
+<div class="cta">
+<a class="btn" href="#install">Install</a>
+<a class="btn ghost" href="https://github.com/marshal-org/factorymeter">View on GitHub</a>
+</div>
+<figure class="shot hero-shot">
+<div class="chrome" aria-hidden="true"><span></span><span></span><span></span><b>127.0.0.1:7377</b></div>
+<img src="img/overview.webp" width="1400" height="1100" alt="The factorymeter page for openstatusHQ/openstatus: the headline names the constraint, five numbers of the whole line, and the seven stations graded flowing, watch or strained.">
+<figcaption>The page of <a href="https://github.com/openstatusHQ/openstatus">openstatusHQ/openstatus</a>, 13 weeks to <!-- x-shot-date -->Nov 19, 2026<!-- /x-shot-date -->, from its public history.</figcaption>
+</figure>
+</header>
+
+<section class="stage dk" id="line">
+<div class="shell">
+<p class="kicker">How it reads a line</p>
+<h2>Seven stations. One constraint.</h2>
+<p class="lede">factorymeter follows each change through the stations of your line and adds up the hours it spends at each. The station that holds the most hours is the constraint. Speed up any other station and the line barely moves.</p>
+<ol class="stations">
+<li><b>01</b><h3>Spec</h3><p>A ticket waits for someone to start.</p></li>
+<li><b>02</b><h3>Code</h3><p>The change is written.</p></li>
+<li><b>03</b><h3>CI</h3><p>The checks run on each push.</p></li>
+<li><b>04</b><h3>Verify</h3><p>The change runs on an environment before it merges.</p></li>
+<li><b>05</b><h3>Review</h3><p>Another person approves it or sends it back.</p></li>
+<li><b>06</b><h3>Merge</h3><p>The approved change lands.</p></li>
+<li><b>07</b><h3>Release</h3><p>It reaches production.</p></li>
+</ol>
+<p class="small">Every station gets the same five numbers: what leaves it a week, the wait, the work, the rework and the queue. Every number has a written definition, and every one is split by agents, people and automation.</p>
+</div>
+</section>
+
+<section class="shell" id="page">
+<p class="kicker">The page</p>
+<h2>Everything you need, nothing you have to dig for.</h2>
+
+<div class="feature">
+<div>
+<h3>Every station graded</h3>
+<p>Flowing, watch or strained, with a mark and a word, never color alone. A station gets the worst of three grades: how much of the line's time it holds, how often its work fails or goes back, and whether its wait got worse.</p>
+<p>Above the line: the constraint, the station next in line once you free it, and the way to what to do about it.</p>
+</div>
+<figure class="shot"><img src="img/line.webp" width="1256" height="458" loading="lazy" alt="The line of seven stations, each with a colored top edge and a grade, what leaves it a week, its median wait and its share of the hours."></figure>
+</div>
+
+<div class="feature flip">
+<div>
+<h3>Open a station in place</h3>
+<p>Pick a station and its numbers open right below the line. The page does not jump. A median and its 90th percentile share one chart. Point at the <i>i</i> of any number to read exactly what it counts.</p>
+<p>A station you have not connected says what it needs: verify, for one, reads the preview deployments of your pull requests.</p>
+</div>
+<figure class="shot"><img src="img/station.webp" width="1256" height="788" loading="lazy" alt="The review station opened below the line: its grade and reasons, the recommendations about it, and a chart per number with 26 weeks of history."></figure>
+</div>
+
+<div class="feature">
+<div>
+<h3>Know where to invest</h3>
+<p>Each recommendation is a rule that fired on your own numbers. It says what to do, shows the numbers behind it, and names the changes to look at first.</p>
+<p>The gain is sized against the station's own best four weeks, in hours freed a week. Not against a benchmark from somewhere else.</p>
+</div>
+<figure class="shot"><img src="img/invest.webp" width="1400" height="1100" loading="lazy" alt="Where to invest: ranked recommendations, each with the hours a week it frees, its evidence and the changes to look at."></figure>
+</div>
+
+<div class="feature flip">
+<div>
+<h3>Agents next to people</h3>
+<p>Every number side by side for agent changes, human changes and automation. Do agent changes wait longer for review? Fail CI more often? It is all there.</p>
+<p>Agents are found by an open registry of signatures: Claude Code, GitHub Copilot coding agent, OpenAI Codex, Cursor, Devin and Jules. The agent share is a floor, and the page says so.</p>
+</div>
+<figure class="shot"><img src="img/agents.webp" width="1400" height="1100" loading="lazy" alt="Agents and people: weekly charts of changes merged and wait for review, split by agents, people and automation, with a table of every number."></figure>
+</div>
+</section>
+
+<section class="stage" id="trust">
+<div class="shell">
+<p class="kicker">What it does not do</p>
+<h2>Read only. Local. Open.</h2>
+<div class="three">
+<div><h3>It cannot write</h3><p>The GitHub client sends GET requests and GraphQL queries, and refuses a mutation. A read-only token is all it needs. A public repository needs no permissions at all.</p></div>
+<div><h3>It stays on your machine</h3><p>The history goes into a store on your disk. The page is served from localhost and loads nothing from the network. No account, no dashboard to log in to, no telemetry.</p></div>
+<div><h3>It shows its work</h3><p>Apache 2.0. Every number has an id and a definition: <code>factorymeter metrics</code>. Every recommendation has its rule: <code>factorymeter rules</code>. Every limit is printed with the report.</p></div>
+</div>
+</div>
+</section>
+
+<section class="shell" id="install">
+<p class="kicker">Install</p>
+<h2>Two commands to your line.</h2>
+<div class="steps">
+<div>
+<h3>1. Get it</h3>
+<p>A binary for macOS, Linux or Windows, each with checksums, a signature and a build attestation:</p>
+<pre><code>curl -fsSL -o factorymeter \
+  https://github.com/marshal-org/factorymeter/releases/latest/download/factorymeter-darwin-arm64
+chmod +x factorymeter</code></pre>
+<p class="small">Or with Go: <code>go install github.com/marshal-org/factorymeter/cmd/factorymeter@latest</code>. Other systems are on the <a href="https://github.com/marshal-org/factorymeter/releases/latest">releases page</a>.</p>
+</div>
+<div>
+<h3>2. Read your line</h3>
+<p>It takes a token from <code>GITHUB_TOKEN</code>, or from the GitHub CLI when you are logged in.</p>
+<pre><code>factorymeter sync my-org     # 26 weeks of history, once
+factorymeter serve my-org    # open http://127.0.0.1:7377</code></pre>
+<p class="small">The first sync shows what it reads and how long is left. A busy repository takes about ten minutes: openstatus, with 911 changes and 13,242 CI runs, took 10. Every later sync reads only what changed.</p>
+</div>
+</div>
+<div class="action">
+<h3>Or every week, as a GitHub Action</h3>
+<p>The report goes to the job summary, and the page and JSON to a build artifact. Read permissions only.</p>
+<!-- x-release-please-start-version -->
+<pre><code>- uses: marshal-org/factorymeter@v0.3.0
+  with:
+    since: 13w</code></pre>
+<!-- x-release-please-end -->
+<p class="small">The whole workflow, and Linear and Jira tickets, are in the <a href="https://github.com/marshal-org/factorymeter#run-it-on-a-schedule">README</a>.</p>
+</div>
+</section>
+
+<section class="stage dk sim" id="simulate">
+<div class="shell">
+<p class="kicker">Then try a fix before you make it</p>
+<h2>Play your line forward in Lights Out.</h2>
+<p class="lede">Every report links to Lights Out, the simulator of The Software Factory, with your own numbers filled in. Add review capacity, faster CI or more agents, and see what your line does.</p>
+<a class="btn" href="https://thesoftwarefactory.site/lights-out/">Open Lights Out</a>
+</div>
+</section>
+
+<footer class="shell foot">
+<div class="row">
+<p>factorymeter is open source under Apache 2.0, made by <a href="https://marshal.codes/?utm_source=factorymeter&amp;utm_medium=site">Marshal</a>.</p>
+<p><a href="https://github.com/marshal-org/factorymeter">GitHub</a> · <a href="https://github.com/marshal-org/factorymeter/releases">Releases</a> · <a href="https://github.com/marshal-org/factorymeter/blob/main/SECURITY.md">Security</a> · <a href="https://thesoftwarefactory.site/">The Software Factory</a></p>
+</div>
+<p class="small">This site sets no cookie and loads nothing from another host. Fonts: IBM Plex and Big Shoulders, under the SIL Open Font License.</p>
+</footer>
+<script>
+document.querySelectorAll("pre").forEach(function (pre) {
+  if (!navigator.clipboard) return;
+  var b = document.createElement("button");
+  b.type = "button";
+  b.className = "copy";
+  b.textContent = "Copy";
+  b.addEventListener("click", function () {
+    var text = pre.querySelector("code").textContent.split("\n").map(function (l) { return l.replace(/\s+#.*$/, ""); }).join("\n");
+    navigator.clipboard.writeText(text).then(function () { b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy"; }, 1500); });
+  });
+  pre.appendChild(b);
+});
+</script>
+</body>
+</html>
