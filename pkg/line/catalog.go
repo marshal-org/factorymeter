@@ -28,7 +28,7 @@ var (
 const (
 	another    = "A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count."
 	exclusive  = "Time with a CI run in flight is counted at ci and taken out of the station the change stood at, so no hour is counted twice."
-	deployNote = "Without a list of the commits in each deploy, the first production deploy of the repository after the merge is taken as the one that shipped it."
+	deployNote = "A production deploy of the commit a merge left on its branch holds the changes merged into that branch up to that merge. Of any other deploy only the time is known, and it is taken to hold the changes merged before it started."
 )
 
 var sets = []set{
@@ -59,7 +59,7 @@ var sets = []set{
 	{
 		station: CI, needs: []string{NeedChange, NeedCIRun}, slices: changeSlices,
 		flowName:   "CI rounds",
-		flow:       "CI rounds that finished in the period. A CI round is every run on one commit of a change. Skipped and cancelled runs are left out.",
+		flow:       "CI rounds that finished in the period. A CI round is every run on one commit of a change. The runs a merge queue starts for a change are a round of their own. Skipped and cancelled runs are left out.",
 		waitName:   "Wait for a runner",
 		wait:       "Hours from the first run of a CI round being created to the first run starting, over the rounds that finished in the period.",
 		workName:   "CI round time",

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -353,7 +354,10 @@ func TestCIRunsOfPullRequests(t *testing.T) {
 		{4, "zz", "pull_request_target", day(50), "success"},
 		{5, "a6", "pull_request", now.Add(-time.Hour), ""}, // still running
 		{6, "old", "pull_request", day(-3), "success"},     // before the floor
+		{7, "q4", "merge_group", day(10.5), "success"},     // the merge queue, on a commit of its own
 	}
+	r.branches = map[int]string{7: "gh-readonly-queue/main/pr-4-q4"}
+	r.flows = map[int]string{4: "e2e"}
 	s := openStore(t, t.TempDir())
 	g := syncer(h, s, Options{SkipDeploys: true})
 	res, err := g.Sync(context.Background(), "acme/app")
@@ -361,23 +365,30 @@ func TestCIRunsOfPullRequests(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := runs(t, s, "acme/app")
-	if len(got) != 4 || res.Repos[0].CIRuns.Added != 4 {
-		t.Fatalf("stored %d runs, want the 4 of pull request events since the floor: %+v", len(got), got)
+	if len(got) != 5 || res.Repos[0].CIRuns.Added != 5 {
+		t.Fatalf("stored %d runs, want the 5 of pull request and merge queue events since the floor: %+v", len(got), got)
 	}
+	named := map[string]string{}
 	for _, x := range got {
 		if x.Event == "push" {
 			t.Errorf("a push run was stored: %+v", x)
 		}
+		named[x.SHA+" "+x.Event] = x.Workflow + " on " + x.Branch
+	}
+	// A run keeps the name of its workflow and the branch it ran on. The
+	// branch is what ties a run of the merge queue to its change.
+	if named["q4 merge_group"] != "ci on gh-readonly-queue/main/pr-4-q4" || named["a4 pull_request"] != "ci on fix/x" || named["zz pull_request_target"] != "e2e on fix/x" {
+		t.Errorf("runs: %v", named)
 	}
 	st := stateOf(t, s, "acme/app")
-	if st.CI.Mode != modePR || !st.CI.From.Equal(floor) || !st.CI.Through.Equal(now) {
+	if st.CI.Mode != modePR || !st.CI.From.Equal(floor) || !st.CI.Through.Equal(now) || !st.CI.Queue {
 		t.Errorf("ci state %+v", st.CI)
 	}
-	// August to November, two events a month: the newest month settles that
-	// pull request events carry the CI, so no month asks for every event.
+	// August to November, three events a month: the newest month settles
+	// that pull request events carry the CI, so no month asks for every event.
 	first := of(h.take(), "runs")
-	if len(first) != 8 {
-		t.Errorf("the first sync made %d runs requests, want 8", len(first))
+	if len(first) != 12 {
+		t.Errorf("the first sync made %d runs requests, want 12", len(first))
 	}
 
 	// The running one finishes. The next sync reads the last days again.
@@ -387,12 +398,163 @@ func TestCIRunsOfPullRequests(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c := res.Repos[0].CIRuns; c.Added != 0 || c.Changed != 1 || c.Total != 4 {
+	if c := res.Repos[0].CIRuns; c.Added != 0 || c.Changed != 1 || c.Total != 5 {
 		t.Errorf("result %+v", c)
 	}
 	second := of(h.take(), "runs")
-	if len(second) != 2 || !strings.HasPrefix(second[0].created, ts(now.Add(-ciOverlap))) {
+	if len(second) != 3 || !strings.HasPrefix(second[0].created, ts(now.Add(-ciOverlap))) || second[2].event != queueEvent {
 		t.Errorf("the second sync asked for %+v", second)
+	}
+}
+
+// unset takes one key out of a part of the saved state of a repository, as
+// a store written by a version that did not know the key has it.
+func unset(t *testing.T, s *store.Store, repo, part, key string) {
+	t.Helper()
+	sc, _ := s.Scope(record.GitHub, repo)
+	var raw map[string]json.RawMessage
+	var inner map[string]any
+	if err := json.Unmarshal(sc.State, &raw); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw[part], &inner); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := inner[key]; !ok {
+		t.Fatalf("the state has no %s.%s", part, key)
+	}
+	delete(inner, key)
+	raw[part], _ = json.Marshal(inner)
+	sc.State, _ = json.Marshal(raw)
+	if err := s.PutScope(sc); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A store written before the runs of the merge queue were read has none of
+// them. The first sync after the upgrade reads them over the range the store
+// holds, in one read, and no sync after it does.
+func TestAStoreWithoutQueueRunsReadsThemOnce(t *testing.T) {
+	h := newHub(t)
+	r := small(h)
+	r.runs = []ciRun{
+		{1, "a4", "pull_request", day(10.1), "success"},
+		{3, "a6", "pull_request", day(90.1), "failure"},
+	}
+	s := openStore(t, t.TempDir())
+	g := syncer(h, s, Options{SkipDeploys: true, SkipTickets: true})
+	if _, err := g.Sync(context.Background(), "acme/app"); err != nil {
+		t.Fatal(err)
+	}
+	// The run was there all along. The older version did not ask for it.
+	r.runs = append(r.runs, ciRun{7, "q4", "merge_group", day(10.5), "success"})
+	r.branches = map[int]string{7: "gh-readonly-queue/main/pr-4-q4"}
+	unset(t, s, "acme/app", "ci", "queue")
+	h.take()
+
+	g.Opt.Now = now.Add(2 * time.Hour)
+	res, err := g.Sync(context.Background(), "acme/app")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := res.Repos[0].CIRuns; c.Added != 1 || c.Total != 3 {
+		t.Errorf("result %+v", c)
+	}
+	var queue []record.CIRun
+	for _, x := range runs(t, s, "acme/app") {
+		if x.Event == queueEvent {
+			queue = append(queue, x)
+		}
+	}
+	if len(queue) != 1 || queue[0].Branch != "gh-readonly-queue/main/pr-4-q4" {
+		t.Errorf("runs of the merge queue: %+v", queue)
+	}
+	if st := stateOf(t, s, "acme/app"); !st.CI.Queue {
+		t.Error("the state does not say the runs of the merge queue are stored")
+	}
+	// One read of the whole range, then the three of the last days.
+	calls := of(h.take(), "runs")
+	if len(calls) != 4 || calls[0].event != queueEvent || calls[0].created != ts(floor)+".."+ts(now) {
+		t.Errorf("requests %+v", calls)
+	}
+
+	// Once is enough.
+	g.Opt.Now = now.Add(4 * time.Hour)
+	if _, err := g.Sync(context.Background(), "acme/app"); err != nil {
+		t.Fatal(err)
+	}
+	if calls := of(h.take(), "runs"); len(calls) != 3 {
+		t.Errorf("the sync after made %d runs requests, want 3", len(calls))
+	}
+}
+
+// A store written before the merge commit was read holds merged changes
+// without it. The first sync after the upgrade reads the window once more.
+func TestAStoreWithoutMergeCommitsReadsItsWindowOnceMore(t *testing.T) {
+	h := newHub(t)
+	r := small(h)
+	r.prs[2].merged, r.prs[3].merged = day(2), day(11)
+	s := openStore(t, t.TempDir())
+	opt := Options{SkipCI: true, SkipDeploys: true, SkipTickets: true}
+	if _, err := syncer(h, s, opt).Sync(context.Background(), "acme/app"); err != nil {
+		t.Fatal(err)
+	}
+	shas := func() string {
+		var out []string
+		err := store.Changes.Each(s, record.GitHub, "acme/app", time.Time{}, time.Time{}, func(_ string, rows []record.Change) error {
+			for _, c := range rows {
+				if c.MergeSHA != "" {
+					out = append(out, strconv.Itoa(c.Number)+":"+c.MergeSHA)
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		sort.Strings(out)
+		return strings.Join(out, " ")
+	}
+	if got := shas(); got != "" {
+		t.Fatalf("merge commits before GitHub told any: %s", got)
+	}
+	if st := stateOf(t, s, "acme/app"); st.Changes.Rev != changeRev {
+		t.Errorf("a new store is at rev %d, want %d", st.Changes.Rev, changeRev)
+	}
+	// The commits were there all along. The older version did not ask. An
+	// open change has no merge commit, whatever GitHub says of a test merge.
+	r.prs[2].mergeSHA, r.prs[3].mergeSHA, r.prs[5].mergeSHA = "m3", "m4", "test-merge"
+	unset(t, s, "acme/app", "changes", "rev")
+	h.take()
+
+	res, err := syncer(h, s, opt).Sync(context.Background(), "acme/app")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := shas(); got != "3:m3 4:m4" {
+		t.Errorf("merge commits %q", got)
+	}
+	// Two stored changes gained a field. None is new.
+	if got := res.Repos[0].Changes; got.Added != 0 || got.Changed != 2 {
+		t.Errorf("result %+v", got)
+	}
+	st := stateOf(t, s, "acme/app")
+	if st.Changes.Rev != changeRev || !st.Changes.High.Equal(day(91)) {
+		t.Errorf("state %+v", st.Changes)
+	}
+	// The window from the top. An open change below the floor has no merge
+	// commit to read, so those are left alone.
+	if calls := of(h.take(), "prs"); len(calls) != 1 || calls[0].open || !calls[0].merges {
+		t.Errorf("requests %+v", calls)
+	}
+
+	// Once is enough: the next sync stops at the newest change it knows.
+	r.prs[3].mergeSHA = "rewritten"
+	if _, err := syncer(h, s, opt).Sync(context.Background(), "acme/app"); err != nil {
+		t.Fatal(err)
+	}
+	if got := shas(); got != "3:m3 4:m4" {
+		t.Errorf("the sync after read the window again: %q", got)
 	}
 }
 

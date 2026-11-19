@@ -233,6 +233,125 @@ func TestEveryRecordFieldHasItsColumn(t *testing.T) {
 	}
 }
 
+// older writes rows to a file as a version of T that did not have one of its
+// fields wrote them: every column but that one.
+func older[T any](t *testing.T, path, field string, rows []T) {
+	t.Helper()
+	rt := reflect.TypeOf(rows).Elem()
+	var fields []reflect.StructField
+	for i := 0; i < rt.NumField(); i++ {
+		if f := rt.Field(i); f.Name != field {
+			fields = append(fields, f)
+		}
+	}
+	if len(fields) != rt.NumField()-1 {
+		t.Fatalf("%s has no field %s", rt.Name(), field)
+	}
+	was := reflect.StructOf(fields)
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	w := parquet.NewWriter(f, parquet.SchemaOf(reflect.New(was).Interface()))
+	for i := range rows {
+		row := reflect.New(was).Elem()
+		for _, fl := range fields {
+			row.FieldByName(fl.Name).Set(reflect.ValueOf(rows[i]).FieldByName(fl.Name))
+		}
+		if err := w.Write(row.Addr().Interface()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func columns(t *testing.T, path string) []string {
+	t.Helper()
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	st, _ := f.Stat()
+	pf, err := parquet.OpenFile(f, st.Size())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cols []string
+	for _, c := range pf.Schema().Fields() {
+		cols = append(cols, c.Name())
+	}
+	return cols
+}
+
+// A record gains a field now and then. A file written before it has no
+// such column. It still reads, with the field empty, and the next write of
+// that month gives the file the column.
+func TestAFileFromBeforeAFieldStillReads(t *testing.T) {
+	s := open(t)
+	merged := t0.Add(3 * time.Hour)
+	c := change(1, t0, "one")
+	c.MergedAt, c.MergeSHA = &merged, "m1"
+	run := record.CIRun{Source: record.GitHub, ID: record.CIRunID(record.GitHub, "acme/app", 7, 1), Repo: "acme/app", Workflow: "ci",
+		Event: "merge_group", SHA: "q1", Branch: "gh-readonly-queue/main/pr-1-q1", Attempt: 1, Status: "completed", Conclusion: "success",
+		CreatedAt: t0, StartedAt: t0, UpdatedAt: t0.Add(time.Minute)}
+	changes := filepath.Join(s.Dir, "changes", "github", "acme__app")
+	ciRuns := filepath.Join(s.Dir, "ci_runs", "github", "acme__app")
+	for _, dir := range []string{changes, ciRuns} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	older(t, filepath.Join(changes, "2026-08.parquet"), "MergeSHA", []record.Change{c})
+	older(t, filepath.Join(ciRuns, "2026-08.parquet"), "Branch", []record.CIRun{run})
+	for _, path := range []string{filepath.Join(changes, "2026-08.parquet"), filepath.Join(ciRuns, "2026-08.parquet")} {
+		for _, col := range columns(t, path) {
+			if col == "merge_sha" || col == "branch" {
+				t.Fatalf("%s was to be written without %s", path, col)
+			}
+		}
+	}
+
+	// Everything else is as it was written.
+	gotC, err := Changes.Read(s, record.GitHub, "acme/app", "2026-08")
+	if err != nil {
+		t.Fatal(err)
+	}
+	was := c
+	was.MergeSHA = ""
+	if len(gotC) != 1 || !reflect.DeepEqual(gotC[0], was) {
+		t.Errorf("the change read\n got %+v\nwant %+v", gotC, was)
+	}
+	gotR, err := CIRuns.Read(s, record.GitHub, "acme/app", "2026-08")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wasR := run
+	wasR.Branch = ""
+	if len(gotR) != 1 || !reflect.DeepEqual(gotR[0], wasR) {
+		t.Errorf("the run read\n got %+v\nwant %+v", gotR, wasR)
+	}
+
+	// The same records with the field are a change to the stored ones.
+	if added, changed, err := Changes.Put(s, record.GitHub, "acme/app", []record.Change{c}); err != nil || added != 0 || changed != 1 {
+		t.Errorf("changes: added %d, changed %d, %v", added, changed, err)
+	}
+	if added, changed, err := CIRuns.Put(s, record.GitHub, "acme/app", []record.CIRun{run}); err != nil || added != 0 || changed != 1 {
+		t.Errorf("runs: added %d, changed %d, %v", added, changed, err)
+	}
+	gotC, _ = Changes.Read(s, record.GitHub, "acme/app", "2026-08")
+	gotR, _ = CIRuns.Read(s, record.GitHub, "acme/app", "2026-08")
+	if len(gotC) != 1 || gotC[0].MergeSHA != "m1" || len(gotR) != 1 || gotR[0].Branch != run.Branch {
+		t.Errorf("after the write: %+v, %+v", gotC, gotR)
+	}
+	if cols := strings.Join(columns(t, filepath.Join(ciRuns, "2026-08.parquet")), " "); !strings.Contains(cols, " sha branch attempt ") {
+		t.Errorf("the columns of the file written again: %s", cols)
+	}
+}
+
 func TestManifestSurvivesAReopen(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "s")
 	s, err := OpenWrite(dir, "Acme", t0)

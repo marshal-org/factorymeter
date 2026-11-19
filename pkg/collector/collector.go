@@ -55,6 +55,7 @@ const prCore = `
 fragment PRFields on PullRequest {
   number url title body state isDraft createdAt updatedAt mergedAt closedAt
   additions deletions changedFiles headRefName baseRefName
+  mergeCommit { oid }
   author { __typename login }
   commits(first: 100) {
     totalCount
@@ -122,8 +123,11 @@ type gqlPR struct {
 	ChangedFiles int        `json:"changedFiles"`
 	HeadRefName  string     `json:"headRefName"`
 	BaseRefName  string     `json:"baseRefName"`
-	Author       *gqlActor  `json:"author"`
-	Commits      struct {
+	MergeCommit  *struct {
+		OID string `json:"oid"`
+	} `json:"mergeCommit"`
+	Author  *gqlActor `json:"author"`
+	Commits struct {
 		TotalCount int `json:"totalCount"`
 		Nodes      []struct {
 			Commit struct {
@@ -375,6 +379,7 @@ type restRun struct {
 	Name         string    `json:"name"`
 	Event        string    `json:"event"`
 	HeadSHA      string    `json:"head_sha"`
+	HeadBranch   string    `json:"head_branch"`
 	RunAttempt   int       `json:"run_attempt"`
 	Status       string    `json:"status"`
 	Conclusion   string    `json:"conclusion"`

@@ -590,7 +590,7 @@ func capital(s string) string {
 // know to the limits.
 func (l *Line) coverage(o Options, w window, status map[string]stationState, limits []string) (contract.Coverage, []string) {
 	cov := contract.Coverage{Repos: []contract.RepoCoverage{}}
-	var unjoined, runs, cut, releases, blind int
+	var unjoined, runs, cut, releases, blind, ships, byCommit int
 	var unfinished, stale []string
 	envs := map[string]bool{}
 	notes := map[string][]string{}
@@ -610,6 +610,8 @@ func (l *Line) coverage(o Options, w window, status map[string]stationState, lim
 		if r.viaRelease {
 			releases++
 		}
+		ships += r.ships
+		byCommit += r.shipsByCommit
 		for _, e := range r.environments {
 			envs[e] = true
 		}
@@ -703,7 +705,15 @@ func (l *Line) coverage(o Options, w window, status map[string]stationState, lim
 		limits = append(limits, "The CI runs in the store are stamped as started the moment they are created, so the wait for a runner cannot be seen. It is left empty.")
 	}
 	if status[line.Release].status != contract.StatusNotConnected {
-		limits = append(limits, "The store has no list of the commits in each deploy. The first production deploy after a merge is taken as the one that shipped it.")
+		const held, timed = "holds the changes merged into its branch up to that merge", "the first one after a merge is taken as the one that shipped it"
+		switch {
+		case byCommit == 0:
+			limits = append(limits, "No production deploy in the store is of the commit a merge left, so the store cannot tell which changes a deploy holds. The first production deploy after a merge is taken as the one that shipped it.")
+		case byCommit < ships:
+			limits = append(limits, fmt.Sprintf("%d of the %d production deploys in the store that did not fail are of the commit a merge left, and each %s. Of the other deploys only the time is known: %s.", byCommit, ships, held, timed))
+		default:
+			limits = append(limits, fmt.Sprintf("Every production deploy in the store that did not fail is of the commit a merge left, and each %s. A change merged into a branch that is never deployed is taken to ship with the first deploy whose commit merged after it.", held))
+		}
 		if n := len(between(l.obsOf(unseenAtRelease, sel{}), w.since, w.until)); n > 0 {
 			limits = append(limits, fmt.Sprintf("%s merged in the window before the first production deploy in the store, and %s not counted at release. The store cannot tell a line that did not release from one whose releases were not recorded yet.",
 				capital(count(n, "change")), plural(n, "is", "are")))

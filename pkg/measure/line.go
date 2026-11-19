@@ -27,13 +27,16 @@ type repoInfo struct {
 	cut              int // changes with more commits than were read
 	ciRuns, ciJoined int
 	// ciWait says the runs tell when a runner picked them up.
-	ciWait       bool
-	prodDeploys  int
-	viaRelease   bool
-	verifyJoined int
-	environments []string
-	notes        []string
-	unfinished   bool
+	ciWait      bool
+	prodDeploys int
+	viaRelease  bool
+	// ships counts the production deploys that can have shipped a change, and
+	// shipsByCommit the ones that are of the merge commit of a stored change.
+	ships, shipsByCommit int
+	verifyJoined         int
+	environments         []string
+	notes                []string
+	unfinished           bool
 }
 
 // Line holds every observation of a set of repositories and ticket projects.
@@ -48,9 +51,26 @@ type Line struct {
 	repos  []repoInfo
 	// sources holds where the records of each kind came from.
 	sources map[string]map[string]bool
+	// flows names the CI workflows, and flowRuns holds every finished run of
+	// one on a change, oldest first.
+	flows    []flow
+	flowRuns []flowRun
 
 	obsPart  map[string]*parts[obs]
 	stayPart map[string]*parts[stay]
+}
+
+// flow is a CI workflow of a repository.
+type flow struct {
+	repo int32 // Line.names
+	name string
+}
+
+// flowRun is one finished run of a workflow on a change.
+type flowRun struct {
+	at     time.Time // when it finished
+	flow   int32     // Line.flows
+	failed bool
 }
 
 // saw counts a record for the coverage of a report.
@@ -92,7 +112,8 @@ type Builder struct {
 	nameIdx  map[string]int32
 	agentIdx map[string]int16
 	// linked is when the first change linked to a ticket was opened.
-	linked map[string]time.Time
+	linked  map[string]time.Time
+	flowIdx map[flow]int32
 }
 
 // NewBuilder starts an empty line. reg tells agents from people.
@@ -102,7 +123,19 @@ func NewBuilder(reg *signature.Registry) *Builder {
 		l: &Line{obs: map[string][]obs{}, stays: map[string][]stay{}, seen: map[string][]int64{},
 			sources: map[string]map[string]bool{}},
 		nameIdx: map[string]int32{}, agentIdx: map[string]int16{}, linked: map[string]time.Time{},
+		flowIdx: map[flow]int32{},
 	}
+}
+
+func (b *Builder) flow(repo int32, name string) int32 {
+	f := flow{repo: repo, name: name}
+	if i, ok := b.flowIdx[f]; ok {
+		return i
+	}
+	i := int32(len(b.l.flows))
+	b.flowIdx[f] = i
+	b.l.flows = append(b.l.flows, f)
+	return i
 }
 
 func (b *Builder) name(n string) int32 {
@@ -135,6 +168,7 @@ func (b *Builder) Line() *Line {
 	for _, list := range l.seen {
 		sort.Slice(list, func(i, j int) bool { return list[i] < list[j] })
 	}
+	sort.SliceStable(l.flowRuns, func(i, j int) bool { return l.flowRuns[i].at.Before(l.flowRuns[j].at) })
 	l.obsPart, l.stayPart = map[string]*parts[obs]{}, map[string]*parts[stay]{}
 	return l
 }
@@ -208,7 +242,12 @@ type shaRef struct{ chg, commit int32 }
 
 type prodDeploy struct {
 	created, finished time.Time
-	outcome, via      string
+	outcome, via, sha string
+	// cut and base are set on a deploy of the commit a merge left: when that
+	// change merged, and into which branch. Such a deploy holds the changes
+	// merged into the branch up to then.
+	cut  time.Time
+	base string
 }
 
 // RepoBuilder takes the records of one repository: every change first, then
@@ -221,9 +260,11 @@ type RepoBuilder struct {
 	chgs     []chg
 	sha      map[string]shaRef
 	byNumber map[int]int32
-	reverts  []int
-	prod     []prodDeploy
-	envs     map[string]bool
+	// merges finds a merged change by the commit its merge left.
+	merges  map[string]int32
+	reverts []int
+	prod    []prodDeploy
+	envs    map[string]bool
 	// firstRuns counts the first attempts of CI runs, and waitedRuns the ones
 	// that started later than they were created.
 	firstRuns, waitedRuns int
@@ -235,7 +276,7 @@ func (b *Builder) Repo(sc RepoScope) *RepoBuilder {
 		b: b, sc: sc, idx: b.name(sc.Name),
 		info: repoInfo{name: sc.Name, private: sc.Private, from: sc.From, synced: sc.SyncedAt, notes: sc.Notes,
 			unfinished: sc.SyncedAt.IsZero()},
-		sha: map[string]shaRef{}, byNumber: map[int]int32{}, envs: map[string]bool{},
+		sha: map[string]shaRef{}, byNumber: map[int]int32{}, merges: map[string]int32{}, envs: map[string]bool{},
 	}
 }
 
@@ -356,6 +397,9 @@ func (r *RepoBuilder) Change(c *record.Change) {
 	if c.CommitCount > len(c.Commits) {
 		r.info.cut++
 	}
+	if c.MergeSHA != "" && !x.merged.IsZero() {
+		r.merges[c.MergeSHA] = n
+	}
 	r.info.changes++
 	r.byNumber[c.Number] = n
 	r.chgs = append(r.chgs, x)
@@ -365,16 +409,49 @@ func (r *RepoBuilder) Change(c *record.Change) {
 // skipped holds the conclusions of runs that never ran the checks.
 var skipped = map[string]bool{"skipped": true, "cancelled": true, "stale": true, "action_required": true, "neutral": true, "": true}
 
+// queueBranch is the prefix of the branches a GitHub merge queue makes:
+// gh-readonly-queue/<base>/pr-<number>-<sha>.
+const queueBranch = "gh-readonly-queue/"
+
+// queuedFor gives the number of the pull request a merge queue branch was made
+// for. The base branch can hold a slash, so the name is read from its end.
+func queuedFor(branch string) (int, bool) {
+	rest, ok := strings.CutPrefix(branch, queueBranch)
+	if !ok {
+		return 0, false
+	}
+	i := strings.LastIndex(rest, "/pr-")
+	if i < 0 {
+		return 0, false
+	}
+	num, _, ok := strings.Cut(rest[i+len("/pr-"):], "-")
+	if !ok {
+		return 0, false
+	}
+	n, err := strconv.Atoi(num)
+	return n, err == nil && n > 0
+}
+
 // CIRun adds a CI run. A run on a commit of no change is counted and left out.
+// A run of a merge queue is on a commit the queue made, so it is tied to its
+// change by the name of its branch, and it is a round of its own.
 func (r *RepoBuilder) CIRun(x *record.CIRun) {
 	r.info.ciRuns++
 	r.b.l.saw(record.KindCIRun, x.Source, x.CreatedAt)
-	ref, ok := r.sha[x.SHA]
-	if !ok {
-		return
+	var at int32
+	if ref, ok := r.sha[x.SHA]; ok {
+		at = ref.chg
+	} else {
+		num, ok := queuedFor(x.Branch)
+		if !ok || x.Event != "merge_group" {
+			return
+		}
+		if at, ok = r.byNumber[num]; !ok {
+			return
+		}
 	}
 	r.info.ciJoined++
-	c := &r.chgs[ref.chg]
+	c := &r.chgs[at]
 	if c.rounds == nil {
 		c.rounds = map[string]*round{}
 	}
@@ -397,15 +474,18 @@ func (r *RepoBuilder) CIRun(x *record.CIRun) {
 			r.waitedRuns++
 		}
 	}
-	rd.runs = append(rd.runs, runLite{created: x.CreatedAt, started: x.StartedAt, updated: x.UpdatedAt, attempt: attempt,
-		failed: x.Conclusion == "failure" || x.Conclusion == "timed_out" || attempt > 1})
+	failed := x.Conclusion == "failure" || x.Conclusion == "timed_out" || attempt > 1
+	rd.runs = append(rd.runs, runLite{created: x.CreatedAt, started: x.StartedAt, updated: x.UpdatedAt, attempt: attempt, failed: failed})
+	if x.Workflow != "" {
+		r.b.l.flowRuns = append(r.b.l.flowRuns, flowRun{at: x.UpdatedAt, flow: r.b.flow(r.idx, x.Workflow), failed: failed})
+	}
 }
 
 // Deploy adds a deployment or a release.
 func (r *RepoBuilder) Deploy(d *record.Deploy) {
 	r.b.l.saw(record.KindDeploy, d.Source, d.CreatedAt)
 	if d.Production {
-		r.prod = append(r.prod, prodDeploy{created: d.CreatedAt, finished: val(d.FinishedAt), outcome: d.Outcome, via: d.Via})
+		r.prod = append(r.prod, prodDeploy{created: d.CreatedAt, finished: val(d.FinishedAt), outcome: d.Outcome, via: d.Via, sha: d.SHA})
 		if d.Via == "deployment" && d.Environment != "" {
 			r.envs[d.Environment] = true
 		}
@@ -484,11 +564,19 @@ func (r *RepoBuilder) Done() {
 	sort.Strings(r.info.environments)
 
 	repoKey := key{class: classNone, agent: -1, repo: r.idx}
-	var ships []prodDeploy // the deploys that can have shipped a change
+	// The deploys that can have shipped a change. A deploy of the commit a
+	// merge left is known to hold that change and what merged into the same
+	// branch before it. Of any other deploy only its time is known.
+	sh := shipping{bases: map[string]bool{}}
 	for _, d := range prod {
 		l.add("release.deploys", d.created, 1, repoKey)
 		if d.outcome == record.DeploySuccess || d.outcome == record.DeployUnknown {
-			ships = append(ships, d)
+			if i, ok := r.merges[d.sha]; ok && d.sha != "" {
+				d.cut, d.base = r.chgs[i].merged, r.chgs[i].base
+				sh.bases[d.base] = true
+				r.info.shipsByCommit++
+			}
+			sh.list = append(sh.list, d)
 		}
 		if d.via != "deployment" || d.finished.IsZero() {
 			continue
@@ -502,11 +590,37 @@ func (r *RepoBuilder) Done() {
 		}
 	}
 
+	r.info.ships = len(sh.list)
 	for i := range r.chgs {
-		r.emit(&r.chgs[i], ships)
+		r.emit(&r.chgs[i], sh)
 	}
 	l.repos = append(l.repos, r.info)
-	r.chgs, r.sha, r.byNumber = nil, nil, nil
+	r.chgs, r.sha, r.byNumber, r.merges = nil, nil, nil, nil
+}
+
+// shipping is the production deploys that can have shipped a change, oldest
+// first, and the branches that deploys matched by commit were made from.
+type shipping struct {
+	list  []prodDeploy
+	bases map[string]bool
+}
+
+// of finds the deploy that shipped a change merged at a given time into a
+// given branch. A deploy that started before the merge cannot hold it. A
+// deploy of the commit a merge left holds the changes merged into the same
+// branch up to that merge, so a deploy of an older commit, a rollback, is
+// passed over. A change merged into a branch that no such deploy was made
+// from, a branch that is merged on later, is taken to ship with the first
+// deploy whose commit merged after it.
+func (s shipping) of(merged time.Time, base string) (prodDeploy, bool) {
+	i := sort.Search(len(s.list), func(i int) bool { return !s.list[i].created.Before(merged) })
+	for ; i < len(s.list); i++ {
+		d := s.list[i]
+		if d.cut.IsZero() || (!merged.After(d.cut) && (base == d.base || !s.bases[base])) {
+			return d, true
+		}
+	}
+	return prodDeploy{}, false
 }
 
 // unseenAtRelease is the stream of changes that merged before the first
@@ -515,7 +629,8 @@ func (r *RepoBuilder) Done() {
 const unseenAtRelease = "release.unseen"
 
 // emit writes down what one change did at every station.
-func (r *RepoBuilder) emit(c *chg, ships []prodDeploy) {
+func (r *RepoBuilder) emit(c *chg, sh shipping) {
+	ships := sh.list
 	l, k := r.b.l, c.k
 
 	// CI first: the other stations take the time a run was in flight out of
@@ -690,12 +805,11 @@ func (r *RepoBuilder) emit(c *chg, ships []prodDeploy) {
 		l.add(unseenAtRelease, c.merged, 1, k)
 		return
 	}
-	i := sort.Search(len(ships), func(i int) bool { return !ships[i].created.Before(c.merged) })
-	if i == len(ships) {
+	d, ok := sh.of(c.merged, c.base)
+	if !ok {
 		l.stand("release.queue", c.merged, time.Time{}, k, c.item)
 		return
 	}
-	d := ships[i]
 	reach := d.finished
 	if reach.Before(d.created) {
 		reach = d.created

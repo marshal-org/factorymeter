@@ -482,8 +482,13 @@ func TestRulesThatCompareAgentsWithPeople(t *testing.T) {
 	// Three of twelve rounds failed.
 	c := advice(t, r, "ci.failing")
 	want := "25 percent of the CI rounds in the window failed, timed out or were run again. Each of them sends a change through CI one more time."
-	if c.Why != want || c.HoursFreed != nil || c.Confidence != contract.ConfidenceMedium || reads(c) != "ci.rework ci.flow ci.work.p50" {
+	if c.Why != want || c.HoursFreed != nil || c.Confidence != contract.ConfidenceMedium || reads(c) != "ci.rework ci.rework ci.flow ci.work.p50" {
 		t.Errorf("ci.failing: freed %s, %s, %s:\n got %s\nwant %s", num(c.HoursFreed), c.Confidence, reads(c), c.Why, want)
+	}
+	// The second line of evidence names the workflow. It has no number of
+	// its own.
+	if e := c.Evidence[1]; e.Value != nil || e.Text != `The workflows whose runs failed, timed out or were run again most often: "ci" in 3 of its 12 runs.` {
+		t.Errorf("the workflows: %+v", e)
 	}
 	// Three of the agent's six, none of the people's six.
 	g := advice(t, r, "ci.agents-fail-more")
@@ -814,5 +819,96 @@ func TestSpecBacklogThin(t *testing.T) {
 	// A line with no ticket source is told nothing about tickets.
 	if got := specFired(ticketed(t, 0, false)); got != "" {
 		t.Errorf("with no tickets: %s", got)
+	}
+}
+
+// The evidence of ci.failing names the workflows behind the failed rounds.
+//
+// Twelve changes in a week, in two repositories. Every change runs three
+// workflows on its commit. "e2e" fails on 6 of them, "build" is run again on
+// 2, "lint" always passes. In acme/lib "e2e" fails once in 2 runs.
+func TestCIFailingNamesTheWorkflows(t *testing.T) {
+	build := func(summary bool) *contract.Report {
+		t.Helper()
+		b := NewBuilder(registry(t))
+		rb := b.Repo(RepoScope{Name: repo, From: end.Add(-4 * week), SyncedAt: end})
+		for i := 1; i <= 10; i++ {
+			at := end.Add(-5*day + time.Duration(i)*h)
+			c := change(i, at, review(record.ReviewApproved, at.Add(2*h)), merged(at.Add(2*h)))
+			rb.Change(&c)
+			for _, wf := range []string{"e2e", "build", "lint"} {
+				x := run(fmt.Sprintf("sha%d", i), 1, at, at, at.Add(30*time.Minute), "success")
+				x.Workflow = wf
+				switch {
+				case wf == "e2e" && i <= 6:
+					x.Conclusion = "failure"
+				case wf == "build" && i <= 2:
+					// A run that passed on its second attempt failed once.
+					x.Attempt = 2
+				}
+				rb.CIRun(&x)
+			}
+			// A cancelled run and one that never ran the checks count for nothing.
+			x := run(fmt.Sprintf("sha%d", i), 1, at, at, at.Add(time.Minute), "cancelled")
+			x.Workflow = "e2e"
+			rb.CIRun(&x)
+		}
+		// A run before the window is not counted.
+		old := change(50, end.Add(-3*week), merged(end.Add(-3*week+h)))
+		rb.Change(&old)
+		x := run("sha50", 1, end.Add(-3*week), end.Add(-3*week), end.Add(-3*week+h), "failure")
+		x.Workflow = "nightly"
+		rb.CIRun(&x)
+		rb.Done()
+
+		rb = b.Repo(RepoScope{Name: "acme/lib", From: end.Add(-4 * week), SyncedAt: end})
+		for i := 1; i <= 2; i++ {
+			at := end.Add(-4*day + time.Duration(i)*h)
+			c := change(i, at, review(record.ReviewApproved, at.Add(2*h)), merged(at.Add(2*h)))
+			c.Repo, c.ID = "acme/lib", record.ChangeID(record.GitHub, "acme/lib", i)
+			rb.Change(&c)
+			x := run(fmt.Sprintf("sha%d", i), 1, at, at, at.Add(30*time.Minute), "success")
+			x.Repo, x.Workflow = "acme/lib", "e2e"
+			if i == 1 {
+				x.Conclusion = "timed_out"
+			}
+			rb.CIRun(&x)
+		}
+		rb.Done()
+		r, err := b.Line().Report(Options{Target: "acme", Weeks: 1, History: 4, Now: end, Summary: summary})
+		if err != nil {
+			t.Fatal(err)
+		}
+		keeps(t, r)
+		return r
+	}
+
+	rec := advice(t, build(false), "ci.failing")
+	// The most failures first. With two repositories on the line, each
+	// workflow says whose it is. "lint" never failed and is not named.
+	want := `The workflows whose runs failed, timed out or were run again most often: "e2e" of acme/app in 6 of its 10 runs, "build" of acme/app in 2 of its 10 runs, "e2e" of acme/lib in 1 of its 2 runs.`
+	if len(rec.Evidence) < 2 || rec.Evidence[1].Text != want || rec.Evidence[1].Metric != "ci.rework" {
+		t.Errorf("evidence:\n got %+v\nwant %s", rec.Evidence, want)
+	}
+
+	// A workflow name is a name. A summary leaves the line out.
+	sum := advice(t, build(true), "ci.failing")
+	for _, e := range sum.Evidence {
+		if strings.Contains(e.Text, "e2e") || strings.Contains(e.Text, "workflows") {
+			t.Errorf("a summary names workflows: %s", e.Text)
+		}
+	}
+}
+
+func TestFailingFlowsOfAQuietLine(t *testing.T) {
+	b := NewBuilder(registry(t))
+	rb := b.Repo(RepoScope{Name: repo, From: end.Add(-4 * week), SyncedAt: end})
+	c := change(1, end.Add(-day), merged(end.Add(-day+h)))
+	rb.Change(&c)
+	x := run("sha1", 1, end.Add(-day), end.Add(-day), end.Add(-day+h), "success")
+	rb.CIRun(&x)
+	rb.Done()
+	if got := b.Line().failingFlows(end.Add(-week), end, 3); got != "" {
+		t.Errorf("no run failed, and the line says %q", got)
 	}
 }

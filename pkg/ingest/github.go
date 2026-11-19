@@ -151,6 +151,10 @@ type state struct {
 		// A store written before links were read has it unset, and the next
 		// sync reads its window once more.
 		Links bool `json:"links"`
+		// Rev is the version of the fields the stored changes carry. A store
+		// written by a version that read fewer has a lower one, and the next
+		// sync reads its window once more.
+		Rev int `json:"rev"`
 	} `json:"changes"`
 	Tickets struct {
 		// Floor is the update time the stored tickets go back to.
@@ -169,6 +173,9 @@ type state struct {
 		// From and Through are the ends of the time range whose runs are stored.
 		From    time.Time `json:"from"`
 		Through time.Time `json:"through"`
+		// Queue is set once that range holds the runs of the merge queue,
+		// with the branch that ties each to its change.
+		Queue bool `json:"queue"`
 	} `json:"ci"`
 	Deploys struct {
 		From    time.Time `json:"from"`
@@ -180,6 +187,13 @@ const (
 	modePR  = "pull_request"
 	modeAll = "all"
 )
+
+// changeRev is the version of the fields a change is read with. 1 added the
+// commit a merge leaves on the base branch.
+const changeRev = 1
+
+// queueEvent is the event of a run a merge queue starts.
+const queueEvent = "merge_group"
 
 func (g *GitHub) logf(format string, a ...any) {
 	if g.Opt.Logf != nil {
@@ -437,12 +451,16 @@ func (r *repoSync) changes(ctx context.Context) error {
 	c := &r.st.Changes
 	// What is left over belongs to changes outside the window.
 	defer func() { r.links = nil }()
+	fresh := c.Floor.IsZero() && c.Cursor == "" && c.High.IsZero()
+	if fresh {
+		c.Rev = changeRev
+	}
 	switch {
 	case r.o.SkipTickets:
 		// This sync stores changes without their links. The next one that
 		// reads tickets reads the window once more for them.
 		c.Links = false
-	case c.Floor.IsZero() && c.Cursor == "" && c.High.IsZero():
+	case fresh:
 		// Nothing is stored yet, so every change comes with its links.
 		c.Links = true
 	case !c.Links:
@@ -545,14 +563,22 @@ func (r *repoSync) scan(ctx context.Context) error {
 
 // head reads the changes updated since the last sync: from the top down to the
 // newest update time the store has seen. A store whose changes were written
-// before links were read gets its whole window read once more. The changes are
-// only compared with what is stored, and their links are written.
+// before links were read, or by a version that read fewer fields, gets its
+// whole window read once more. The changes are compared with what is stored,
+// and only what differs is written.
 func (r *repoSync) head(ctx context.Context) error {
 	c := &r.st.Changes
 	high, top, after := c.High, c.High, ""
+	var missing []string
 	if !c.Links && !r.o.SkipTickets {
+		missing = append(missing, "the tickets its pull requests close")
+	}
+	if c.Rev < changeRev {
+		missing = append(missing, "the commit each merge left")
+	}
+	if len(missing) > 0 {
 		high = c.Floor
-		r.logf("reading the window once more for the tickets its pull requests close")
+		r.logf("reading the window once more for %s", strings.Join(missing, " and "))
 	}
 	var buf []record.Change
 	for pages := 1; ; pages++ {
@@ -590,7 +616,7 @@ func (r *repoSync) head(ctx context.Context) error {
 	if err := r.put(buf); err != nil {
 		return err
 	}
-	c.High, c.Links = top, !r.o.SkipTickets
+	c.High, c.Links, c.Rev = top, !r.o.SkipTickets, changeRev
 	return r.save()
 }
 
@@ -757,6 +783,15 @@ func (r *repoSync) ci(ctx context.Context) error {
 	}
 	var spans []span
 	top := r.o.Now
+	if c.Through.IsZero() {
+		// Nothing is stored yet, so every stretch is read with them.
+		c.Queue = true
+	}
+	if !c.Queue {
+		if err := r.queueRuns(ctx); err != nil {
+			return err
+		}
+	}
 	if !c.Through.IsZero() {
 		from := c.Through.Add(-ciOverlap)
 		if from.Before(c.From) {
@@ -835,8 +870,10 @@ func (r *repoSync) ci(ctx context.Context) error {
 		case modeAll:
 			err = fetch("")
 		default:
-			if err = fetch("pull_request"); err == nil {
-				err = fetch("pull_request_target")
+			for _, event := range []string{"pull_request", "pull_request_target", queueEvent} {
+				if err = fetch(event); err != nil {
+					break
+				}
 			}
 			if err != nil || c.Mode == modePR {
 				break
@@ -894,6 +931,31 @@ func (r *repoSync) ci(ctx context.Context) error {
 		r.logf("%d workflow runs stored", n)
 	}
 	return nil
+}
+
+// queueRuns reads the runs of the merge queue over the range a version that
+// did not read them has stored. A repository with no merge queue costs one
+// request. A store that keeps the runs of every event has these runs, but
+// without the branch that ties each one to its change, so it is read too.
+func (r *repoSync) queueRuns(ctx context.Context) error {
+	c := &r.st.CI
+	var buf []record.CIRun
+	_, stopped, err := r.k.Runs(ctx, r.name, queueEvent, c.From, c.Through, r.o.MaxRuns, func(runs []record.CIRun) { buf = append(buf, runs...) })
+	if err != nil {
+		return err
+	}
+	added, changed, err := store.CIRuns.Put(r.g.S, record.GitHub, r.name, buf)
+	r.res.CIRuns.Added += added
+	r.res.CIRuns.Changed += changed
+	if err != nil {
+		return err
+	}
+	if len(buf) > 0 {
+		r.logf("%d runs of the merge queue read", len(buf))
+	}
+	// A read the cap stopped is done again by the next sync.
+	c.Queue = !stopped
+	return r.save()
 }
 
 // deploys stores deployments and releases. Deployments are read back over the

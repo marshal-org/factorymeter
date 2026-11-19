@@ -20,7 +20,7 @@ See [What is built](contract.md#what-is-built).
 | Record | From | How far back |
 |---|---|---|
 | Changes | Pull requests with their commits, reviews and draft events | Every pull request updated since the floor, and every one still open |
-| CI runs | GitHub Actions workflow runs | Runs created since the floor |
+| CI runs | GitHub Actions workflow runs, with the workflow and the branch of each | Runs created since the floor |
 | Tickets | Issues | Every issue updated since the floor, and every one still open |
 | Links | The issues each pull request closes, as GitHub lists them | With the pull requests |
 | Deploys | Deployments with their statuses, and published releases | Created since the floor |
@@ -45,7 +45,9 @@ writes no file.
   store has seen. An issue that was edited, labelled, closed or opened again
   has a new update time, so it is read again and replaces the stored one.
 - **CI runs.** The last three days are read again, because a run that was in
-  progress has finished since. Older runs are not read again.
+  progress has finished since. Older runs are not read again. The runs of
+  pull requests take three requests: one for each of the two pull request
+  events, and one for the merge queue.
 - **Deploys.** The last seven days of deployments are read again, for the same
   reason. Releases are few and are read in full.
 
@@ -63,6 +65,24 @@ what is stored and writes the links. It happens once.
 needs it, because GitHub may refuse a page of pull requests that asks which
 issues they close. A later sync without the flag reads the window once more
 for the links, as above.
+
+## A store from an older version
+
+A record gains a field now and then. A file written before the field has no
+such column, and it still reads: the field is empty. The record layout version
+goes up only when a field goes away or comes to mean something else.
+
+An empty field is filled by reading once more. The first sync by a version
+that knows more does it, and says so:
+
+- **The commit each merge left.** The window of pull requests is read once
+  more, as for links. The merged ones gain their merge commit, which is what
+  matches a production deploy to the changes it holds.
+- **The runs of the merge queue.** They are read over the range of runs the
+  store holds, in one read. A repository with no merge queue costs one
+  request.
+
+Each happens once.
 
 ## A sync can stop at any time
 
@@ -88,6 +108,9 @@ with an error.
 - **Which runs are CI.** The sync reads the runs of pull request events. When
   none of them ran on a commit of a stored pull request, it reads the runs of
   every event and keeps those, because that repository builds on push.
+- **The merge queue.** A run of the merge queue is tied to the pull request
+  its branch names, `gh-readonly-queue/<base>/pr-<number>-<commit>`. A queue
+  that names its branches another way is not recognized.
 - **Restarted runs.** A run that is started again keeps its number and gets a
   new attempt. An attempt is stored when a sync saw it. An attempt that came and
   went between two syncs is not.
