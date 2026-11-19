@@ -137,7 +137,7 @@ type Series struct {
 	Previous  *float64 `json:"previous" doc:"The value over the previous window. Null when the store does not reach that far back or nothing was counted."`
 	PreviousN int      `json:"previous_n" doc:"How many items the previous value is drawn from."`
 	Change    *float64 `json:"change" doc:"How the value moved against the previous one. For a share it is the difference, so 0.05 is five points. For anything else it is relative, so 0.2 is 20 percent more. Null when either end is missing or the previous value is zero."`
-	Trend     string   `json:"trend" doc:"Whether the move is good news, given the direction in which the metric gets better. Flat when the move is too small to call, unknown when either end is missing or thin." enum:"better,worse,flat,unknown"`
+	Trend     string   `json:"trend" doc:"Whether the move is good news, given the direction in which the metric gets better. Flat when the move is too small to call. Unknown when either end is missing or thin, or when the metric is not better in either direction." enum:"better,worse,flat,unknown"`
 	Points    []Point  `json:"points" doc:"One value per period of the window's periods, oldest first."`
 }
 

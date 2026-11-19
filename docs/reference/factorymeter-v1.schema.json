@@ -293,7 +293,7 @@
           "type": "boolean"
         },
         "trend": {
-          "description": "Whether the move is good news, given the direction in which the metric gets better. Flat when the move is too small to call, unknown when either end is missing or thin.",
+          "description": "Whether the move is good news, given the direction in which the metric gets better. Flat when the move is too small to call. Unknown when either end is missing or thin, or when the metric is not better in either direction.",
           "enum": [
             "better",
             "worse",

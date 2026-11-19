@@ -1,8 +1,9 @@
 # The store and the sync
 
 `factorymeter sync` reads a line's history into a store on your machine. Every
-later sync reads only what changed. The store is what the new report will read,
-so a report never has to read the whole history from GitHub again.
+later sync reads only what changed. `factorymeter report` reads the store and
+nothing else, so a report never has to read the whole history from GitHub
+again.
 
 ```sh
 factorymeter sync owner/repo          # one repository
@@ -11,8 +12,8 @@ factorymeter store info my-org        # what the store holds
 factorymeter store path my-org        # where it is
 ```
 
-`report` and `trend` do not read the store yet. They move over in the next
-release. See [What is built](contract.md#what-is-built).
+`snapshot` and `trend` do not read the store. They read GitHub on every run.
+See [What is built](contract.md#what-is-built).
 
 ## What a sync reads
 

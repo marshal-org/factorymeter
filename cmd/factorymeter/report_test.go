@@ -1,178 +1,151 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/marshal-org/factorymeter/pkg/metrics"
-	"github.com/marshal-org/factorymeter/pkg/model"
+	"github.com/marshal-org/factorymeter/pkg/contract"
+	"github.com/marshal-org/factorymeter/pkg/line"
+	"github.com/marshal-org/factorymeter/pkg/record"
+	"github.com/marshal-org/factorymeter/pkg/store"
 )
 
-func TestParseWhen(t *testing.T) {
-	now := time.Date(2026, 3, 31, 12, 0, 0, 0, time.UTC)
-	for in, want := range map[string]string{
-		"30d":                       "2026-03-01T12:00:00Z",
-		"2w":                        "2026-03-17T12:00:00Z",
-		" 1d ":                      "2026-03-30T12:00:00Z",
-		"2026-01-31":                "2026-01-31T00:00:00Z",
-		"2026-01-31T10:00:00+02:00": "2026-01-31T08:00:00Z",
-	} {
-		got, err := parseWhen(in, now)
-		if err != nil || got.Format(time.RFC3339) != want {
-			t.Errorf("parseWhen(%q) = %v %v, want %s", in, got, err, want)
+func TestWeeksOf(t *testing.T) {
+	for in, want := range map[string]int{"13w": 13, "26w": 26, " 1w ": 1, "14d": 2, "91d": 13} {
+		if got, err := weeksOf(in); err != nil || got != want {
+			t.Errorf("weeksOf(%q) = %d, %v. Want %d", in, got, err, want)
 		}
 	}
-	for _, bad := range []string{"", "d", "0d", "-3d", "3m", "yesterday", "31/01/2026"} {
-		if _, err := parseWhen(bad, now); err == nil {
-			t.Errorf("parseWhen(%q) must fail", bad)
+	for _, in := range []string{"", "w", "0w", "-2w", "10d", "3m", "13", "two weeks"} {
+		if _, err := weeksOf(in); err == nil {
+			t.Errorf("weeksOf(%q) must fail", in)
 		}
 	}
 }
 
-// The whole path without the network: a saved collection goes in, and the
-// HTML and JSON files come out.
-func TestReportFromRaw(t *testing.T) {
+// reportStore writes a store that holds four weeks of acme/app: six changes
+// by a person, each approved after 2 hours and merged an hour later, and one
+// that has waited 30 hours for a review.
+func reportStore(t *testing.T, now time.Time) string {
+	t.Helper()
 	dir := t.TempDir()
-	until := time.Date(2026, 3, 31, 0, 0, 0, 0, time.UTC)
-	since := until.AddDate(0, 0, -30)
-	merged := since.Add(50 * time.Hour)
-	raw := rawFile{Target: "o/r", Repos: []model.RepoData{{Repo: "o/r", Since: since, Until: until, CISource: "none", DeploySource: "none",
-		PRs: []model.PR{{Repo: "o/r", Number: 1, Author: model.Actor{Login: "claude[bot]", Type: "Bot"}, State: "MERGED", HeadRef: "claude/issue-1",
-			CreatedAt: since.Add(48 * time.Hour), UpdatedAt: merged, MergedAt: &merged,
-			Commits: []model.Commit{{SHA: "a", Parents: 1, CommittedAt: since.Add(48 * time.Hour)}}}}}}}
-	data, _ := json.Marshal(raw)
-	in := filepath.Join(dir, "raw.json")
-	if err := os.WriteFile(in, data, 0o600); err != nil {
+	s, err := store.OpenWrite(dir, "acme", now)
+	if err != nil {
 		t.Fatal(err)
 	}
-	htmlPath, jsonPath := filepath.Join(dir, "r.html"), filepath.Join(dir, "r.json")
-	cmd := reportCmd()
-	cmd.SetArgs([]string{"--from-raw", in, "--format", "none", "--html", htmlPath, "--json", jsonPath, "--detail"})
-	if err := cmd.Execute(); err != nil {
+	var rows []record.Change
+	for i := 1; i <= 6; i++ {
+		created := now.Add(-time.Duration(i) * 24 * time.Hour)
+		ok, merged := created.Add(2*time.Hour), created.Add(3*time.Hour)
+		rows = append(rows, record.Change{Source: record.GitHub, ID: record.ChangeID(record.GitHub, "acme/app", i), Repo: "acme/app", Number: i,
+			URL: fmt.Sprintf("https://example.invalid/%d", i), Title: fmt.Sprintf("Secret title %d", i),
+			Author: record.Actor{Login: "dev", Kind: record.ActorUser}, HeadRef: "feat", BaseRef: "main", State: record.ChangeMerged,
+			CreatedAt: created, UpdatedAt: merged, ReadyAt: &created, MergedAt: &merged, ClosedAt: &merged, Additions: 3, CommitCount: 1,
+			Commits: []record.Commit{{SHA: fmt.Sprintf("sha%d", i), AuthoredAt: created, CommittedAt: created, Parents: 1}},
+			Reviews: []record.Review{{Author: record.Actor{Login: "rev", Kind: record.ActorUser}, State: record.ReviewApproved, SubmittedAt: ok}}})
+	}
+	opened := now.Add(-30 * time.Hour)
+	rows = append(rows, record.Change{Source: record.GitHub, ID: record.ChangeID(record.GitHub, "acme/app", 7), Repo: "acme/app", Number: 7,
+		URL: "https://example.invalid/7", Title: "Secret title 7", Author: record.Actor{Login: "dev", Kind: record.ActorUser},
+		HeadRef: "feat", BaseRef: "main", State: record.ChangeOpen, CreatedAt: opened, UpdatedAt: opened, ReadyAt: &opened, CommitCount: 1,
+		Commits: []record.Commit{{SHA: "sha7", AuthoredAt: opened, CommittedAt: opened, Parents: 1}}})
+	if _, _, err := store.Changes.Put(s, record.GitHub, "acme/app", rows); err != nil {
 		t.Fatal(err)
 	}
-	var rep metrics.Report
-	js, _ := os.ReadFile(jsonPath)
-	if err := json.Unmarshal(js, &rep); err != nil {
+	if err := s.PutScope(store.Scope{Source: record.GitHub, Name: "acme/app", From: now.Add(-4 * 7 * 24 * time.Hour), SyncedAt: now}); err != nil {
 		t.Fatal(err)
 	}
-	if rep.Target != "o/r" || rep.Agent.Merged != 1 || rep.Human.Merged != 0 || len(rep.PRs) != 1 || !rep.Until.Equal(until) {
-		t.Errorf("report: target=%q agent=%d human=%d rows=%d", rep.Target, rep.Agent.Merged, rep.Human.Merged, len(rep.PRs))
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
 	}
-	if rep.Constraint != nil || !strings.HasPrefix(rep.Headline, "Only 1 agent or human pull request merged in this window.") {
-		t.Errorf("one merged pull request must not name a constraint: %+v %q", rep.Constraint, rep.Headline)
-	}
-	page, _ := os.ReadFile(htmlPath)
-	if !strings.Contains(string(page), "<h1>"+rep.Headline+"</h1>") {
-		t.Error("the HTML report does not carry the headline of the JSON export")
-	}
+	return dir
+}
 
-	for _, args := range [][]string{
-		{"--from-raw", filepath.Join(dir, "missing.json")},
-		{"--from-raw", in, "--format", "pdf"},
-		{"--from-raw", in, "--registry", filepath.Join(dir, "missing.yaml")},
-		{},
-		{"o/r", "--since", "2026-03-01", "--until", "2026-02-01"},
-		{"o/r", "--since", "soon"},
-	} {
+func TestReportCommand(t *testing.T) {
+	run := func(args ...string) (string, error) {
 		cmd := reportCmd()
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		cmd.SetErr(&out)
 		cmd.SetArgs(args)
-		cmd.SilenceUsage, cmd.SilenceErrors = true, true
-		if err := cmd.Execute(); err == nil {
-			t.Errorf("%v must fail", args)
-		}
+		cmd.SilenceUsage = true
+		err := cmd.Execute()
+		return out.String(), err
 	}
-}
-
-func TestParseEvery(t *testing.T) {
-	for in, want := range map[string]time.Duration{"1w": 7 * 24 * time.Hour, "14d": 14 * 24 * time.Hour, " 2w ": 14 * 24 * time.Hour} {
-		if got, err := parseEvery(in); err != nil || got != want {
-			t.Errorf("parseEvery(%q) = %v %v, want %v", in, got, err, want)
-		}
-	}
-	for _, in := range []string{"", "w", "0w", "-1d", "1m", "week"} {
-		if _, err := parseEvery(in); err == nil {
-			t.Errorf("parseEvery(%q) must fail", in)
-		}
-	}
-}
-
-func TestTrendFromRaw(t *testing.T) {
-	dir := t.TempDir()
-	until := time.Date(2026, 3, 31, 0, 0, 0, 0, time.UTC)
-	since := until.AddDate(0, 0, -28)
-	raw := rawFile{Target: "o/r", Repos: []model.RepoData{{Repo: "o/r", Since: since, Until: until, CISource: "none", DeploySource: "none"}}}
-	for w := 0; w < 4; w++ {
-		for i := 0; i <= w; i++ {
-			opened := since.AddDate(0, 0, 7*w+1)
-			merged := opened.Add(3 * time.Hour)
-			raw.Repos[0].PRs = append(raw.Repos[0].PRs, model.PR{Repo: "o/r", Number: 10*w + i, Author: model.Actor{Login: "claude[bot]", Type: "Bot"},
-				State: "MERGED", HeadRef: "claude/issue-1", CreatedAt: opened, UpdatedAt: merged, MergedAt: &merged,
-				Commits: []model.Commit{{SHA: "a", Parents: 1, CommittedAt: opened}}})
-		}
-	}
-	data, _ := json.Marshal(raw)
-	in := filepath.Join(dir, "raw.json")
-	if err := os.WriteFile(in, data, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	htmlPath, jsonPath := filepath.Join(dir, "t.html"), filepath.Join(dir, "t.json")
-	cmd := trendCmd()
-	cmd.SetArgs([]string{"--from-raw", in, "--format", "none", "--html", htmlPath, "--json", jsonPath})
-	if err := cmd.Execute(); err != nil {
-		t.Fatal(err)
-	}
-	var tr metrics.Trend
-	js, _ := os.ReadFile(jsonPath)
-	if err := json.Unmarshal(js, &tr); err != nil {
-		t.Fatal(err)
-	}
-	if tr.Target != "o/r" || len(tr.Periods) != 4 || !tr.Until.Equal(until) || tr.Periods[0].Agent.Merged != 1 || tr.Periods[3].Agent.Merged != 4 {
-		t.Errorf("trend: target=%q periods=%d", tr.Target, len(tr.Periods))
-	}
-	page, _ := os.ReadFile(htmlPath)
-	if !strings.Contains(string(page), "<h1>"+tr.Headline+"</h1>") || !strings.Contains(string(page), "<svg") {
-		t.Error("the HTML trend lacks the headline or its charts")
+	// No store: the error says what to run.
+	if _, err := run("acme", "--store", t.TempDir()); !errors.Is(err, store.ErrNoStore) {
+		t.Fatalf("err = %v", err)
 	}
 
-	// --since and --until pick a part of a raw file, for the trend and the report.
-	cmd = trendCmd()
-	cmd.SetArgs([]string{"--from-raw", in, "--format", "none", "--json", jsonPath, "--since", "2w"})
-	if err := cmd.Execute(); err != nil {
+	now := time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)
+	dir := reportStore(t, now)
+
+	text, err := run("acme/app", "--store", dir, "--since", "2w")
+	if err != nil {
 		t.Fatal(err)
 	}
-	js, _ = os.ReadFile(jsonPath)
-	tr = metrics.Trend{}
-	if err := json.Unmarshal(js, &tr); err != nil || len(tr.Periods) != 2 || !tr.Since.Equal(until.AddDate(0, 0, -14)) {
-		t.Errorf("narrowed trend: %v periods=%d since=%v", err, len(tr.Periods), tr.Since)
-	}
-	rc := reportCmd()
-	rc.SetArgs([]string{"--from-raw", in, "--format", "none", "--json", jsonPath, "--since", "2026-03-10", "--until", "2026-03-17"})
-	if err := rc.Execute(); err != nil {
-		t.Fatal(err)
-	}
-	var rep metrics.Report
-	js, _ = os.ReadFile(jsonPath)
-	if err := json.Unmarshal(js, &rep); err != nil || rep.Agent.Merged != 2 || rep.Since.Format("2006-01-02") != "2026-03-10" || !rep.CollectedSince.Equal(since) {
-		t.Errorf("narrowed report: %v merged=%d since=%v", err, rep.Agent.Merged, rep.Since)
+	// Review holds 2 hours of each change and merge 1.
+	for _, want := range []string{"DELIVERY LINE: ACME/APP", "2 weeks, 2026-10-19 to 2026-11-02.", "Review is the constraint. It holds 67 percent of the hours changes spend on the line.",
+		"THE LINE", "EACH STATION", "COVERAGE", "LIMITS", "  * acme/app#7, standing 30.0h, human: Secret title 7"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the text lacks %q:\n%s", want, text)
+		}
 	}
 
-	for _, args := range [][]string{
-		{"--from-raw", in, "--every", "4w"},
-		{"--from-raw", in, "--every", "month"},
-		{"--from-raw", in, "--format", "pdf"},
-		{"--from-raw", in, "--since", "soon"},
+	// An owner reads every repository of the store. The default window is
+	// 13 weeks, and the store holds 4.
+	js, err := run("https://github.com/acme/", "--store", dir, "--format", "json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rep contract.Report
+	if err := json.Unmarshal([]byte(js), &rep); err != nil {
+		t.Fatal(err)
+	}
+	if rep.Schema != contract.Version || rep.Target != "acme" || !rep.Window.Until.Equal(now) || len(rep.Window.Periods) != 4 ||
+		rep.Window.Previous != nil || rep.Verdict.Constraint != line.Review || len(rep.Stations) != 7 || rep.Tool.Name != "factorymeter" {
+		t.Errorf("json: %+v", rep)
+	}
+
+	// A summary to a file, and nothing printed.
+	path := filepath.Join(t.TempDir(), "line.json")
+	out, err := run("acme/app", "--store", dir, "--summary", "--json", path, "--format", "none")
+	if err != nil || out != "" {
+		t.Fatalf("out = %q, err = %v", out, err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, not := range []string{"acme", "Secret", "example.invalid"} {
+		if strings.Contains(string(raw), not) {
+			t.Errorf("the summary holds %q", not)
+		}
+	}
+	if !strings.Contains(string(raw), `"schema": "factorymeter/v1"`) || !strings.Contains(string(raw), `"summary": true`) {
+		t.Errorf("the summary file: %.300s", raw)
+	}
+
+	md, err := run("acme/app", "--store", dir, "--format", "markdown", "--until", "2026-11-01")
+	if err != nil || !strings.Contains(md, "# Delivery line: acme/app") || !strings.Contains(md, "to 2026-11-01.") {
+		t.Errorf("markdown, err %v:\n%.400s", err, md)
+	}
+
+	for _, bad := range [][]string{
+		{"acme/app", "--store", dir, "--format", "yaml"},
+		{"acme/app", "--store", dir, "--since", "10d"},
+		{"acme/other", "--store", dir}, // not in the store
 		{},
 	} {
-		cmd := trendCmd()
-		cmd.SetArgs(args)
-		cmd.SilenceUsage, cmd.SilenceErrors = true, true
-		if err := cmd.Execute(); err == nil {
-			t.Errorf("%v must fail", args)
+		if _, err := run(bad...); err == nil {
+			t.Errorf("%v must fail", bad)
 		}
 	}
 }

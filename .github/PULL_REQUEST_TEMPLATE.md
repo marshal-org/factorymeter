@@ -5,7 +5,7 @@
 ## How it was tested
 
 - [ ] `go test ./...`
-- [ ] Ran `factorymeter report` on a real repository (say which one, and what changed in the output)
+- [ ] Ran `factorymeter sync` and `factorymeter report` on a real repository (say which one, and what changed in the output)
 - [ ] Not applicable (docs or comments only)
 
 ## Checklist

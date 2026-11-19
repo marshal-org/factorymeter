@@ -4,9 +4,10 @@ The contract is what you can rely on when you read factorymeter with a program,
 or when you compare one week's report with another's.
 
 **Status: draft.** `factorymeter/v1` is not frozen until the first public
-release. Until then a definition can still change without a new id. The
-`report` and `trend` commands do not write this layout yet: they move to it in
-the next releases. See [What is built](#what-is-built).
+release. Until then a definition can still change without a new id.
+`factorymeter report` writes this layout from the store. `snapshot` and `trend`
+are the first generation and do not: [metrics.md](metrics.md) defines their
+numbers. See [What is built](#what-is-built).
 
 ## Three layers
 
@@ -53,6 +54,69 @@ says why, instead of reporting a guess.
 6. **Breaking changes get a new version.** They would ship as
    `factorymeter/v2`, with `v1` still written for a while.
 
+## How a report is put together
+
+`factorymeter report` reads the store and nothing else. The same records always
+give the same report.
+
+**The window.** A value is measured over the whole window, 13 weeks by default.
+`--since 26w` makes it longer. The window ends at the last sync, or at
+`--until`. It is always a whole number of weeks. Next to each value stand the
+value of the window before it, and one point for every week the store holds, up
+to 26. When the store does not reach back far enough, the window is cut to what
+it holds and the report says so.
+
+**When a thing counts.** A station's numbers count an item in the week it left
+the station. The numbers of the whole line count a change in the week it
+merged. A queue is the state at the end of the window or of the week.
+
+**Who it counts.** Every change is an agent's, a person's or automation's. Each
+number is given for the three classes and, when one line has several
+repositories or agents, for each of them. The numbers of the whole line leave
+automation out, so a dependency bot does not move them.
+
+**Thin values.** A value drawn from fewer than 5 items is marked thin. It is
+shown, it carries no trend, and it cannot make a station the constraint.
+
+**The trend.** The value is compared with the window before. The move is
+`better`, `worse` or `flat` by the direction the metric calls good, and
+`unknown` when either side is thin or the metric has no good direction.
+
+| Unit | A move is flat when it is under |
+|---|---|
+| Share | 2 points |
+| Hours | 10 percent, or 3 minutes |
+| A count in a queue | 10 percent, or 2 items |
+| Everything else | 10 percent |
+
+**The constraint.** Each station holds a change for some hours: the wait plus
+the work. The constraint is the station with the largest share of those hours
+over the window. `spec` is never named, because a ticket can wait for reasons
+the line does not own. None is named when fewer than 5 changes by agents and
+people merged in the window.
+
+One change that stood for a year would decide the share alone. So before the
+hours are added up, each item is cut off at the 90th percentile of the items of
+the same station in the same period. The cut is made per period, so the weekly
+points of `<station>.held.total` do not add up to the value of the window.
+
+**A station that cannot be measured.** It is `not_connected`, or `partial` with
+the reason in `missing`. Its numbers are `null`, never zero. Four cases come
+up on GitHub alone:
+
+- `spec` is not connected until a ticket source is.
+- `verify` counts a deployment to an environment that is not production, made
+  from a commit of a change before the change merged. Deployments of the
+  branch a change merges into, and GitHub Pages, do not count. With fewer than
+  5 of them, `verify` is not connected.
+- `ci.wait` is left empty when the runs are stamped as started the moment they
+  are created. Then the wait for a runner cannot be seen.
+- `release` uses deployments to a production environment. A repository with
+  none falls back to its published releases, and the station is `partial`.
+
+**The summary.** `--summary` writes the same report with every repository name,
+title and link left out. What is left is station numbers.
+
 ## What is generated
 
 The files under [reference/](reference/) are generated from the Go definitions.
@@ -93,9 +157,10 @@ measured. It is never reported as zero.
 |---|---|
 | Stations, metric registry, record types, report types, generated reference, JSON Schema | Built |
 | Store and incremental sync: `factorymeter sync`, [store.md](store.md) | Built |
-| `report` writing `factorymeter/v1` from the store, with weekly history | Next |
-| Recommendations | After the report |
-| Tickets from GitHub Issues, Linear and Jira | After the report |
+| `factorymeter report`: `factorymeter/v1` from the store, by station, with weekly history | Built |
+| Recommendations | Next |
+| A local page: `factorymeter serve` | After the recommendations |
+| Tickets from GitHub Issues, Linear and Jira | After the page |
 
-Until `report` moves over, [metrics.md](metrics.md) describes what the current
-`report` and `trend` commands print.
+`snapshot` and `trend` are the first generation. They read GitHub on every run,
+and [metrics.md](metrics.md) describes what they print.

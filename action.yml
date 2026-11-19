@@ -105,7 +105,7 @@ runs:
         set -euo pipefail
         out="$RUNNER_TEMP/factorymeter-report"
         mkdir -p "$out"
-        "$RUNNER_TEMP/factorymeter" report "$FM_TARGET" --since "$FM_SINCE" \
+        "$RUNNER_TEMP/factorymeter" snapshot "$FM_TARGET" --since "$FM_SINCE" \
           --format markdown --html "$out/factorymeter.html" --json "$out/factorymeter.json" \
           > "$out/factorymeter.md"
         if [ "$FM_SUMMARY" = "true" ]; then
