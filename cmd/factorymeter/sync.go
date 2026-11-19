@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -106,6 +107,11 @@ func delta(c ingest.Count) string {
 	}
 }
 
+// stopped tells a repository the sync was interrupted on from one that failed.
+func stopped(err error) bool {
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
+}
+
 func printSync(w io.Writer, res ingest.Result, calls int, took time.Duration) {
 	if len(res.Repos) == 0 {
 		return
@@ -118,7 +124,10 @@ func printSync(w io.Writer, res ingest.Result, calls int, took time.Duration) {
 			from = r.From.Format("2006-01-02")
 		}
 		state := ""
-		if r.Err != nil {
+		switch {
+		case stopped(r.Err):
+			state = "stopped"
+		case r.Err != nil:
 			state = "failed"
 		}
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n", r.Repo, delta(r.Changes), delta(r.CIRuns), delta(r.Deploys), from, state)
@@ -128,7 +137,7 @@ func printSync(w io.Writer, res ingest.Result, calls int, took time.Duration) {
 		for _, n := range r.Notes {
 			fmt.Fprintf(w, "note: %s: %s\n", r.Repo, n)
 		}
-		if r.Err != nil {
+		if r.Err != nil && !stopped(r.Err) {
 			fmt.Fprintf(w, "failed: %s: %v\n", r.Repo, r.Err)
 		}
 	}
