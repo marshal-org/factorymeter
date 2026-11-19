@@ -431,6 +431,8 @@ func (h *fakeHub) page(c call, vars map[string]any) any {
 		}
 		return less(list[j], list[i])
 	})
+	// GitHub counts the whole list, also on a later page of it.
+	whole := len(list)
 	if c.after != "" {
 		at, n, ok := parseCursor(c.after)
 		if !ok || h.rejectCursors {
@@ -477,7 +479,7 @@ func (h *fakeHub) page(c call, vars map[string]any) any {
 		end = cursor(p)
 	}
 	return obj{"data": obj{"repository": obj{"nameWithOwner": r.name, "isPrivate": true,
-		"pullRequests": obj{"pageInfo": obj{"hasNextPage": more, "endCursor": end}, "nodes": nodes}}}}
+		"pullRequests": obj{"totalCount": whole, "pageInfo": obj{"hasNextPage": more, "endCursor": end}, "nodes": nodes}}}}
 }
 
 // closing spells the issues a pull request closes as GitHub does.

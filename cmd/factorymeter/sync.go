@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -33,7 +34,7 @@ func storeDir(flag, target string) (dir, owner string, err error) {
 func syncCmd() *cobra.Command {
 	var dir, since string
 	var opt ingest.Options
-	var quiet, withLinear bool
+	var quiet, plain, withLinear bool
 	var linearTeams, jiraProjects []string
 	var jiraSite string
 	cmd := &cobra.Command{
@@ -64,6 +65,12 @@ JIRA_API_TOKEN: an email and an API token of an account that can read the
 site. --jira-project limits the read to some projects. A pull request is tied
 to a Jira ticket when its branch, title or description names the key of the
 ticket.
+
+On a terminal, sync first says what it is about to read and then shows how
+far it is, with an estimate of the time left. The estimate comes from the pace
+of the run, and from how long the last sync took. --plain prints plain lines
+instead. When the output is not a terminal, as in CI or in a pipe, the lines
+are plain and the table on standard output stays as it was.
 
 The store is a directory of Parquet files. Nothing leaves this machine.`,
 		Example: `  factorymeter sync marshal-org/runlease
@@ -115,39 +122,103 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 				return err
 			}
 			defer s.Close()
-			if !quiet {
+			w := cmd.OutOrStdout()
+			pl := syncPlan{target: target, now: now, since: opt.Since, steps: opt.Steps(), workers: opt.Workers, store: path,
+				linear: lc != nil, teams: linearTeams, projects: jiraProjects, known: s.Scopes(record.GitHub)}
+			if jc != nil {
+				pl.jira = jc.Site()
+			}
+			// A person at a terminal gets the view: what the sync is about to
+			// do, and how far it is. Anything else gets the plain lines, and
+			// the table on standard output that other tools read.
+			var v *syncView
+			if f, ok := terminalOf(cmd.ErrOrStderr()); ok && !quiet && !plain {
+				v = newSyncView(f, styleOf(os.Getenv, onWindows), sizeOf(f))
+			}
+			_, shown := terminalOf(w)
+			table := v == nil || !shown
+			switch {
+			case v != nil:
+				opt.Progress = v.event
+				c.Logf, c.Waiting = v.warnf, v.waiting
+				if lc != nil {
+					lc.Logf, lc.Waiting = v.warnf, v.waiting
+				}
+				if jc != nil {
+					jc.Logf, jc.Waiting = v.warnf, v.waiting
+				}
+				width, _ := v.size()
+				v.say(pl.header(v.st, width)...)
+				defer v.end()
+			case !quiet:
 				opt.Logf = progress
 				progress("store: %s", path)
+				progress("%s", pl.line())
 			}
+			_, expect := pl.timing()
+			v.begin(&phase{system: "GitHub", target: target, single: pl.single(), steps: pl.steps, expect: expect, workers: max(1, opt.Workers)}, c.Requests)
 			g := &ingest.GitHub{C: c, S: s, Opt: opt}
 			res, serr := g.Sync(cmd.Context(), target)
-			w := cmd.OutOrStdout()
-			printSync(w, res, c.Calls, time.Since(now))
-			if lc == nil && len(s.Scopes(record.Linear)) > 0 {
-				fmt.Fprintln(w, "note: the store holds Linear tickets, and this sync did not read Linear. Pass --linear to read what changed on them.")
+			v.end()
+			halted := cmd.Context().Err() != nil
+			v.githubDone(target, res, halted, c.Calls, time.Since(now))
+			if table {
+				printSync(w, res, c.Calls, time.Since(now))
 			}
-			if jc == nil && len(s.Scopes(record.Jira)) > 0 {
-				fmt.Fprintln(w, "note: the store holds Jira tickets, and this sync did not read Jira. Pass --jira to read what changed on them.")
+			for _, sys := range []struct {
+				name, source, flag string
+				read               bool
+			}{{"Linear", record.Linear, "--linear", lc != nil}, {"Jira", record.Jira, "--jira", jc != nil}} {
+				if sys.read || len(s.Scopes(sys.source)) == 0 {
+					continue
+				}
+				note := fmt.Sprintf("the store holds %s tickets, and this sync did not read %s. Pass %s to read what changed on them.", sys.name, sys.name, sys.flag)
+				if table {
+					fmt.Fprintln(w, "note: "+note)
+				} else {
+					v.warnf("%s", strings.ToUpper(note[:1])+note[1:])
+				}
 			}
-			if cmd.Context().Err() != nil || (serr != nil && !anyRead(res)) {
+			if halted && v != nil && serr != nil {
+				// The live view has said that the sync was stopped.
+				return toldErr{serr}
+			}
+			if halted || (serr != nil && !anyRead(res)) {
 				// Stopped, or nothing of GitHub could be read at all.
 				return serr
 			}
 			errs := []error{serr}
 			if lc != nil {
 				began := time.Now()
+				v.begin(ticketPhase("Linear"), lc.Requests)
 				l := &ingest.Linear{C: lc, S: s, Opt: opt, Teams: linearTeams}
 				lres, lerr := l.Sync(cmd.Context())
-				printLinear(w, lres, lerr, lc.Calls, time.Since(began))
+				v.end()
+				v.sourceDone("Linear", "teams", true, lres, lerr, lc.Calls, time.Since(began))
+				if table {
+					printLinear(w, lres, lerr, lc.Calls, time.Since(began))
+				}
 				errs = append(errs, lerr)
 			}
 			// A sync that was stopped while it read Linear does not go on to Jira.
 			if jc != nil && cmd.Context().Err() == nil {
 				began := time.Now()
+				v.begin(ticketPhase("Jira"), jc.Requests)
 				j := &ingest.Jira{C: jc, S: s, Opt: opt, Projects: jiraProjects}
 				jres, jerr := j.Sync(cmd.Context())
-				printJira(w, jres, jerr, jc.Calls, time.Since(began))
+				v.end()
+				v.sourceDone("Jira", "projects", false, jres, jerr, jc.Calls, time.Since(began))
+				if table {
+					printJira(w, jres, jerr, jc.Calls, time.Since(began))
+				}
 				errs = append(errs, jerr)
+			}
+			if cmd.Context().Err() == nil {
+				v.next(target)
+			}
+			if err := errors.Join(errs...); err != nil && v != nil && cmd.Context().Err() != nil {
+				// Stopped while it read tickets, and the live view has said so.
+				return toldErr{err}
 			}
 			return errors.Join(errs...)
 		},
@@ -167,6 +238,7 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 	f.StringVar(&jiraSite, "jira", "", "also read the tickets of this Jira Cloud site, such as acme.atlassian.net, as the account of JIRA_EMAIL and JIRA_API_TOKEN")
 	f.StringArrayVar(&jiraProjects, "jira-project", nil, "read only this Jira project, by its key, such as ENG. Repeat for more. Needs --jira")
 	f.BoolVar(&quiet, "quiet", false, "no progress on standard error")
+	f.BoolVar(&plain, "plain", false, "plain progress lines, also on a terminal")
 	return cmd
 }
 

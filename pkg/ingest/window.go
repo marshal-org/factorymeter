@@ -35,6 +35,9 @@ type windowRead struct {
 	span func(ctx context.Context, from, to time.Time) error
 	// save writes the window to the store.
 	save func() error
+	// told is called after each slice of the read up to now, with how much
+	// of that read is done and the update time it has reached. May be nil.
+	told func(share float64, at time.Time)
 }
 
 // updated reads the tickets updated since the floor that the store does not
@@ -93,6 +96,9 @@ func (x windowRead) stretch(ctx context.Context, from, to time.Time, reached fun
 		if reached != nil {
 			if err := reached(at); err != nil {
 				return err
+			}
+			if x.told != nil {
+				x.told(part(from, end, at), at)
 			}
 		}
 	}

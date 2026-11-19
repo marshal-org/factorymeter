@@ -42,6 +42,10 @@ type Client struct {
 	MaxWait time.Duration
 	// Logf receives progress lines, such as rate-limit waits. May be nil.
 	Logf func(format string, a ...any)
+	// Waiting is told how long the client is about to wait for a rate limit.
+	// A display that sets it shows the wait itself, so the wait is then not
+	// sent to Logf as well. May be nil.
+	Waiting func(time.Duration)
 	// UserAgent is sent with every request.
 	UserAgent string
 
@@ -136,10 +140,28 @@ func sleepCtx(ctx context.Context, d time.Duration) error {
 	}
 }
 
+// Requests is the number of HTTP requests sent so far. Unlike Calls it is
+// safe to read while requests are in flight.
+func (c *Client) Requests() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.Calls
+}
+
 func (c *Client) logf(format string, a ...any) {
 	if c.Logf != nil {
 		c.Logf(format, a...)
 	}
+}
+
+// pause tells that the client waits for a rate limit: to Waiting when a
+// display listens, else as a line to Logf.
+func (c *Client) pause(what string, wait time.Duration) {
+	if c.Waiting != nil {
+		c.Waiting(wait)
+		return
+	}
+	c.logf("%s, waiting %s", what, wait.Round(time.Second))
 }
 
 const maxAttempts = 5
@@ -190,7 +212,7 @@ func (c *Client) Get(ctx context.Context, path string, query url.Values, out any
 			if wait > c.MaxWait {
 				return fmt.Errorf("jira rate limit reached. It resets in %s. Run again then. What was read is stored", wait.Round(time.Second))
 			}
-			c.logf("jira rate limit reached, waiting %s", wait.Round(time.Second))
+			c.pause("jira rate limit reached", wait)
 			lastErr = errors.New("jira rate limit reached")
 			if err := c.Sleep(ctx, wait); err != nil {
 				return err

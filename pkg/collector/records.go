@@ -22,6 +22,7 @@ query($owner: String!, $name: String!, $n: Int!, $after: String, $states: [PullR
   repository(owner: $owner, name: $name) {
     nameWithOwner isPrivate
     pullRequests(first: $n, after: $after, states: $states, orderBy: {field: UPDATED_AT, direction: $dir}) {
+      totalCount
       pageInfo { hasNextPage endCursor }
       nodes { ...PRFields }
     }
@@ -63,6 +64,9 @@ type Page struct {
 	Cut bool
 	// Links are the tickets the changes of the page close, as GitHub lists them.
 	Links []record.Link
+	// Total is the number of pull requests the whole list holds, of which the
+	// page is a part.
+	Total int
 }
 
 // ChangesPage reads one page of pull requests as changes.
@@ -86,7 +90,8 @@ func (k *Collector) ChangesPage(ctx context.Context, q PageQuery) (Page, error) 
 			NameWithOwner string `json:"nameWithOwner"`
 			IsPrivate     bool   `json:"isPrivate"`
 			PullRequests  struct {
-				PageInfo struct {
+				TotalCount int `json:"totalCount"`
+				PageInfo   struct {
 					HasNextPage bool   `json:"hasNextPage"`
 					EndCursor   string `json:"endCursor"`
 				} `json:"pageInfo"`
@@ -105,7 +110,7 @@ func (k *Collector) ChangesPage(ctx context.Context, q PageQuery) (Page, error) 
 		return Page{}, fmt.Errorf("%w: %s", github.ErrNotFound, q.Repo)
 	}
 	r := out.Repository
-	p := Page{End: r.PullRequests.PageInfo.EndCursor, More: r.PullRequests.PageInfo.HasNextPage, Repo: r.NameWithOwner, Private: r.IsPrivate}
+	p := Page{End: r.PullRequests.PageInfo.EndCursor, More: r.PullRequests.PageInfo.HasNextPage, Repo: r.NameWithOwner, Private: r.IsPrivate, Total: r.PullRequests.TotalCount}
 	if p.Repo == "" {
 		p.Repo = q.Repo
 	}
@@ -344,9 +349,11 @@ func utc(t *time.Time) *time.Time {
 // Runs reads the GitHub Actions workflow runs of a repository created between
 // from and to, newest first, and passes them to fn in batches. An empty event
 // reads runs of every event. It stops once max runs were read and reports
-// that as cut.
-func (k *Collector) Runs(ctx context.Context, repo, event string, from, to time.Time, max int, fn func([]record.CIRun)) (read int, cut bool, err error) {
-	err = k.runsRange(ctx, repo, event, from, to, max, &read, &cut, func(runs []restRun) {
+// that as cut. With every batch fn is told how many runs GitHub says the
+// whole stretch holds, so a caller can tell how far the read is.
+func (k *Collector) Runs(ctx context.Context, repo, event string, from, to time.Time, max int, fn func(runs []record.CIRun, total int)) (read int, cut bool, err error) {
+	total := 0
+	err = k.runsRange(ctx, repo, event, from, to, max, &read, &cut, func(n int) { total = n }, func(runs []restRun) {
 		read += len(runs)
 		out := make([]record.CIRun, 0, len(runs))
 		for _, r := range runs {
@@ -364,7 +371,7 @@ func (k *Collector) Runs(ctx context.Context, repo, event string, from, to time.
 				CreatedAt: r.CreatedAt.UTC(), StartedAt: started.UTC(), UpdatedAt: r.UpdatedAt.UTC(),
 			})
 		}
-		fn(out)
+		fn(out, total)
 	})
 	return read, cut, err
 }

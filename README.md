@@ -200,6 +200,16 @@ factorymeter sync my-org --linear              # also read the tickets of a Line
 factorymeter sync my-org --jira acme.atlassian.net   # also read the tickets of a Jira Cloud site
 ```
 
+In a terminal, `sync` first says what it is about to read and where it stores it. Then it
+shows each step as it goes, with a bar and an estimate of the time left. The estimate comes
+from the pace of this sync, and before that from the time the last sync took. When GitHub's
+rate limit is reached, the sync says so, counts down the wait and goes on by itself. At the
+end it says what the store now holds and which command to run next.
+
+In a pipe or a CI log there is no live view: `sync` writes one line per event to stderr and
+a table to stdout. `--plain` gives the same lines in a terminal, and `--quiet` leaves the
+progress out.
+
 Run both once a week and the report follows the line week after week. A sync that is stopped
 goes on where it left off. The store is a directory of Parquet files:
 [docs/store.md](docs/store.md) has the details.

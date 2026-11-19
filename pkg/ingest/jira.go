@@ -79,6 +79,7 @@ type jiraSync struct {
 	size     int
 	statuses map[string]jiraStatus // status id -> status
 	res      SourceResult
+	t        tracker
 }
 
 func (r *jiraSync) logf(format string, a ...any) {
@@ -92,13 +93,20 @@ func (r *jiraSync) logf(format string, a ...any) {
 func (j *Jira) Sync(ctx context.Context) (SourceResult, error) {
 	r := &jiraSync{j: j, o: j.Opt.withDefaults(), size: jiraPage}
 	r.res.Source = record.Jira
-	err := r.sync(ctx)
+	r.t = tracker{o: r.o, source: record.Jira, name: func() string { return r.name }}
+	began := time.Now()
+	err := r.sync(ctx, began)
 	r.res.Name, r.res.From = r.name, r.st.Floor
 	if r.name != "" {
 		if n, cerr := j.S.Count(store.Tickets.Name, record.Jira, r.name); cerr == nil {
 			r.res.Tickets.Total = n
 		}
 	}
+	if r.t.step != "" {
+		r.t.done(r.res.Tickets.Added, r.res.Tickets.Changed, err)
+	}
+	res := r.res
+	r.t.emit(Event{Kind: ScopeDone, Tickets: &res, Took: time.Since(began), Err: err})
 	if cerr := ctx.Err(); cerr != nil {
 		return r.res, &StoppedError{Cause: cerr}
 	}
@@ -120,7 +128,7 @@ func (r *jiraSync) save() error {
 
 var jiraProjectKey = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
 
-func (r *jiraSync) sync(ctx context.Context) error {
+func (r *jiraSync) sync(ctx context.Context, began time.Time) error {
 	// A search of Jira answers a wrong token with what anyone may see, which
 	// is often nothing. So the account is checked first, on a path that says
 	// no to a wrong token.
@@ -153,6 +161,7 @@ func (r *jiraSync) sync(ctx context.Context) error {
 		// were at the last sync for good, open ones as open. So the site is
 		// read again from nothing.
 		r.logf("the list of projects changed. The stored tickets are dropped and read again")
+		r.t.note("the list of projects changed. The stored tickets are dropped and read again")
 		r.res.Again, known = true, false
 	}
 	if !known {
@@ -164,12 +173,15 @@ func (r *jiraSync) sync(ctx context.Context) error {
 	}
 	r.sc, r.st.Projects = sc, projects
 	first := r.sc.SyncedAt.IsZero()
+	r.t.emit(Event{Kind: ScopeStarted, First: first, Last: time.Duration(r.sc.Took * float64(time.Second)), LastFull: r.sc.TookFull, LastAt: r.sc.SyncedAt})
+	r.t.start(StepTickets)
 
 	if err := r.loadStatuses(ctx); err != nil {
 		return err
 	}
 
 	read := windowRead{o: r.o, w: &r.st.ticketWindow, slice: jiraSlice, overlap: jiraOverlap, save: r.save,
+		told: func(share float64, at time.Time) { r.t.advance(0, share, at) },
 		span: func(ctx context.Context, from, to time.Time) error { return r.span(ctx, from, to, false) }}
 	if err := read.updated(ctx); err != nil {
 		return err
@@ -189,6 +201,7 @@ func (r *jiraSync) sync(ctx context.Context) error {
 		r.st.Open = true
 	}
 	r.sc.SyncedAt, r.sc.Notes = r.o.Now, nil
+	r.sc.Took, r.sc.TookFull = time.Since(began).Seconds(), first
 	r.res.First = first
 	return r.save()
 }
@@ -324,12 +337,14 @@ func (r *jiraSync) span(ctx context.Context, from, to time.Time, open bool) erro
 		if errors.Is(err, jira.ErrServer) && r.size > 1 && ctx.Err() == nil {
 			r.size = (r.size + 1) / 2
 			r.logf("jira could not answer a page of tickets, retrying with %d per page", r.size)
+			r.t.note(fmt.Sprintf("Jira could not answer a page of tickets, retrying with %d per page", r.size))
 			pages--
 			continue
 		}
 		if err != nil {
 			return fail(err)
 		}
+		r.t.advance(len(out.Issues), 0, time.Time{})
 		for i := range out.Issues {
 			r.learn(out.Issues[i].Fields.Status)
 		}

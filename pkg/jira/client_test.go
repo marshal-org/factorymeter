@@ -401,3 +401,31 @@ func TestBrowseEscapesTheKey(t *testing.T) {
 		t.Errorf("browse = %q", got)
 	}
 }
+
+// A display that listens gets the wait as a length of time, and the line for
+// a log is then not written as well.
+func TestAWaitForARateLimitIsToldToADisplay(t *testing.T) {
+	var n atomic.Int64
+	c, slept := fake(t, func(w http.ResponseWriter, r *http.Request) {
+		if n.Add(1) == 1 {
+			w.Header().Set("Retry-After", "7")
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		fmt.Fprint(w, `{"accountId":"abc"}`)
+	})
+	var told []time.Duration
+	var lines []string
+	c.Waiting = func(d time.Duration) { told = append(told, d) }
+	c.Logf = func(f string, a ...any) { lines = append(lines, fmt.Sprintf(f, a...)) }
+	var out me
+	if err := c.Get(context.Background(), "/rest/api/3/myself", nil, &out); err != nil {
+		t.Fatal(err)
+	}
+	if want := []time.Duration{8 * time.Second}; !reflect.DeepEqual(told, want) || !reflect.DeepEqual(*slept, want) {
+		t.Errorf("told %v, slept %v", told, *slept)
+	}
+	if len(lines) != 0 {
+		t.Errorf("a wait that was told was logged too: %q", lines)
+	}
+}

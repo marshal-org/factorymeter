@@ -60,6 +60,9 @@ type Options struct {
 	IncludeForks    bool
 	IncludeArchived bool
 	Logf            func(format string, a ...any)
+	// Progress is told each step of the sync, for a display. It is called
+	// from several goroutines at once. May be nil.
+	Progress func(Event)
 }
 
 func (o Options) withDefaults() Options {
@@ -237,6 +240,7 @@ func (g *GitHub) Sync(ctx context.Context, target string) (Result, error) {
 		return Result{}, err
 	}
 
+	o.emit(Event{Kind: Listed, Source: record.GitHub, Scope: target, Total: len(repos), Names: append([]string(nil), repos...)})
 	res := Result{Repos: make([]RepoResult, len(repos))}
 	jobs := make(chan int)
 	var wg sync.WaitGroup
@@ -246,6 +250,7 @@ func (g *GitHub) Sync(ctx context.Context, target string) (Result, error) {
 			defer wg.Done()
 			for i := range jobs {
 				r := &repoSync{g: g, k: k, o: o, name: repos[i]}
+				r.t = tracker{o: o, source: record.GitHub, slot: i, name: func() string { return r.name }}
 				res.Repos[i] = r.run(ctx)
 			}
 		}()
@@ -298,10 +303,20 @@ type repoSync struct {
 	// links are the ticket links of the changes read and not stored yet, by
 	// the id of the change.
 	links map[string][]record.Link
+	// t tells a display where the sync stands.
+	t tracker
+	// full is set once this sync reads a whole window, not only what changed.
+	full bool
 }
 
 func (r *repoSync) logf(format string, a ...any) {
 	r.g.logf("%s: "+format, append([]any{r.name}, a...)...)
+}
+
+// notef is logf for a sentence a display shows too.
+func (r *repoSync) notef(format string, a ...any) {
+	r.logf(format, a...)
+	r.t.note(fmt.Sprintf(format, a...))
 }
 
 func (r *repoSync) save() error {
@@ -316,7 +331,8 @@ func (r *repoSync) save() error {
 
 func (r *repoSync) run(ctx context.Context) RepoResult {
 	r.res.Repo = r.name
-	err := r.sync(ctx)
+	began := time.Now()
+	err := r.sync(ctx, began)
 	r.res.Repo, r.res.From, r.res.Notes, r.res.Err = r.name, r.st.Changes.Floor, r.notes, err
 	for _, t := range []struct {
 		name string
@@ -330,10 +346,22 @@ func (r *repoSync) run(ctx context.Context) RepoResult {
 	if err != nil && ctx.Err() == nil {
 		r.logf("failed: %v", err)
 	}
+	res := r.res
+	r.t.emit(Event{Kind: ScopeDone, Repo: &res, Took: time.Since(began), Err: err})
 	return r.res
 }
 
-func (r *repoSync) sync(ctx context.Context) error {
+// step runs one step of the sync and tells a display how it went. c is the
+// count the step adds to.
+func (r *repoSync) step(ctx context.Context, s Step, c *Count, fn func(context.Context) error) error {
+	before := *c
+	r.t.start(s)
+	err := fn(ctx)
+	r.t.done(c.Added-before.Added, c.Changed-before.Changed, err)
+	return err
+}
+
+func (r *repoSync) sync(ctx context.Context, began time.Time) error {
 	sc, known := r.g.S.Scope(record.GitHub, r.name)
 	r.sc = sc
 	if known {
@@ -351,8 +379,9 @@ func (r *repoSync) sync(ctx context.Context) error {
 	r.st.Target = r.target
 	r.size = r.o.PageSize
 	first := sc.SyncedAt.IsZero()
+	r.t.emit(Event{Kind: ScopeStarted, First: first, Last: time.Duration(sc.Took * float64(time.Second)), LastFull: sc.TookFull, LastAt: sc.SyncedAt})
 
-	if err := r.changes(ctx); err != nil {
+	if err := r.step(ctx, StepChanges, &r.res.Changes, r.changes); err != nil {
 		if errors.Is(err, github.ErrForbidden) && !r.o.SkipTickets {
 			// The query asks for the issues each pull request closes.
 			return fmt.Errorf("pull requests: %w. If the token cannot read issues, give it read-only access to Issues, or pass --skip-tickets", err)
@@ -366,7 +395,7 @@ func (r *repoSync) sync(ctx context.Context) error {
 	// Actions, or a token that cannot read them, still gets its changes
 	// stored. The state does not move, so the next sync tries again.
 	if !r.o.SkipTickets {
-		if err := r.tickets(ctx); err != nil {
+		if err := r.step(ctx, StepIssues, &r.res.Tickets, r.tickets); err != nil {
 			if ctx.Err() != nil {
 				return err
 			}
@@ -374,7 +403,7 @@ func (r *repoSync) sync(ctx context.Context) error {
 		}
 	}
 	if !r.o.SkipCI {
-		if err := r.ci(ctx); err != nil {
+		if err := r.step(ctx, StepCI, &r.res.CIRuns, r.ci); err != nil {
 			if ctx.Err() != nil {
 				return err
 			}
@@ -382,7 +411,7 @@ func (r *repoSync) sync(ctx context.Context) error {
 		}
 	}
 	if !r.o.SkipDeploys {
-		if err := r.deploys(ctx); err != nil {
+		if err := r.step(ctx, StepDeploys, &r.res.Deploys, r.deploys); err != nil {
 			if ctx.Err() != nil {
 				return err
 			}
@@ -390,6 +419,7 @@ func (r *repoSync) sync(ctx context.Context) error {
 		}
 	}
 	r.sc.SyncedAt, r.sc.Notes = r.o.Now, r.notes
+	r.sc.Took, r.sc.TookFull = time.Since(began).Seconds(), first || r.full
 	r.res.First = first
 	return r.save()
 }
@@ -403,7 +433,7 @@ func (r *repoSync) page(ctx context.Context, q collector.PageQuery) (collector.P
 		p, err := r.k.ChangesPage(ctx, q)
 		if errors.Is(err, github.ErrServer) && r.size > 1 && ctx.Err() == nil {
 			r.size = (r.size + 1) / 2
-			r.logf("github timed out on a page, retrying with %d per page", r.size)
+			r.notef("github timed out on a page, retrying with %d per page", r.size)
 			continue
 		}
 		if err != nil {
@@ -483,6 +513,31 @@ func (r *repoSync) changes(ctx context.Context) error {
 	return nil
 }
 
+// told tells a display that a page of changes was read on the way from top
+// down to floor. Pages run from the most recently updated change down, so the
+// last change of the page is where the read stands.
+//
+// The share of the read that is done is taken from the time it has reached.
+// A repository whose pull requests all sit in the last weeks of the window
+// would stand near zero that way until its last page. So the share is at
+// least the part of all pull requests that were read: the read ends at the
+// floor or at the last pull request, whichever comes first.
+func (r *repoSync) told(p collector.Page, top, floor time.Time) {
+	if len(p.Changes) == 0 {
+		r.t.advance(0, 0, time.Time{})
+		return
+	}
+	at := p.Changes[len(p.Changes)-1].UpdatedAt
+	if at.Before(floor) {
+		at = floor
+	}
+	share := part(top, floor, at)
+	if p.Total > 0 {
+		share = max(share, min(1, float64(r.t.read+len(p.Changes))/float64(p.Total)))
+	}
+	r.t.advance(len(p.Changes), share, at)
+}
+
 // scan reads changes from the most recently updated down to the target, the
 // way a first sync does. It saves its place every few pages. GitHub's cursors
 // hold a position by value, an update time and an id, so a saved cursor still
@@ -490,8 +545,9 @@ func (r *repoSync) changes(ctx context.Context) error {
 func (r *repoSync) scan(ctx context.Context) error {
 	c := &r.st.Changes
 	after, resumed := c.Cursor, c.Cursor != ""
+	r.full = true
 	if resumed {
-		r.logf("going on from where the last sync stopped")
+		r.notef("going on from where the last sync stopped")
 	}
 	var buf []record.Change
 	flush := func(cursor string) error {
@@ -508,7 +564,7 @@ func (r *repoSync) scan(ctx context.Context) error {
 		if errors.Is(err, github.ErrBadCursor) && resumed && pages == 1 {
 			// The saved place is no longer accepted. Start from the top:
 			// rows that are already stored are only compared, not rewritten.
-			r.logf("the saved place is no longer valid, reading from the top")
+			r.notef("the saved place is no longer valid, reading from the top")
 			after, resumed, pages = "", false, 0
 			c.Cursor = ""
 			continue
@@ -545,6 +601,7 @@ func (r *repoSync) scan(ctx context.Context) error {
 			buf = append(buf, ch)
 		}
 		read += len(p.Changes)
+		r.told(p, r.o.Now, r.target)
 		if done || !p.More {
 			// Keep the cursor of this last page: a later sync that asks for
 			// an earlier floor goes on from here.
@@ -578,7 +635,8 @@ func (r *repoSync) head(ctx context.Context) error {
 	}
 	if len(missing) > 0 {
 		high = c.Floor
-		r.logf("reading the window once more for %s", strings.Join(missing, " and "))
+		r.full = true
+		r.notef("reading the window once more for %s", strings.Join(missing, " and "))
 	}
 	var buf []record.Change
 	for pages := 1; ; pages++ {
@@ -594,6 +652,7 @@ func (r *repoSync) head(ctx context.Context) error {
 		if pages == 1 && len(p.Changes) > 0 && p.Changes[0].UpdatedAt.After(top) {
 			top = p.Changes[0].UpdatedAt
 		}
+		r.told(p, r.o.Now, high)
 		done := false
 		for _, ch := range p.Changes {
 			if ch.UpdatedAt.Before(high) {
@@ -633,6 +692,7 @@ func (r *repoSync) open(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		r.t.advance(len(p.Changes), 0, time.Time{})
 		done := false
 		for _, ch := range p.Changes {
 			if !ch.UpdatedAt.Before(c.Floor) {
@@ -735,7 +795,7 @@ func (r *repoSync) ticketRange(ctx context.Context, since, before time.Time, ope
 		p, err := r.k.TicketsPage(ctx, collector.TicketQuery{Repo: r.name, After: after, Size: r.issues, Since: since, OpenOnly: openOnly})
 		if errors.Is(err, github.ErrServer) && r.issues > 1 && ctx.Err() == nil {
 			r.issues = (r.issues + 1) / 2
-			r.logf("github timed out on a page of issues, retrying with %d per page", r.issues)
+			r.notef("github timed out on a page of issues, retrying with %d per page", r.issues)
 			pages--
 			continue
 		}
@@ -754,6 +814,13 @@ func (r *repoSync) ticketRange(ctx context.Context, since, before time.Time, ope
 				break
 			}
 			buf = append(buf, t)
+		}
+		if n := len(p.Tickets); n > 0 && !openOnly && before.IsZero() {
+			// The read up to now is the one that walks the window.
+			at := p.Tickets[n-1].UpdatedAt
+			r.t.advance(n, part(since, r.o.Now, at), at)
+		} else {
+			r.t.advance(n, 0, time.Time{})
 		}
 		if done || !p.More {
 			return n, flush()
@@ -835,7 +902,7 @@ func (r *repoSync) ci(ctx context.Context) error {
 		return r.save()
 	}
 	budget := r.o.MaxRuns
-	for _, sp := range spans {
+	for i, sp := range spans {
 		if budget <= 0 {
 			return capped()
 		}
@@ -847,11 +914,29 @@ func (r *repoSync) ci(ctx context.Context) error {
 		// allowance of its own, so every event is whole from lo up.
 		lo, cut := sp.from, false
 		fetch := func(event string) error {
+			got := 0
 			start, allow := len(buf), budget
 			if allow <= 0 {
 				allow = r.o.MaxRuns
 			}
-			n, stopped, err := r.k.Runs(ctx, r.name, event, lo, sp.to, allow, func(runs []record.CIRun) { buf = append(buf, runs...) })
+			n, stopped, err := r.k.Runs(ctx, r.name, event, lo, sp.to, allow, func(runs []record.CIRun, total int) {
+				buf = append(buf, runs...)
+				got += len(runs)
+				// The stretches before this one are done. Inside one, GitHub
+				// says how many runs the event has, so the runs read and the
+				// runs still to come tell how far the stretch is. A later
+				// event can bring more runs than the ones before it, and
+				// then the share goes back.
+				var at time.Time
+				if len(runs) > 0 {
+					at = runs[len(runs)-1].CreatedAt
+				}
+				inside, left := 0.0, max(0, min(total, allow)-got)
+				if len(buf)+left > 0 {
+					inside = min(0.97, float64(len(buf))/float64(len(buf)+left))
+				}
+				r.t.revise(len(runs), (float64(i)+inside)/float64(len(spans)), at)
+			})
 			budget -= n
 			if stopped {
 				cut = true
@@ -926,6 +1011,7 @@ func (r *repoSync) ci(ctx context.Context) error {
 		if err := r.save(); err != nil {
 			return err
 		}
+		r.t.advance(0, float64(i+1)/float64(len(spans)), sp.from)
 	}
 	if n := r.res.CIRuns.Added + r.res.CIRuns.Changed; n > 0 {
 		r.logf("%d workflow runs stored", n)
@@ -940,7 +1026,7 @@ func (r *repoSync) ci(ctx context.Context) error {
 func (r *repoSync) queueRuns(ctx context.Context) error {
 	c := &r.st.CI
 	var buf []record.CIRun
-	_, stopped, err := r.k.Runs(ctx, r.name, queueEvent, c.From, c.Through, r.o.MaxRuns, func(runs []record.CIRun) { buf = append(buf, runs...) })
+	_, stopped, err := r.k.Runs(ctx, r.name, queueEvent, c.From, c.Through, r.o.MaxRuns, func(runs []record.CIRun, _ int) { buf = append(buf, runs...) })
 	if err != nil {
 		return err
 	}
