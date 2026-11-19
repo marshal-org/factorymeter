@@ -303,7 +303,27 @@ func TestDocsNameEveryMetricAndRecord(t *testing.T) {
 	if strings.Count(rec, "### Actor\n") != 1 {
 		t.Error("records.md must describe a shared type once")
 	}
-	for _, s := range []string{md, rec, ReportMarkdown()} {
+	rules := RulesMarkdown()
+	for _, r := range line.Rules {
+		// Once in the table, once under its own heading.
+		if strings.Count(rules, "`"+r.ID+"`") != 2 || !strings.Contains(rules, "## "+r.Title+"\n") || !strings.Contains(rules, "- Fires when: "+r.Fires+"\n") {
+			t.Errorf("rules.md must list %s in the table and say when it fires", r.ID)
+		}
+		for _, id := range r.Reads {
+			if !strings.Contains(rules, "`"+id+"`") {
+				t.Errorf("rules.md must name %s, which %s reads", id, r.ID)
+			}
+		}
+		if r.Play != "" && !strings.Contains(rules, "("+r.PlayURL()+")") {
+			t.Errorf("rules.md must link the practice of %s", r.ID)
+		}
+	}
+	for _, line := range HowRecommended {
+		if !strings.Contains(rules, line) {
+			t.Errorf("rules.md lacks %q", line)
+		}
+	}
+	for _, s := range []string{md, rec, ReportMarkdown(), rules} {
 		if strings.ContainsAny(s, string([]rune{0x2013, 0x2014})) {
 			t.Error("a generated page holds a dash the repository does not allow")
 		}
@@ -315,6 +335,9 @@ func TestDocsNameEveryMetricAndRecord(t *testing.T) {
 	}
 	if err := json.Unmarshal(raw, &c); err != nil {
 		t.Fatal(err)
+	}
+	if len(c.RecommendationRules) != len(line.Rules) || c.RecommendationRules[0].ID != line.Rules[0].ID || c.RecommendationRules[0].Fires != line.Rules[0].Fires {
+		t.Errorf("metrics.json lost the rules: %d of %d", len(c.RecommendationRules), len(line.Rules))
 	}
 	if len(c.Metrics) != len(line.Registry) || len(c.Stations) != len(line.Stations) || c.Schema != Version {
 		t.Errorf("metrics.json lost something: %d metrics, %d stations, schema %q", len(c.Metrics), len(c.Stations), c.Schema)

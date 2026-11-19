@@ -257,7 +257,7 @@ The constraint is the station that holds work the longest. For each station that
 
 - Item: change.
 - Arrives: The change merges.
-- Leaves: The first production deploy of the repository after the merge.
+- Leaves: The first production deploy of the repository after the merge. A change merged before the first production deploy in the store is not counted.
 - Measured from: `change`, `deploy` records.
 - Constraint: the station can be named the constraint.
 

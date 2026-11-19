@@ -509,6 +509,11 @@ func (r *RepoBuilder) Done() {
 	r.chgs, r.sha, r.byNumber = nil, nil, nil
 }
 
+// unseenAtRelease is the stream of changes that merged before the first
+// production deploy in the store. No metric reads it. The report counts it
+// to say what was left out.
+const unseenAtRelease = "release.unseen"
+
 // emit writes down what one change did at every station.
 func (r *RepoBuilder) emit(c *chg, ships []prodDeploy) {
 	l, k := r.b.l, c.k
@@ -675,6 +680,14 @@ func (r *RepoBuilder) emit(c *chg, ships []prodDeploy) {
 	// Release. A change merged before the store's deploys begin cannot be
 	// matched to the deploy that shipped it.
 	if c.merged.IsZero() || len(ships) == 0 || c.merged.Before(r.sc.From) {
+		return
+	}
+	// The station is measured from its first record. A change merged before
+	// the first production deploy in the store is not counted: the store
+	// cannot tell a line that did not release from one whose releases were
+	// not recorded yet.
+	if c.merged.Before(ships[0].created) {
+		l.add(unseenAtRelease, c.merged, 1, k)
 		return
 	}
 	i := sort.Search(len(ships), func(i int) bool { return !ships[i].created.Before(c.merged) })

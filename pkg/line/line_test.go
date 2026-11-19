@@ -119,3 +119,107 @@ func TestValidateCatchesMistakes(t *testing.T) {
 		t.Error("a repeated id was not caught")
 	}
 }
+
+func TestRulesAreValid(t *testing.T) {
+	for _, err := range ValidateRules(Rules) {
+		t.Error(err)
+	}
+	// Every station that can be the constraint has a slow rule, so the
+	// constraint always gets a recommendation.
+	for _, st := range Stations {
+		if _, ok := RuleByID(st.ID + ".slow"); ok != st.InConstraint {
+			t.Errorf("%s: can be the constraint is %v, has a slow rule is %v", st.ID, st.InConstraint, ok)
+		}
+	}
+	for _, r := range Rules {
+		// A rule that sizes its gain says how. One that does not says nothing.
+		if strings.HasSuffix(r.ID, ".slow") != (r.Sized == sizedHeld) {
+			t.Errorf("%s: only the slow rules are sized by held hours", r.ID)
+		}
+		if r.Play != "" && r.PlayURL() != Playbook+r.Play+"/" {
+			t.Errorf("%s: link %q", r.ID, r.PlayURL())
+		}
+	}
+	if (Rule{}).PlayURL() != "" {
+		t.Error("a rule with no playbook page has no link")
+	}
+}
+
+// A report from last quarter names its rules by id. An id that is renamed
+// breaks every trend of recommendations a reader keeps.
+func TestRuleIDsThatMustNotChange(t *testing.T) {
+	ids := []string{
+		"code.slow", "ci.slow", "verify.slow", "review.slow", "merge.slow", "release.slow",
+		"verify.missing", "ci.failing", "ci.agents-fail-more", "merge.reverted", "code.abandoned",
+		"review.queue-growing", "merge.approved-waiting", "code.stale-drafts", "review.agents-wait-longer", "code.agent-changes-large",
+	}
+	for _, id := range ids {
+		if _, ok := RuleByID(id); !ok {
+			t.Errorf("rule %q is gone", id)
+		}
+	}
+	if len(Rules) != len(ids) {
+		t.Errorf("%d rules, and this test knows %d. Add the new ids here.", len(Rules), len(ids))
+	}
+}
+
+// The words that say when a rule fires are built from the thresholds, so the
+// two cannot drift. This pins the thresholds themselves.
+func TestRuleThresholdsAreInTheWords(t *testing.T) {
+	for id, want := range map[string]string{
+		"review.slow":               "at least 25 percent longer than in its own best four weeks, and running at that pace would give back at least 5 percent of the hours changes are held before the merge",
+		"release.slow":              "at least 5 percent of the hours changes are held on the whole line",
+		"verify.missing":            "at least 50 percent of the changes merged",
+		"ci.failing":                "At least 15 percent of the CI rounds",
+		"ci.agents-fail-more":       "at least 5 points more often",
+		"merge.reverted":            "At least 5 percent of the changes merged in the window were reverted later, and at least 3 of them",
+		"code.abandoned":            "At least 20 percent of the changes closed",
+		"review.queue-growing":      "At least 5 changes wait",
+		"merge.approved-waiting":    "At least 3 changes have been approved for more than 24 hours",
+		"code.stale-drafts":         "At least 3 changes have been a draft for more than 14 days",
+		"review.agents-wait-longer": "at least 1.5 times as long for changes by agents as for changes by people, and at least 1 hour longer",
+		"code.agent-changes-large":  "at least 2 times the size of the median change by a person, and at least 200 lines",
+	} {
+		r, _ := RuleByID(id)
+		if !strings.Contains(r.Fires, want) {
+			t.Errorf("%s fires: %q lacks %q", id, r.Fires, want)
+		}
+	}
+}
+
+func TestValidateRulesCatchesMistakes(t *testing.T) {
+	good := Rule{ID: "review.too-slow", Station: Review, Title: "Do a thing", Fires: "When it is slow.", Reads: []string{"review.wait.p50"}, Sized: "By hours.", Play: "find-the-constraint", Since: V1}
+	if errs := ValidateRules([]Rule{good}); len(errs) != 0 {
+		t.Fatalf("the good rule is not valid: %v", errs)
+	}
+	cases := map[string]func(r *Rule){
+		"must look like station.short-name": func(r *Rule) { r.ID = "Review.TooSlow" },
+		"must start with the id of":         func(r *Rule) { r.Station = Merge },
+		"start with the id of the station":  func(r *Rule) { r.ID, r.Station = "nowhere.slow", "nowhere" },
+		"one line with no full stop":        func(r *Rule) { r.Title = "Do a thing." },
+		"when the rule fires must be":       func(r *Rule) { r.Fires = "no stop" },
+		"how the gain is sized must be":     func(r *Rule) { r.Sized = "no stop" },
+		"reads no metric":                   func(r *Rule) { r.Reads = nil },
+		"reads the unknown metric":          func(r *Rule) { r.Reads = []string{"review.mood"} },
+		"unknown playbook page":             func(r *Rule) { r.Play = "work-harder" },
+		"no contract version":               func(r *Rule) { r.Since = "" },
+	}
+	for want, change := range cases {
+		r := good
+		change(&r)
+		found := false
+		for _, err := range ValidateRules([]Rule{r}) {
+			found = found || strings.Contains(err.Error(), want)
+		}
+		if !found {
+			t.Errorf("no error with %q for %+v", want, r)
+		}
+	}
+	found := false
+	for _, err := range ValidateRules([]Rule{good, good}) {
+		found = found || strings.Contains(err.Error(), "used twice")
+	}
+	if !found {
+		t.Error("a repeated id was not caught")
+	}
+}

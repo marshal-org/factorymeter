@@ -17,6 +17,12 @@ numbers. See [What is built](#what-is-built).
 | Metrics | Every number, with a stable id and an exact definition | `pkg/line` | [reference/metrics.md](reference/metrics.md), [reference/metrics.json](reference/metrics.json) |
 | Report | The layout of the JSON a report writes | `pkg/contract` | [reference/report.md](reference/report.md), [reference/factorymeter-v1.schema.json](reference/factorymeter-v1.schema.json) |
 
+The recommendations sit on top of the metrics. A rule reads metrics only, has
+a stable id like a metric, and says in words when it fires. The rules are
+defined in `pkg/line` and listed in [reference/rules.md](reference/rules.md).
+The numbers a rule compares with are constants in the code, and the sentence
+is built from them, so the two cannot drift apart.
+
 The layers are separate on purpose. A source adapter (GitHub today, Linear and
 Jira next) only writes records. A metric only reads records. A page only reads
 the report. So a new source needs no change to a metric, and a new metric needs
@@ -53,6 +59,9 @@ says why, instead of reporting a guess.
    is reported as `not_connected`. It is not reported as zero.
 6. **Breaking changes get a new version.** They would ship as
    `factorymeter/v2`, with `v1` still written for a while.
+7. **A rule id names the same recommendation.** `review.slow` is the same
+   advice in every release. The number a rule compares with can be tuned, and
+   the rule always says the number it uses.
 
 ## How a report is put together
 
@@ -113,6 +122,10 @@ up on GitHub alone:
   are created. Then the wait for a runner cannot be seen.
 - `release` uses deployments to a production environment. A repository with
   none falls back to its published releases, and the station is `partial`.
+- `release` is measured from the first production deploy in the store. A
+  change merged before it is not counted at release, and the report says how
+  many were left out. The store cannot tell a line that did not release from
+  one whose releases were not recorded yet.
 
 **The summary.** `--summary` writes the same report with every repository name,
 title and link left out. What is left is station numbers.
@@ -158,8 +171,8 @@ measured. It is never reported as zero.
 | Stations, metric registry, record types, report types, generated reference, JSON Schema | Built |
 | Store and incremental sync: `factorymeter sync`, [store.md](store.md) | Built |
 | `factorymeter report`: `factorymeter/v1` from the store, by station, with weekly history | Built |
-| Recommendations | Next |
-| A local page: `factorymeter serve` | After the recommendations |
+| Recommendations: rules with stable ids, sized against the line's own best four weeks, [reference/rules.md](reference/rules.md) | Built |
+| A local page: `factorymeter serve` | Next |
 | Tickets from GitHub Issues, Linear and Jira | After the page |
 
 `snapshot` and `trend` are the first generation. They read GitHub on every run,

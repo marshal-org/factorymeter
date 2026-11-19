@@ -160,7 +160,7 @@
       "does": "The merged change reaches production.",
       "item": "change",
       "arrives": "The change merges.",
-      "leaves": "The first production deploy of the repository after the merge.",
+      "leaves": "The first production deploy of the repository after the merge. A change merged before the first production deploy in the store is not counted.",
       "needs": [
         "change",
         "deploy"
@@ -1432,6 +1432,225 @@
         "change"
       ],
       "definition": "Lines added plus lines deleted, over the changes merged in the period. The median.",
+      "since": "v1"
+    }
+  ],
+  "recommendation_rules": [
+    {
+      "id": "code.slow",
+      "station": "code",
+      "title": "Get changes ready for review sooner",
+      "fires": "The station is the constraint. Or it holds an item at least 25 percent longer than in its own best four weeks, and running at that pace would give back at least 5 percent of the hours changes are held before the merge.",
+      "reads": [
+        "code.held.total",
+        "code.held.share",
+        "code.work.p50"
+      ],
+      "sized": "The mean hours an item is held at the station now, less the same mean in the station's best four weeks, times the items that leave the station in a week. Each item is capped at the 90th percentile of the items it is averaged with.",
+      "play": "decide-up-front",
+      "since": "v1"
+    },
+    {
+      "id": "ci.slow",
+      "station": "ci",
+      "title": "Make CI rounds shorter",
+      "fires": "The station is the constraint. Or it holds an item at least 25 percent longer than in its own best four weeks, and running at that pace would give back at least 5 percent of the hours changes are held before the merge.",
+      "reads": [
+        "ci.held.total",
+        "ci.held.share",
+        "ci.work.p50",
+        "ci.wait.p50"
+      ],
+      "sized": "The mean hours an item is held at the station now, less the same mean in the station's best four weeks, times the items that leave the station in a week. Each item is capped at the 90th percentile of the items it is averaged with.",
+      "play": "find-the-constraint",
+      "since": "v1"
+    },
+    {
+      "id": "verify.slow",
+      "station": "verify",
+      "title": "Bring changes up on an environment faster",
+      "fires": "The station is the constraint. Or it holds an item at least 25 percent longer than in its own best four weeks, and running at that pace would give back at least 5 percent of the hours changes are held before the merge.",
+      "reads": [
+        "verify.held.total",
+        "verify.held.share",
+        "verify.wait.p50",
+        "verify.work.p50"
+      ],
+      "sized": "The mean hours an item is held at the station now, less the same mean in the station's best four weeks, times the items that leave the station in a week. Each item is capped at the 90th percentile of the items it is averaged with.",
+      "play": "environment-per-agent",
+      "since": "v1"
+    },
+    {
+      "id": "review.slow",
+      "station": "review",
+      "title": "Cut the wait for review",
+      "fires": "The station is the constraint. Or it holds an item at least 25 percent longer than in its own best four weeks, and running at that pace would give back at least 5 percent of the hours changes are held before the merge.",
+      "reads": [
+        "review.held.total",
+        "review.held.share",
+        "review.wait.p50",
+        "review.work.p50",
+        "review.queue"
+      ],
+      "sized": "The mean hours an item is held at the station now, less the same mean in the station's best four weeks, times the items that leave the station in a week. Each item is capped at the 90th percentile of the items it is averaged with.",
+      "play": "trust-is-earned-with-evidence",
+      "since": "v1"
+    },
+    {
+      "id": "merge.slow",
+      "station": "merge",
+      "title": "Merge finished changes sooner",
+      "fires": "The station is the constraint. Or it holds an item at least 25 percent longer than in its own best four weeks, and running at that pace would give back at least 5 percent of the hours changes are held before the merge.",
+      "reads": [
+        "merge.held.total",
+        "merge.held.share",
+        "merge.wait.p50",
+        "merge.queue"
+      ],
+      "sized": "The mean hours an item is held at the station now, less the same mean in the station's best four weeks, times the items that leave the station in a week. Each item is capped at the 90th percentile of the items it is averaged with.",
+      "play": "out-of-the-synchronous-loop",
+      "since": "v1"
+    },
+    {
+      "id": "release.slow",
+      "station": "release",
+      "title": "Release more often",
+      "fires": "The station is the constraint. Or it holds an item at least 25 percent longer than in its own best four weeks, and running at that pace would give back at least 5 percent of the hours changes are held on the whole line.",
+      "reads": [
+        "release.held.total",
+        "release.held.share",
+        "release.wait.p50",
+        "release.deploys",
+        "release.queue"
+      ],
+      "sized": "The mean hours an item is held at the station now, less the same mean in the station's best four weeks, times the items that leave the station in a week. Each item is capped at the 90th percentile of the items it is averaged with.",
+      "play": "find-the-constraint",
+      "since": "v1"
+    },
+    {
+      "id": "verify.missing",
+      "station": "verify",
+      "title": "Prove changes on a running environment before they merge",
+      "fires": "The verify station is not connected, and at least 50 percent of the changes merged in the window had no review by another person.",
+      "reads": [
+        "review.skipped"
+      ],
+      "sized": "",
+      "play": "agents-prove-their-work",
+      "since": "v1"
+    },
+    {
+      "id": "ci.failing",
+      "station": "ci",
+      "title": "Cut the share of CI rounds that fail",
+      "fires": "At least 15 percent of the CI rounds in the window failed, timed out or were run again.",
+      "reads": [
+        "ci.rework",
+        "ci.flow",
+        "ci.work.p50"
+      ],
+      "sized": "The share of failed rounds now, less the share in the best four weeks, times the rounds in a week, times the mean hours a round holds a change.",
+      "play": "",
+      "since": "v1"
+    },
+    {
+      "id": "ci.agents-fail-more",
+      "station": "ci",
+      "title": "Have agents run the checks before they push",
+      "fires": "CI rounds on changes by agents fail at least 5 points more often than rounds on changes by people. Both sides are drawn from at least 5 items.",
+      "reads": [
+        "ci.rework"
+      ],
+      "sized": "",
+      "play": "agents-prove-their-work",
+      "since": "v1"
+    },
+    {
+      "id": "merge.reverted",
+      "station": "merge",
+      "title": "Find out why merged changes get reverted",
+      "fires": "At least 5 percent of the changes merged in the window were reverted later, and at least 3 of them.",
+      "reads": [
+        "merge.rework"
+      ],
+      "sized": "",
+      "play": "agents-prove-their-work",
+      "since": "v1"
+    },
+    {
+      "id": "code.abandoned",
+      "station": "code",
+      "title": "Find out why changes are closed without merging",
+      "fires": "At least 20 percent of the changes closed in the window were closed without merging.",
+      "reads": [
+        "code.rework"
+      ],
+      "sized": "",
+      "play": "decide-up-front",
+      "since": "v1"
+    },
+    {
+      "id": "review.queue-growing",
+      "station": "review",
+      "title": "Clear the review queue",
+      "fires": "At least 5 changes wait for a first review at the end of the window, and the trend of the queue is worse: it is longer than at the end of the window before by more than the report calls flat. The rule is silent when no change in the store was ever reviewed by another person.",
+      "reads": [
+        "review.queue",
+        "review.queue.oldest",
+        "review.wait.p50"
+      ],
+      "sized": "",
+      "play": "trust-is-earned-with-evidence",
+      "since": "v1"
+    },
+    {
+      "id": "merge.approved-waiting",
+      "station": "merge",
+      "title": "Merge the changes that are already approved",
+      "fires": "At least 3 changes have been approved for more than 24 hours and are not merged at the end of the window.",
+      "reads": [
+        "merge.queue",
+        "merge.queue.oldest"
+      ],
+      "sized": "",
+      "play": "out-of-the-synchronous-loop",
+      "since": "v1"
+    },
+    {
+      "id": "code.stale-drafts",
+      "station": "code",
+      "title": "Finish or close the drafts that stopped moving",
+      "fires": "At least 3 changes have been a draft for more than 14 days at the end of the window.",
+      "reads": [
+        "code.queue",
+        "code.queue.oldest"
+      ],
+      "sized": "",
+      "play": "",
+      "since": "v1"
+    },
+    {
+      "id": "review.agents-wait-longer",
+      "station": "review",
+      "title": "Find out why changes by agents wait longer for review",
+      "fires": "The median wait for a first review is at least 1.5 times as long for changes by agents as for changes by people, and at least 1 hour longer. Both sides are drawn from at least 5 items.",
+      "reads": [
+        "review.wait.p50"
+      ],
+      "sized": "",
+      "play": "trust-is-earned-with-evidence",
+      "since": "v1"
+    },
+    {
+      "id": "code.agent-changes-large",
+      "station": "code",
+      "title": "Have agents ship smaller changes",
+      "fires": "The median change by an agent is at least 2 times the size of the median change by a person, and at least 200 lines. Both sides are drawn from at least 5 items.",
+      "reads": [
+        "line.size.p50"
+      ],
+      "sized": "",
+      "play": "",
       "since": "v1"
     }
   ]

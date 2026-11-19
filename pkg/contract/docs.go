@@ -143,6 +143,9 @@ type Catalog struct {
 	Rules    []string       `json:"rules"`
 	Stations []line.Station `json:"stations"`
 	Metrics  []line.Metric  `json:"metrics"`
+	// RecommendationRules are the rules behind "where to invest". The plain
+	// name was taken by the rules of the metrics.
+	RecommendationRules []line.Rule `json:"recommendation_rules"`
 }
 
 // KindDoc describes one kind of metric.
@@ -159,7 +162,7 @@ type UnitDoc struct {
 
 // NewCatalog builds the catalog from the registry.
 func NewCatalog() Catalog {
-	c := Catalog{Schema: Version, Rules: Rules, Stations: line.Stations, Metrics: line.Registry}
+	c := Catalog{Schema: Version, Rules: Rules, Stations: line.Stations, Metrics: line.Registry, RecommendationRules: line.Rules}
 	for _, k := range line.Kinds {
 		c.Kinds = append(c.Kinds, KindDoc{k, line.KindDoes[k]})
 	}
@@ -260,6 +263,58 @@ func ReportMarkdown() string {
 	return strings.TrimRight(b.String(), "\n") + "\n"
 }
 
+// HowRecommended says how every recommendation is made, whatever the rule.
+var HowRecommended = []string{
+	"A rule is a fixed test on the numbers of the report. It fires or it does not. Nothing is guessed and no model is asked.",
+	fmt.Sprintf("A station is compared with itself, not with other companies: with its own best %d weeks in a row inside the window of the report. A stretch counts only when at least %d items left the station in it. A window of %d weeks or less has no best weeks, and the gain is not sized.", line.BestWeeks, line.MinSample, line.BestWeeks),
+	"Hours freed a week is the waiting that goes away if the station gets back to that pace. It is waiting time of changes, not working time of people. A rule that cannot size its gain leaves it empty. A gain of 0 means no stretch of the window did better.",
+	"The order is: the constraint first, then the largest hours freed, then the rest in the order of this page.",
+	fmt.Sprintf("Confidence is how much data stands behind the numbers: high from %d items, medium from %d, low below that. For a sized gain it is the smaller of the items in the window and the items in the best weeks. A rule that counts what stands in a queue is always high.", line.HighSample, line.MediumSample),
+	"Every recommendation carries its evidence: each number the rule read, the number it was compared with, and a sentence that says both.",
+	"A rule about a queue names up to 5 items to look at first, the one that has stood longest first. A summary names none.",
+	"A rule id never changes meaning. A rule whose test has to change gets a new id.",
+}
+
+// RulesMarkdown renders the recommendation rules as a reference page.
+func RulesMarkdown() string {
+	var b strings.Builder
+	b.WriteString(generated)
+	b.WriteString("# Recommendations reference\n\n")
+	fmt.Fprintf(&b, "Contract `%s`. %d rules.\n\n", Version, len(line.Rules))
+	b.WriteString("A report says where to invest. Every recommendation in it comes from one of the rules listed here. The same list is in [`metrics.json`](metrics.json) under `recommendation_rules`, and `factorymeter rules` prints it.\n\n")
+	b.WriteString("## How a recommendation is made\n\n")
+	for _, r := range HowRecommended {
+		fmt.Fprintf(&b, "- %s\n", r)
+	}
+	b.WriteString("\n## The rules\n\n| Rule | Station | What it recommends | Sizes its gain |\n|---|---|---|---|\n")
+	for _, r := range line.Rules {
+		st, _ := line.StationByID(r.Station)
+		sized := "no"
+		if r.Sized != "" {
+			sized = "yes"
+		}
+		fmt.Fprintf(&b, "| [`%s`](#%s) | %s | %s | %s |\n", r.ID, anchor(r.ID), st.Name, cell(r.Title), sized)
+	}
+	for _, r := range line.Rules {
+		st, _ := line.StationByID(r.Station)
+		fmt.Fprintf(&b, "\n## %s\n\n<a id=\"%s\"></a>Rule `%s`. Station: %s.\n\n", r.Title, anchor(r.ID), r.ID, st.Name)
+		fmt.Fprintf(&b, "- Fires when: %s\n", r.Fires)
+		fmt.Fprintf(&b, "- Reads: %s.\n", code(r.Reads))
+		if r.Sized != "" {
+			fmt.Fprintf(&b, "- Hours freed: %s\n", r.Sized)
+		} else {
+			b.WriteString("- Hours freed: not sized.\n")
+		}
+		if url := r.PlayURL(); url != "" {
+			fmt.Fprintf(&b, "- Practice: [%s](%s)\n", strings.ReplaceAll(r.Play, "-", " "), url)
+		}
+	}
+	return strings.TrimRight(b.String(), "\n") + "\n"
+}
+
+// anchor turns a rule id into the id of its section.
+func anchor(id string) string { return "rule-" + strings.ReplaceAll(id, ".", "-") }
+
 // ReportSchema is the JSON Schema of the report.
 func ReportSchema() map[string]any {
 	return Schema(Report{}, SchemaID, "factorymeter report, version 1",
@@ -281,6 +336,7 @@ func Files() (map[string][]byte, error) {
 		"metrics.json": catalog,
 		"records.md":   []byte(RecordsMarkdown()),
 		"report.md":    []byte(ReportMarkdown()),
+		"rules.md":     []byte(RulesMarkdown()),
 		SchemaFile:     schema,
 	}, nil
 }

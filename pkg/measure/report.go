@@ -516,14 +516,7 @@ func (l *Line) Report(o Options) (*contract.Report, error) {
 			shares = append(shares, share{st, *hs.Value, hs.Previous})
 		}
 		if !o.Summary && s.Status != contract.StatusNotConnected {
-			for i, x := range standing(l.staysOf(st.ID+".queue", sel{}), w.until) {
-				if i == 5 {
-					break
-				}
-				it := l.items[x.item]
-				s.Oldest = append(s.Oldest, contract.Item{Kind: it.kind, Key: it.key, URL: it.url, Title: it.title,
-					Class: classNames[it.class], Hours: round4(w.until.Sub(x.from).Hours())})
-			}
+			s.Oldest = l.pointers(standing(l.staysOf(st.ID+".queue", sel{}), w.until), w.until, 5)
 		}
 		rep.Stations = append(rep.Stations, s)
 	}
@@ -571,6 +564,8 @@ func (l *Line) Report(o Options) (*contract.Report, error) {
 		}
 		rep.Verdict = contract.Verdict{Headline: head + ".", Constraint: top.st.ID, Detail: detail}
 	}
+
+	rep.Recommendations = l.advise(o, w, status, whole, rep.Verdict.Constraint)
 
 	rep.Coverage, limits = l.coverage(o, w, status, limits)
 	rep.Limits = limits
@@ -702,6 +697,10 @@ func (l *Line) coverage(o Options, w window, status map[string]stationState, lim
 	}
 	if status[line.Release].status != contract.StatusNotConnected {
 		limits = append(limits, "The store has no list of the commits in each deploy. The first production deploy after a merge is taken as the one that shipped it.")
+		if n := len(between(l.obsOf(unseenAtRelease, sel{}), w.since, w.until)); n > 0 {
+			limits = append(limits, fmt.Sprintf("%s merged in the window before the first production deploy in the store, and %s not counted at release. The store cannot tell a line that did not release from one whose releases were not recorded yet.",
+				capital(count(n, "change")), plural(n, "is", "are")))
+		}
 	}
 	return cov, limits
 }
