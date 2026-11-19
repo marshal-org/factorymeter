@@ -157,7 +157,19 @@ For a page to keep or to publish from a job, use
 			if err != nil {
 				return err
 			}
-			target := strings.TrimSuffix(strings.TrimPrefix(args[0], "https://github.com/"), "/")
+			target, err := parseTarget(args[0])
+			if err != nil {
+				return err
+			}
+			host, err := parseAddr(addr)
+			if err != nil {
+				return err
+			}
+			for i, h := range hosts {
+				if hosts[i], err = parseHost(h); err != nil {
+					return err
+				}
+			}
 			path, _, err := storeDir(dir, target)
 			if err != nil {
 				return err
@@ -166,13 +178,6 @@ For a page to keep or to publish from a job, use
 			// Fail now, with the hint to sync, and not on the first request.
 			if _, err := src.Report(web.Query{Weeks: 13}); err != nil {
 				return err
-			}
-			host, _, err := net.SplitHostPort(addr)
-			if err != nil {
-				return fmt.Errorf("cannot read --addr %q. Use host:port, such as 127.0.0.1:7377", addr)
-			}
-			for i, h := range hosts {
-				hosts[i] = strings.ToLower(strings.TrimSpace(h))
 			}
 			// An address of this machine that was asked for by name is one the
 			// page is meant to be reached under.

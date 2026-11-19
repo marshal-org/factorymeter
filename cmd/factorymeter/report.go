@@ -75,7 +75,10 @@ station numbers only and is safe to share.`,
 			if err != nil {
 				return err
 			}
-			target := strings.TrimSuffix(strings.TrimPrefix(args[0], "https://github.com/"), "/")
+			target, err := parseTarget(args[0])
+			if err != nil {
+				return err
+			}
 			path, _, err := storeDir(dir, target)
 			if err != nil {
 				return err

@@ -142,7 +142,9 @@ func (s *source) load(cmd *cobra.Command, args []string) (raw rawFile, now, from
 		if !s.quiet {
 			k.Opt.Logf = progress
 		}
-		raw.Target = strings.TrimSuffix(strings.TrimPrefix(args[0], "https://github.com/"), "/")
+		if raw.Target, err = parseTarget(args[0]); err != nil {
+			return raw, now, from, to, err
+		}
 		if raw.Repos, err = k.Target(cmd.Context(), raw.Target); err != nil {
 			return raw, now, from, to, err
 		}

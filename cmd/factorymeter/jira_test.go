@@ -450,7 +450,7 @@ func TestActionSyncReadsJira(t *testing.T) {
 	}
 
 	// Projects are split on commas, spaces and line breaks, and are not
-	// globbed: a star stays a key that is not one.
+	// globbed: a star is not a key, and is refused before any request.
 	text, _ = r.step("sync", append(env, site, email, token, "FM_JIRA_PROJECTS= eng,\n ENG ")...)
 	if !strings.Contains(text, "Jira 127.0.0.1: tickets 2") || strings.Contains(text, "failed") {
 		t.Errorf("projects:\n%s", text)
@@ -461,7 +461,7 @@ func TestActionSyncReadsJira(t *testing.T) {
 	}
 	cmd.Env = append(cmd.Env, append(env, site, email, token, "FM_JIRA_PROJECTS=ENG *")...)
 	b, err := cmd.CombinedOutput()
-	if err == nil || !strings.Contains(string(b), `"*" is not the key of a Jira project`) {
+	if err == nil || !strings.Contains(string(b), `cannot read --jira-project "*" as a key`) {
 		t.Errorf("a star as a project: %v\n%s", err, b)
 	}
 
