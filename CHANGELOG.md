@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/marshal-org/factorymeter/compare/v0.1.0...v0.2.0) (2026-11-19)
+
+
+### Features
+
+* **sync:** show what a sync will do, how far it is and how long is left ([f7370a1](https://github.com/marshal-org/factorymeter/commit/f7370a1485b7b1ee10b1681775ec9a35091b3a53))
+
 ## 0.1.0 (2026-11-19)
 
 
