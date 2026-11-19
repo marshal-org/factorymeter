@@ -367,6 +367,190 @@ func TestReleaseIsMeasuredFromItsFirstDeploy(t *testing.T) {
 	}
 }
 
+// mergedAs gives a merged change the commit its merge left on the branch.
+func mergedAs(sha string, at time.Time) opt {
+	return func(c *record.Change) {
+		merged(at)(c)
+		c.MergeSHA = sha
+	}
+}
+
+func into(base string) opt { return func(c *record.Change) { c.BaseRef = base } }
+
+// A deploy of the commit a merge left holds what merged into the branch up
+// to that merge, and nothing that merged later.
+//
+// Hours after t0:
+//
+//	 1  change 1 merges into main as m1
+//	 2  deploy of m1                       (the first deploy in the store)
+//	 3  change 2 merges into main as m2
+//	 4  change 3 merges into main as m3
+//	 5  change 4 merges into main as m4
+//	 6  deploy of m3: holds 2 and 3, not 4
+//	 7  deploy of m2 again, a rollback: holds nothing new
+//	 8  change 5 merges into the branch feat, which is never deployed
+//	 9  change 6 merges feat into main as m6
+//	10  deploy of m6: holds 4, 5 and 6
+//	11  change 7 merges into main as m7
+//	12  deploy of a commit that is no merge: by its time it holds 7
+//	13  change 8 merges into main as m8, and nothing deploys after it
+func TestADeployHoldsWhatMergedUpToItsCommit(t *testing.T) {
+	t0 := end.Add(-3 * day)
+	at := func(hours int) time.Time { return t0.Add(time.Duration(hours) * h) }
+	b := NewBuilder(registry(t))
+	rb := b.Repo(RepoScope{Name: repo, From: end.Add(-26 * week), SyncedAt: end})
+	for _, c := range []record.Change{
+		change(1, t0, mergedAs("m1", at(1))),
+		change(2, at(2), mergedAs("m2", at(3))),
+		change(3, at(3), mergedAs("m3", at(4))),
+		change(4, at(4), mergedAs("m4", at(5))),
+		change(5, at(7), mergedAs("m5", at(8)), into("feat")),
+		change(6, at(8), mergedAs("m6", at(9))),
+		change(7, at(10), mergedAs("m7", at(11))),
+		change(8, at(12), mergedAs("m8", at(13))),
+	} {
+		rb.Change(&c)
+	}
+	for _, d := range []record.Deploy{
+		deployment("production", "main", "m1", true, at(2), 0, record.DeploySuccess),
+		deployment("production", "main", "m3", true, at(6), 0, record.DeploySuccess),
+		deployment("production", "main", "m2", true, at(7), 0, record.DeploySuccess),
+		deployment("production", "main", "m6", true, at(10), 0, record.DeploySuccess),
+		deployment("production", "main", "pushed", true, at(12), 0, record.DeploySuccess),
+	} {
+		rb.Deploy(&d)
+	}
+	rb.Done()
+	l := b.Line()
+
+	// The wait of each change, in the order its deploy came. Change 1 merged
+	// before the first deploy in the store and is not counted.
+	//   2: 3 to 6    3: 4 to 6    4: 5 to 10    5: 8 to 10    6: 9 to 10    7: 11 to 12
+	if got, want := vals(l.obs["release.wait"]), []float64{3, 2, 5, 2, 1, 1}; !same(got, want) {
+		t.Errorf("release.wait = %v, want %v", got, want)
+	}
+	if got := vals(l.obs[unseenAtRelease]); len(got) != 1 {
+		t.Errorf("unseen at release = %v, want change 1", got)
+	}
+	// Change 8 still stands in the queue. Change 4 stood from 5 to 10: the
+	// two deploys in between did not take it out.
+	var open, four int
+	for _, s := range l.stays["release.queue"] {
+		if s.to.IsZero() {
+			open++
+		}
+		if s.from.Equal(at(5)) && s.to.Equal(at(10)) {
+			four++
+		}
+	}
+	if len(l.stays["release.queue"]) != 7 || open != 1 || four != 1 {
+		t.Errorf("release.queue = %+v", l.stays["release.queue"])
+	}
+
+	r, err := l.Report(Options{Target: repo, Now: end})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "4 of the 5 production deploys in the store that did not fail are of the commit a merge left, and each holds the changes merged into its branch up to that merge. " +
+		"Of the other deploys only the time is known: the first one after a merge is taken as the one that shipped it."
+	if !strings.Contains(strings.Join(r.Limits, "\n"), want) {
+		t.Errorf("limits lack %q:\n%s", want, strings.Join(r.Limits, "\n"))
+	}
+}
+
+// A store written before the merge commit was read has none, and a deploy
+// then holds what merged before it started, as it always did.
+func TestADeployWithNoMergeCommitGoesByItsTime(t *testing.T) {
+	t0 := end.Add(-3 * day)
+	b := NewBuilder(registry(t))
+	rb := b.Repo(RepoScope{Name: repo, From: end.Add(-26 * week), SyncedAt: end})
+	for _, c := range []record.Change{change(1, t0, merged(t0.Add(h))), change(2, t0.Add(2*h), merged(t0.Add(3*h))), change(3, t0.Add(4*h), merged(t0.Add(5*h)))} {
+		rb.Change(&c)
+	}
+	for _, d := range []record.Deploy{
+		deployment("production", "main", "", true, t0.Add(2*h), 0, record.DeploySuccess),
+		deployment("production", "main", "x", true, t0.Add(6*h), 0, record.DeploySuccess),
+	} {
+		rb.Deploy(&d)
+	}
+	rb.Done()
+	l := b.Line()
+	if got, want := vals(l.obs["release.wait"]), []float64{3, 1}; !same(got, want) {
+		t.Errorf("release.wait = %v, want %v", got, want)
+	}
+	r, err := l.Report(Options{Target: repo, Now: end})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "No production deploy in the store is of the commit a merge left"; !strings.Contains(strings.Join(r.Limits, "\n"), want) {
+		t.Errorf("limits lack %q:\n%s", want, strings.Join(r.Limits, "\n"))
+	}
+}
+
+// The runs a merge queue starts are on a commit the queue made. They join
+// their change by the name of the branch, as a CI round of their own, and
+// the time they fly is taken out of the merge station.
+//
+// The change opens at t0 with one commit. Its pull request round takes 30
+// minutes. It is approved at 2 hours and merges at 4. The queue runs CI from
+// 3h to 3h30 and fails, then again from 3h30 to 4h and passes.
+func TestMergeQueueRuns(t *testing.T) {
+	t0 := end.Add(-3 * day)
+	b := NewBuilder(registry(t))
+	rb := b.Repo(RepoScope{Name: repo, From: end.Add(-26 * week), SyncedAt: end})
+	c := change(7, t0, review(record.ReviewApproved, t0.Add(2*h)), merged(t0.Add(4*h)))
+	rb.Change(&c)
+	queue := func(sha, branch, event string, from time.Time, conclusion string) record.CIRun {
+		x := run(sha, 1, from, from, from.Add(30*time.Minute), conclusion)
+		x.Event, x.Branch = event, branch
+		return x
+	}
+	for _, x := range []record.CIRun{
+		run("sha7", 1, t0, t0, t0.Add(30*time.Minute), "success"),
+		queue("q1", "gh-readonly-queue/main/pr-7-aaa", "merge_group", t0.Add(3*h), "failure"),
+		queue("q2", "gh-readonly-queue/main/pr-7-bbb", "merge_group", t0.Add(3*h+30*time.Minute), "success"),
+		// None of these is a queue run of a change in the store.
+		queue("q3", "gh-readonly-queue/main/pr-99-ccc", "merge_group", t0.Add(3*h), "failure"),
+		queue("q4", "gh-readonly-queue/main/pr-7-ddd", "push", t0.Add(3*h), "failure"),
+		queue("q5", "feat/pr-7-eee", "merge_group", t0.Add(3*h), "failure"),
+	} {
+		rb.CIRun(&x)
+	}
+	rb.Done()
+	l := b.Line()
+	// Three rounds: the pull request's and the two of the queue.
+	if got, want := vals(l.obs["ci.rework"]), []float64{0, 1, 0}; !same(got, want) {
+		t.Errorf("ci.rework = %v, want %v", got, want)
+	}
+	if got, want := vals(l.obs["ci.held"]), []float64{0.5, 0.5, 0.5}; !same(got, want) {
+		t.Errorf("ci.held = %v, want %v", got, want)
+	}
+	// From the approval to the merge is 2 hours. The queue ran CI for one.
+	if got, want := vals(l.obs["merge.held"]), []float64{1}; !same(got, want) {
+		t.Errorf("merge.held = %v, want %v", got, want)
+	}
+	if got := l.repos[0]; got.ciRuns != 6 || got.ciJoined != 3 {
+		t.Errorf("runs %d, joined %d, want 6 and 3", got.ciRuns, got.ciJoined)
+	}
+
+	for branch, want := range map[string]int{
+		"gh-readonly-queue/main/pr-7-aaa":             7,
+		"gh-readonly-queue/release/1.x/pr-1234-0a1b2": 1234,
+		"gh-readonly-queue/pr-5-x/pr-6-abc":           6,
+		"gh-readonly-queue/main/pr-7":                 0,
+		"gh-readonly-queue/main/pr-x-aaa":             0,
+		"gh-readonly-queue/main/pr-0-aaa":             0,
+		"gh-readonly-queue/main":                      0,
+		"main":                                        0,
+		"":                                            0,
+	} {
+		if got, ok := queuedFor(branch); got != want && (ok || want != 0) || ok != (want != 0) {
+			t.Errorf("queuedFor(%q) = %d, %v, want %d", branch, got, ok, want)
+		}
+	}
+}
+
 func TestRevertAndAbandon(t *testing.T) {
 	b := NewBuilder(registry(t))
 	rb := b.Repo(RepoScope{Name: repo, From: end.Add(-26 * week), SyncedAt: end})
@@ -618,7 +802,7 @@ func TestReport(t *testing.T) {
 			t.Errorf("limits lack %q:\n%s", want, limits)
 		}
 	}
-	for _, not := range []string{"wait for a runner", "list of the commits in each deploy"} {
+	for _, not := range []string{"wait for a runner", "production deploy"} {
 		if strings.Contains(limits, not) {
 			t.Errorf("limits speak of a station that is not connected: %q", not)
 		}
@@ -845,7 +1029,7 @@ func TestStatus(t *testing.T) {
 	for _, w := range []string{
 		"The CI runs in the store are stamped as started the moment they are created, so the wait for a runner cannot be seen. It is left empty.",
 		"The first sync has not finished for acme/lib. Its numbers are not complete. Run sync again.",
-		"The store has no list of the commits in each deploy.",
+		"No production deploy in the store is of the commit a merge left, so the store cannot tell which changes a deploy holds. The first production deploy after a merge is taken as the one that shipped it.",
 	} {
 		if !strings.Contains(limits, w) {
 			t.Errorf("limits lack %q:\n%s", w, limits)

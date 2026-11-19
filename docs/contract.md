@@ -129,6 +129,20 @@ up on GitHub alone:
   many were left out. The store cannot tell a line that did not release from
   one whose releases were not recorded yet.
 
+**Which deploy ships a change.** A production deploy of the commit a merge left
+on its branch holds the changes merged into that branch up to that merge, and
+none merged after it. A deploy of an older commit, such as a rollback, ships
+nothing new. Of a deploy whose commit is no merge commit in the store, only the
+time is known: it is taken to hold what merged before it started. A change
+merged into a branch that is never deployed ships with the first deploy whose
+commit merged after it. The report says how many deploys were matched by their
+commit.
+
+**The merge queue.** A merge queue runs CI on a commit of its own, on a branch
+named after the pull request. Those runs are a CI round of that change, next to
+the rounds of its own commits. The time they run counts for `ci`, not for
+`merge`.
+
 **The summary.** `--summary` writes the same report with every repository name,
 title and link left out. What is left is station numbers.
 
@@ -176,8 +190,8 @@ measured. It is never reported as zero.
 | Recommendations: rules with stable ids, sized against the line's own best four weeks, [reference/rules.md](reference/rules.md) | Built |
 | A local page: `factorymeter serve`, and the same page as one file: `factorymeter report --html` | Built |
 | Tickets from GitHub Issues, the links from changes to the tickets they close, and the rules of the spec station | Built |
-| CI and release depth: failing workflows by name, merge queue runs, deploys matched by commit | Next |
-| The store kept between runs of the GitHub Action | After that |
+| CI and release depth: failing workflows by name, merge queue runs, deploys matched by commit | Built |
+| The store kept between runs of the GitHub Action | Next |
 | Tickets from Linear and Jira | After that |
 
 `snapshot` and `trend` are the first generation. They read GitHub on every run,

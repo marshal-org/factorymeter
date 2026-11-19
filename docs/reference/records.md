@@ -69,6 +69,7 @@ Every time is UTC. A time that has not happened is null, never a zero date. A re
 | `updated_at` | time | When the source last saw the change move. The sync resumes from here. |
 | `ready_at` | time or null | When the change first asked for review. Null while it has only ever been a draft. |
 | `merged_at` | time or null | When the change merged. Null when it has not. |
+| `merge_sha` | string | The commit the merge left on the base branch. A deploy of that commit holds the change. Empty when the change has not merged or the source does not say. |
 | `closed_at` | time or null | When the change closed, merged or not. Null while it is open. |
 | `additions` | integer | Lines added. |
 | `deletions` | integer | Lines deleted. |
@@ -123,6 +124,7 @@ Every time is UTC. A time that has not happened is null, never a zero date. A re
 | `workflow` | string | The name of the workflow. |
 | `event` | string | What started the run, in the source's words, such as pull_request or push. |
 | `sha` | string | The commit the run ran on. It ties the run to a change. |
+| `branch` | string | The branch the run ran on. A run of a merge queue is on a branch the queue made, and that name ties it to its change. |
 | `attempt` | integer | 1 for the first run, more for a run that was started again. |
 | `status` | string | Whether the run has finished, in the source's words. |
 | `conclusion` | string | How the run ended, in the source's words, such as success or failure. Empty while it runs. |

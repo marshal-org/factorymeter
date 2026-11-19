@@ -144,7 +144,7 @@ The constraint is the station that holds work the longest. For each station that
 | `ci.held.total` | Hours a week held at ci | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `ci.held.share` | Share of the line's time held at ci | `share` | lower | 5 | `class`, `agent`, `repo` |
 
-- `ci.flow`: CI rounds that finished in the period. A CI round is every run on one commit of a change. Skipped and cancelled runs are left out. The count is divided by the length of the period in weeks.
+- `ci.flow`: CI rounds that finished in the period. A CI round is every run on one commit of a change. The runs a merge queue starts for a change are a round of their own. Skipped and cancelled runs are left out. The count is divided by the length of the period in weeks.
 - `ci.wait.p50`: Hours from the first run of a CI round being created to the first run starting, over the rounds that finished in the period. The median.
 - `ci.wait.p90`: Hours from the first run of a CI round being created to the first run starting, over the rounds that finished in the period. The 90th percentile: one item in ten waited longer.
 - `ci.work.p50`: Hours with at least one run in flight, from the first run of a CI round starting to the last one finishing, over the rounds that finished in the period. The median.
@@ -257,7 +257,7 @@ The constraint is the station that holds work the longest. For each station that
 
 - Item: change.
 - Arrives: The change merges.
-- Leaves: The first production deploy of the repository after the merge. A change merged before the first production deploy in the store is not counted.
+- Leaves: The first production deploy that holds it. A change merged before the first production deploy in the store is not counted.
 - Measured from: `change`, `deploy` records.
 - Constraint: the station can be named the constraint.
 
@@ -275,9 +275,9 @@ The constraint is the station that holds work the longest. For each station that
 | `release.held.share` | Share of the line's time held at release | `share` | lower | 5 | `class`, `agent`, `repo` |
 | `release.deploys` | Production deploys | `per_week` | higher | none | `repo` |
 
-- `release.flow`: Merged changes that reached production in the period. Without a list of the commits in each deploy, the first production deploy of the repository after the merge is taken as the one that shipped it. The count is divided by the length of the period in weeks.
-- `release.wait.p50`: Hours from a change merging to the start of the production deploy that shipped it, over the changes that reached production in the period. Without a list of the commits in each deploy, the first production deploy of the repository after the merge is taken as the one that shipped it. The median.
-- `release.wait.p90`: Hours from a change merging to the start of the production deploy that shipped it, over the changes that reached production in the period. Without a list of the commits in each deploy, the first production deploy of the repository after the merge is taken as the one that shipped it. The 90th percentile: one item in ten waited longer.
+- `release.flow`: Merged changes that reached production in the period. A production deploy of the commit a merge left on its branch holds the changes merged into that branch up to that merge. Of any other deploy only the time is known, and it is taken to hold the changes merged before it started. The count is divided by the length of the period in weeks.
+- `release.wait.p50`: Hours from a change merging to the start of the production deploy that shipped it, over the changes that reached production in the period. A production deploy of the commit a merge left on its branch holds the changes merged into that branch up to that merge. Of any other deploy only the time is known, and it is taken to hold the changes merged before it started. The median.
+- `release.wait.p90`: Hours from a change merging to the start of the production deploy that shipped it, over the changes that reached production in the period. A production deploy of the commit a merge left on its branch holds the changes merged into that branch up to that merge. Of any other deploy only the time is known, and it is taken to hold the changes merged before it started. The 90th percentile: one item in ten waited longer.
 - `release.work.p50`: Hours from a production deploy being created to it reporting success, over the production deploys that reported success in the period. The median.
 - `release.work.p90`: Hours from a production deploy being created to it reporting success, over the production deploys that reported success in the period. The 90th percentile: one item in ten took longer.
 - `release.rework`: Share of the production deploys finished in the period that reported a failure or an error.
@@ -303,6 +303,6 @@ The constraint is the station that holds work the longest. For each station that
 - `line.flow`: Changes merged in the period, per week. For the whole line this counts changes by agents and by people. Automation is left out.
 - `line.lead.p50`: Hours from a change being opened to it merging, over the changes merged in the period. The median.
 - `line.lead.p90`: Hours from a change being opened to it merging, over the changes merged in the period. The 90th percentile: one change in ten took longer.
-- `line.delivery.p50`: Hours from the start of a change to the production deploy that shipped it, over the changes that reached production in the period. The start is the first commit or the opening of the change, whichever is earlier. The median. Without a list of the commits in each deploy, the first production deploy of the repository after the merge is taken as the one that shipped it.
+- `line.delivery.p50`: Hours from the start of a change to the production deploy that shipped it, over the changes that reached production in the period. The start is the first commit or the opening of the change, whichever is earlier. The median. A production deploy of the commit a merge left on its branch holds the changes merged into that branch up to that merge. Of any other deploy only the time is known, and it is taken to hold the changes merged before it started.
 - `line.agent_share`: Changes by agents divided by changes by agents and by people, over the changes merged in the period. Automation is left out of both sides. It is a floor: an agent that leaves no trace counts as a person.
 - `line.size.p50`: Lines added plus lines deleted, over the changes merged in the period. The median.

@@ -277,6 +277,12 @@ The report prints the limits that apply every time. They are not fine print.
   request that closes it is opened. An issue closed with no such pull request never counts as
   started. Linear and Jira are not read yet.
 - **CI means GitHub Actions.** Other CI systems are not read.
+- **A run of the merge queue belongs to one pull request.** The queue runs CI on a branch it makes
+  and names after a pull request. The run counts for that one, also when the branch carries the
+  pull requests ahead of it in the queue.
+- **A deploy is matched to changes by its commit.** A production deploy of the commit a merge left
+  holds what merged into that branch up to that merge. Of any other deploy only the time is known,
+  and it is taken to hold what merged before it started.
 - **A pull request is agent or human as a whole.** There is no line-level attribution.
 - **Work that skips pull requests is not measured.**
 

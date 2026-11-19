@@ -160,7 +160,7 @@
       "does": "The merged change reaches production.",
       "item": "change",
       "arrives": "The change merges.",
-      "leaves": "The first production deploy of the repository after the merge. A change merged before the first production deploy in the store is not counted.",
+      "leaves": "The first production deploy that holds it. A change merged before the first production deploy in the store is not counted.",
       "needs": [
         "change",
         "deploy"
@@ -440,7 +440,7 @@
         "change",
         "ci_run"
       ],
-      "definition": "CI rounds that finished in the period. A CI round is every run on one commit of a change. Skipped and cancelled runs are left out. The count is divided by the length of the period in weeks.",
+      "definition": "CI rounds that finished in the period. A CI round is every run on one commit of a change. The runs a merge queue starts for a change are a round of their own. Skipped and cancelled runs are left out. The count is divided by the length of the period in weeks.",
       "since": "v1"
     },
     {
@@ -1121,7 +1121,7 @@
         "change",
         "deploy"
       ],
-      "definition": "Merged changes that reached production in the period. Without a list of the commits in each deploy, the first production deploy of the repository after the merge is taken as the one that shipped it. The count is divided by the length of the period in weeks.",
+      "definition": "Merged changes that reached production in the period. A production deploy of the commit a merge left on its branch holds the changes merged into that branch up to that merge. Of any other deploy only the time is known, and it is taken to hold the changes merged before it started. The count is divided by the length of the period in weeks.",
       "since": "v1"
     },
     {
@@ -1141,7 +1141,7 @@
         "change",
         "deploy"
       ],
-      "definition": "Hours from a change merging to the start of the production deploy that shipped it, over the changes that reached production in the period. Without a list of the commits in each deploy, the first production deploy of the repository after the merge is taken as the one that shipped it. The median.",
+      "definition": "Hours from a change merging to the start of the production deploy that shipped it, over the changes that reached production in the period. A production deploy of the commit a merge left on its branch holds the changes merged into that branch up to that merge. Of any other deploy only the time is known, and it is taken to hold the changes merged before it started. The median.",
       "since": "v1"
     },
     {
@@ -1161,7 +1161,7 @@
         "change",
         "deploy"
       ],
-      "definition": "Hours from a change merging to the start of the production deploy that shipped it, over the changes that reached production in the period. Without a list of the commits in each deploy, the first production deploy of the repository after the merge is taken as the one that shipped it. The 90th percentile: one item in ten waited longer.",
+      "definition": "Hours from a change merging to the start of the production deploy that shipped it, over the changes that reached production in the period. A production deploy of the commit a merge left on its branch holds the changes merged into that branch up to that merge. Of any other deploy only the time is known, and it is taken to hold the changes merged before it started. The 90th percentile: one item in ten waited longer.",
       "since": "v1"
     },
     {
@@ -1395,7 +1395,7 @@
         "change",
         "deploy"
       ],
-      "definition": "Hours from the start of a change to the production deploy that shipped it, over the changes that reached production in the period. The start is the first commit or the opening of the change, whichever is earlier. The median. Without a list of the commits in each deploy, the first production deploy of the repository after the merge is taken as the one that shipped it.",
+      "definition": "Hours from the start of a change to the production deploy that shipped it, over the changes that reached production in the period. The start is the first commit or the opening of the change, whichever is earlier. The median. A production deploy of the commit a merge left on its branch holds the changes merged into that branch up to that merge. Of any other deploy only the time is known, and it is taken to hold the changes merged before it started.",
       "since": "v1"
     },
     {
@@ -1543,7 +1543,7 @@
       "id": "ci.failing",
       "station": "ci",
       "title": "Cut the share of CI rounds that fail",
-      "fires": "At least 15 percent of the CI rounds in the window failed, timed out or were run again.",
+      "fires": "At least 15 percent of the CI rounds in the window failed, timed out or were run again. The evidence names the workflows whose runs did so most often.",
       "reads": [
         "ci.rework",
         "ci.flow",

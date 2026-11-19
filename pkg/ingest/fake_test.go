@@ -33,6 +33,10 @@ type pr struct {
 	shas             []string
 	// closes are the issues the pull request closes, as "owner/name#7".
 	closes []string
+	// merged is when it merged, and mergeSHA the commit that left on its
+	// base branch. GitHub tells the second only to a query that asks.
+	merged   time.Time
+	mergeSHA string
 }
 
 type issue struct {
@@ -69,11 +73,15 @@ type release struct {
 }
 
 type repo struct {
-	name     string
-	missing  bool
-	prs      []*pr
-	issues   []*issue
-	runs     []ciRun
+	name    string
+	missing bool
+	prs     []*pr
+	issues  []*issue
+	runs    []ciRun
+	// branches and flows name the branch and the workflow of a run, by its
+	// id. A run in neither is of the workflow "ci" on the branch "fix/x".
+	branches map[int]string
+	flows    map[int]string
 	deploys  []deployment
 	releases []release
 }
@@ -89,6 +97,8 @@ type call struct {
 	size  int
 	// links is set when a pull request page asked for the issues it closes.
 	links bool
+	// merges is set when it asked for the commit each merge left.
+	merges bool
 	// since is the update time an issues request starts at.
 	since string
 	// event and created are the filters of a runs request.
@@ -238,7 +248,7 @@ func (h *fakeHub) graphql(query string, vars map[string]any, req *http.Request) 
 
 	case strings.Contains(query, "pullRequests("):
 		c := call{kind: "prs", repo: str(vars["owner"]) + "/" + str(vars["name"]), after: str(vars["after"]), asc: vars["dir"] == "ASC",
-			links: strings.Contains(query, "closingIssuesReferences")}
+			links: strings.Contains(query, "closingIssuesReferences"), merges: strings.Contains(query, "mergeCommit")}
 		if n, ok := vars["n"].(float64); ok {
 			c.size = int(n)
 		}
@@ -458,6 +468,12 @@ func (h *fakeHub) page(c call, vars map[string]any) any {
 			// GitHub answers what was asked and no more.
 			delete(nodes[len(nodes)-1], "closingIssuesReferences")
 		}
+		if !p.merged.IsZero() {
+			nodes[len(nodes)-1]["mergedAt"] = ts(p.merged)
+		}
+		if p.mergeSHA != "" && c.merges {
+			nodes[len(nodes)-1]["mergeCommit"] = obj{"oid": p.mergeSHA}
+		}
 		end = cursor(p)
 	}
 	return obj{"data": obj{"repository": obj{"nameWithOwner": r.name, "isPrivate": true,
@@ -517,7 +533,14 @@ func (h *fakeHub) rest(req *http.Request) any {
 		if conclusion == "" {
 			status = "in_progress"
 		}
-		runs = append(runs, obj{"id": x.id, "name": "ci", "event": x.event, "head_sha": x.sha, "run_attempt": 1,
+		name, branch := "ci", "fix/x"
+		if v, ok := r.flows[x.id]; ok {
+			name = v
+		}
+		if v, ok := r.branches[x.id]; ok {
+			branch = v
+		}
+		runs = append(runs, obj{"id": x.id, "name": name, "event": x.event, "head_sha": x.sha, "head_branch": branch, "run_attempt": 1,
 			"status": status, "conclusion": conclusion,
 			"created_at": ts(x.created), "run_started_at": ts(x.created), "updated_at": ts(x.created.Add(5 * time.Minute))})
 	}

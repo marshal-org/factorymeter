@@ -302,6 +302,9 @@ func (g gqlPR) toRecord(repo string) record.Change {
 		Additions: g.Additions, Deletions: g.Deletions, ChangedFiles: g.ChangedFiles, CommitCount: g.Commits.TotalCount,
 		Commits: []record.Commit{}, Reviews: []record.Review{},
 	}
+	if g.MergeCommit != nil && c.MergedAt != nil {
+		c.MergeSHA = g.MergeCommit.OID
+	}
 	for _, n := range g.Commits.Nodes {
 		k := record.Commit{
 			SHA: n.Commit.OID, AuthoredAt: n.Commit.AuthoredDate.UTC(), CommittedAt: n.Commit.CommittedDate.UTC(),
@@ -357,7 +360,7 @@ func (k *Collector) Runs(ctx context.Context, repo, event string, from, to time.
 			}
 			out = append(out, record.CIRun{
 				Source: record.GitHub, ID: record.CIRunID(record.GitHub, repo, r.ID, attempt), Repo: repo,
-				Workflow: r.Name, Event: r.Event, SHA: r.HeadSHA, Attempt: attempt, Status: r.Status, Conclusion: r.Conclusion,
+				Workflow: r.Name, Event: r.Event, SHA: r.HeadSHA, Branch: r.HeadBranch, Attempt: attempt, Status: r.Status, Conclusion: r.Conclusion,
 				CreatedAt: r.CreatedAt.UTC(), StartedAt: started.UTC(), UpdatedAt: r.UpdatedAt.UTC(),
 			})
 		}

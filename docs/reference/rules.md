@@ -108,7 +108,7 @@ A report says where to invest. Every recommendation in it comes from one of the 
 
 <a id="rule-ci-failing"></a>Rule `ci.failing`. Station: CI.
 
-- Fires when: At least 15 percent of the CI rounds in the window failed, timed out or were run again.
+- Fires when: At least 15 percent of the CI rounds in the window failed, timed out or were run again. The evidence names the workflows whose runs did so most often.
 - Reads: `ci.rework`, `ci.flow`, `ci.work.p50`.
 - Hours freed: The share of failed rounds now, less the share in the best four weeks, times the rounds in a week, times the mean hours a round holds a change.
 

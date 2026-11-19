@@ -148,7 +148,7 @@ var Rules = stamp([]Rule{
 	{
 		ID: "ci.failing", Station: CI, Title: "Cut the share of CI rounds that fail",
 		Reads: []string{"ci.rework", "ci.flow", "ci.work.p50"},
-		Fires: fmt.Sprintf("At least %s of the CI rounds in the window failed, timed out or were run again.", pct(CIFailing)),
+		Fires: fmt.Sprintf("At least %s of the CI rounds in the window failed, timed out or were run again. The evidence names the workflows whose runs did so most often.", pct(CIFailing)),
 		Sized: "The share of failed rounds now, less the share in the best four weeks, times the rounds in a week, times the mean hours a round holds a change.",
 	},
 	{

@@ -109,7 +109,7 @@ var Stations = []Station{
 		ID: Release, Name: "Release", Item: "change", Needs: []string{NeedChange, NeedDeploy}, InConstraint: true,
 		Does:    "The merged change reaches production.",
 		Arrives: "The change merges.",
-		Leaves:  "The first production deploy of the repository after the merge. A change merged before the first production deploy in the store is not counted.",
+		Leaves:  "The first production deploy that holds it. A change merged before the first production deploy in the store is not counted.",
 	},
 }
 

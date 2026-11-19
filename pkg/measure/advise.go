@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -407,6 +408,10 @@ func (a *adviser) ciFailing(r line.Rule) *contract.Recommendation {
 		e.Text += fmt.Sprintf(" It was %s %s.", say(m, *s.Previous), a.before(m))
 	}
 	rec.Evidence = append(rec.Evidence, e)
+	// A workflow name is a name, so a summary leaves it out.
+	if text := a.l.failingFlows(a.w.since, a.w.until, 3); text != "" && !a.o.Summary {
+		rec.Evidence = append(rec.Evidence, contract.Evidence{Metric: m.ID, Text: text})
+	}
 	a.cite(rec, "ci.flow", "ci.work.p50")
 	return rec
 }
@@ -581,4 +586,65 @@ func (a *adviser) codeAgentChangesLarge(r line.Rule) *contract.Recommendation {
 		count(int(math.Round(agent)), "line"), count(int(math.Round(human)), "line"))
 	rec.Evidence = append(rec.Evidence, e)
 	return rec
+}
+
+// failingFlows names the workflows whose runs failed, timed out or were run
+// again most often between two moments, the worst first. It counts runs, not
+// rounds: one round can hold the runs of several workflows.
+func (l *Line) failingFlows(from, to time.Time, most int) string {
+	lo := sort.Search(len(l.flowRuns), func(i int) bool { return !l.flowRuns[i].at.Before(from) })
+	hi := sort.Search(len(l.flowRuns), func(i int) bool { return !l.flowRuns[i].at.Before(to) })
+	type tally struct {
+		flow         int32
+		runs, failed int
+	}
+	by := map[int32]*tally{}
+	var list []*tally
+	for _, x := range l.flowRuns[lo:hi] {
+		t := by[x.flow]
+		if t == nil {
+			t = &tally{flow: x.flow}
+			by[x.flow] = t
+			list = append(list, t)
+		}
+		t.runs++
+		if x.failed {
+			t.failed++
+		}
+	}
+	sort.SliceStable(list, func(i, j int) bool {
+		a, b := list[i], list[j]
+		if a.failed != b.failed {
+			return a.failed > b.failed
+		}
+		if a.runs != b.runs {
+			return a.runs < b.runs
+		}
+		fa, fb := l.flows[a.flow], l.flows[b.flow]
+		if fa.name != fb.name {
+			return fa.name < fb.name
+		}
+		return l.names[fa.repo] < l.names[fb.repo]
+	})
+	// The repository is named when the line has more than one.
+	repos := map[int32]bool{}
+	for _, f := range l.flows {
+		repos[f.repo] = true
+	}
+	var parts []string
+	for _, t := range list {
+		if t.failed == 0 || len(parts) == most {
+			break
+		}
+		f := l.flows[t.flow]
+		name := strconv.Quote(f.name)
+		if len(repos) > 1 {
+			name += " of " + l.names[f.repo]
+		}
+		parts = append(parts, fmt.Sprintf("%s in %d of its %s", name, t.failed, count(t.runs, "run")))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "The workflows whose runs failed, timed out or were run again most often: " + strings.Join(parts, ", ") + "."
 }

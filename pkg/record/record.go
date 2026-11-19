@@ -14,7 +14,9 @@ import (
 )
 
 // SchemaVersion is the version of the record layout. The store writes it down
-// and refuses to read a store with a newer one.
+// and refuses to read a store with a newer one. A new field does not raise
+// it: a file written before the field reads with the field empty. It goes up
+// when a field goes away or comes to mean something else.
 const SchemaVersion = 1
 
 // Sources.
@@ -70,6 +72,7 @@ type Change struct {
 	UpdatedAt    time.Time  `json:"updated_at" parquet:"updated_at,timestamp(microsecond)" doc:"When the source last saw the change move. The sync resumes from here."`
 	ReadyAt      *time.Time `json:"ready_at" parquet:"ready_at,optional,timestamp(microsecond)" doc:"When the change first asked for review. Null while it has only ever been a draft."`
 	MergedAt     *time.Time `json:"merged_at" parquet:"merged_at,optional,timestamp(microsecond)" doc:"When the change merged. Null when it has not."`
+	MergeSHA     string     `json:"merge_sha" parquet:"merge_sha" doc:"The commit the merge left on the base branch. A deploy of that commit holds the change. Empty when the change has not merged or the source does not say."`
 	ClosedAt     *time.Time `json:"closed_at" parquet:"closed_at,optional,timestamp(microsecond)" doc:"When the change closed, merged or not. Null while it is open."`
 	Additions    int        `json:"additions" parquet:"additions" doc:"Lines added."`
 	Deletions    int        `json:"deletions" parquet:"deletions" doc:"Lines deleted."`
@@ -125,6 +128,7 @@ type CIRun struct {
 	Workflow   string    `json:"workflow" parquet:"workflow" doc:"The name of the workflow."`
 	Event      string    `json:"event" parquet:"event" doc:"What started the run, in the source's words, such as pull_request or push."`
 	SHA        string    `json:"sha" parquet:"sha" doc:"The commit the run ran on. It ties the run to a change."`
+	Branch     string    `json:"branch" parquet:"branch" doc:"The branch the run ran on. A run of a merge queue is on a branch the queue made, and that name ties it to its change."`
 	Attempt    int       `json:"attempt" parquet:"attempt" doc:"1 for the first run, more for a run that was started again."`
 	Status     string    `json:"status" parquet:"status" doc:"Whether the run has finished, in the source's words."`
 	Conclusion string    `json:"conclusion" parquet:"conclusion" doc:"How the run ended, in the source's words, such as success or failure. Empty while it runs."`

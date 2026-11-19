@@ -16,7 +16,7 @@ func TestAPullRequestBecomesAChange(t *testing.T) {
 	const in = `{
 	  "number": 7, "url": "https://github.com/acme/app/pull/7", "title": "Fix it", "body": "Why.", "state": "MERGED",
 	  "createdAt": "2026-08-03T10:00:00+02:00", "updatedAt": "2026-08-04T09:00:00Z", "mergedAt": "2026-08-04T09:00:00Z", "closedAt": "2026-08-04T09:00:00Z",
-	  "additions": 12, "deletions": 3, "changedFiles": 2, "headRefName": "fix/it", "baseRefName": "main",
+	  "additions": 12, "deletions": 3, "changedFiles": 2, "headRefName": "fix/it", "baseRefName": "main", "mergeCommit": {"oid": "m7"},
 	  "author": {"__typename": "Bot", "login": "devin-ai-integration"},
 	  "commits": {"totalCount": 140, "nodes": [{"commit": {"oid": "abc", "authoredDate": "2026-08-03T07:00:00Z", "committedDate": "2026-08-03T07:30:00Z",
 	    "message": "fix: it\n\nSigned-off-by: Dev <dev@example.invalid>\nCo-Authored-By: Claude <noreply@anthropic.com>",
@@ -44,6 +44,15 @@ func TestAPullRequestBecomesAChange(t *testing.T) {
 	}
 	if c.CommitCount != 140 || len(c.Commits) != 1 {
 		t.Fatalf("commits: %d of %d", len(c.Commits), c.CommitCount)
+	}
+	// The commit the merge left on the base branch. On an open pull request
+	// GitHub may name a test merge there, and that one is no merge.
+	if c.MergeSHA != "m7" {
+		t.Errorf("merge commit %q", c.MergeSHA)
+	}
+	g.State, g.MergedAt = "OPEN", nil
+	if open := g.toRecord("acme/app"); open.MergeSHA != "" {
+		t.Errorf("an open change has the merge commit %q", open.MergeSHA)
 	}
 	k := c.Commits[0]
 	if k.SHA != "abc" || k.Parents != 1 || len(k.Authors) != 2 || k.Authors[0].Login != "dev" || k.Authors[1].Login != "" {
