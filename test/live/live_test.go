@@ -809,7 +809,7 @@ func TestLiveReleases(t *testing.T) {
 	t.Run("install", func(t *testing.T) {
 		home := t.TempDir()
 		cmd := exec.Command("sh", "../../site/install.sh")
-		cmd.Env = []string{"HOME=" + home, "PATH=/usr/bin:/bin:/usr/local/bin"}
+		cmd.Env = []string{"HOME=" + home, "PATH=/usr/bin:/bin"}
 		out, err := cmd.CombinedOutput()
 		if err != nil || !strings.Contains(string(out), "Installed factorymeter "+latest) {
 			t.Fatalf("%v\n%s", err, out)
