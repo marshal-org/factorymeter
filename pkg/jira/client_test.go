@@ -140,6 +140,10 @@ func TestMessageIsCut(t *testing.T) {
 	if got := message([]byte(`{"errorMessages":["` + long + `"]}`)); len(got) != 200 {
 		t.Errorf("message has %d characters", len(got))
 	}
+	// An address with no site behind it answers with one message.
+	if got := message([]byte(`{"errorMessage": "Site temporarily unavailable", "errorCode": "OTHER"}`)); got != "Site temporarily unavailable" {
+		t.Errorf("message = %q", got)
+	}
 	if got := message([]byte("  plain  ")); got != "plain" {
 		t.Errorf("message = %q", got)
 	}
@@ -379,6 +383,11 @@ func TestNewReadsTheSite(t *testing.T) {
 		{"http://10.0.0.5:8080", "must be asked over https"},
 		{"http://localhost.example.com", "must be asked over https"},
 		{"ftp://acme.atlassian.net", "the Jira site must be asked over https"},
+		// A site name alone is not a host. A name that could be a pasted token
+		// is not repeated.
+		{"acme", "the Jira site acme is not a whole host. Pass the host of the site, such as acme.atlassian.net"},
+		{"https://acme-dev", "such as acme-dev.atlassian.net"},
+		{"ATATT3xFhunter2secretB7D8", "the Jira site is not a whole host. Pass the host of the site, such as acme.atlassian.net"},
 	}
 	for _, tc := range bad {
 		c, err := New(tc.in, email, secret)

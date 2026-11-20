@@ -128,7 +128,7 @@ func serveCmd() *cobra.Command {
 	var hosts []string
 	var summary bool
 	cmd := &cobra.Command{
-		Use:   "serve <owner/repo | owner>",
+		Use:   "serve [owner/repo | owner]",
 		Short: "Show the line as a local page, with charts, from the local store",
 		Long: `serve reads the local store that "sync" fills and shows the delivery line as
 a page in the browser: the constraint, the seven stations in order, where to
@@ -151,13 +151,13 @@ For a page to keep or to publish from a job, use
 		Example: `  factorymeter sync my-org && factorymeter serve my-org
   factorymeter serve owner/repo --addr 127.0.0.1:8080
   factorymeter serve my-org --addr 0.0.0.0:7377 --allow-host line.internal`,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			reg, err := loadRegistry(registryPath)
 			if err != nil {
 				return err
 			}
-			target, err := parseTarget(args[0])
+			target, err := targetOf(args)
 			if err != nil {
 				return err
 			}

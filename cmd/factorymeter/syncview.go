@@ -700,6 +700,7 @@ type syncPlan struct {
 	steps    []ingest.Step
 	workers  int
 	store    string
+	config   string
 	linear   bool
 	teams    []string
 	jira     string
@@ -827,6 +828,9 @@ func (pl syncPlan) header(st style, width int) []string {
 		field("", j)
 	}
 	field("Store", tilde(pl.store))
+	if pl.config != "" {
+		field("Config", tilde(pl.config))
+	}
 	t, _ := pl.timing()
 	field("Time", t)
 	return append(out, "")
@@ -952,6 +956,9 @@ func (v *syncView) sourceDone(system, parts string, links bool, r ingest.SourceR
 		held := []string{"tickets " + count(r.Tickets.Total)}
 		if links {
 			held = append(held, "links to pull requests "+count(r.Links.Total))
+		}
+		if len(r.Keys) > 0 {
+			held = append(held, "keys "+strings.Join(r.Keys, " "))
 		}
 		out = append(out, holds(st, held, r.From))
 	}

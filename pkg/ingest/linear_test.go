@@ -55,7 +55,10 @@ type fakeLinear struct {
 	// such pages asked for so far.
 	onIssues func(n int, r *http.Request)
 	nIssues  int
-	srv      *httptest.Server
+	// more holds the rest of the state history of an issue, by its id, a page
+	// at a time. The issues query carries only the start of it.
+	more map[string][][]obj
+	srv  *httptest.Server
 }
 
 func newLinear(t *testing.T) *fakeLinear {
@@ -167,6 +170,8 @@ func (f *fakeLinear) serve(w http.ResponseWriter, r *http.Request) {
 		if m := pageSize.FindStringSubmatch(req.Query); m != nil {
 			c.size, _ = strconv.Atoi(m[1])
 		}
+	case strings.Contains(req.Query, "issue(id:"):
+		c.kind = "history"
 	case strings.Contains(req.Query, "workflowStates("):
 		c.kind = "states"
 	case strings.Contains(req.Query, "teams("):
@@ -208,6 +213,18 @@ func (f *fakeLinear) serve(w http.ResponseWriter, r *http.Request) {
 			nodes = append(nodes, obj{"id": "s-" + typ, "type": typ})
 		}
 		json.NewEncoder(w).Encode(obj{"data": obj{"workflowStates": obj{"nodes": nodes, "pageInfo": info}}})
+	case "history":
+		f.mu.Lock()
+		pages := f.more[str(req.Variables["id"])]
+		f.mu.Unlock()
+		// Cursor hN asks for page N, counted from 1.
+		n, _ := strconv.Atoi(strings.TrimPrefix(c.after, "h"))
+		if n < 1 || n > len(pages) {
+			lErr(w, 400, "INPUT_ERROR", "bad cursor")
+			return
+		}
+		info := obj{"hasNextPage": n < len(pages), "endCursor": fmt.Sprintf("h%d", n+1)}
+		json.NewEncoder(w).Encode(obj{"data": obj{"issue": obj{"stateHistory": obj{"nodes": pages[n-1], "pageInfo": info}}}})
 	case "issues":
 		if hook != nil {
 			hook(n, r)
@@ -347,7 +364,7 @@ func lKeys(m map[string]record.Ticket) []string {
 }
 
 func TestLinearQueriesAreTheFilesAndNeverWrite(t *testing.T) {
-	for name, q := range map[string]string{"org": linearOrgQuery, "teams": linearTeamsQuery, "states": linearStatesQuery, "issues": linearIssuesQuery} {
+	for name, q := range map[string]string{"org": linearOrgQuery, "teams": linearTeamsQuery, "states": linearStatesQuery, "issues": linearIssuesQuery, "history": linearHistoryQuery} {
 		if strings.Contains(q, "mutation") || strings.Contains(q, "subscription") {
 			t.Errorf("the %s query can write", name)
 		}
@@ -727,6 +744,35 @@ func TestLinearAStoppedSyncGoesOnFromTheLastSlice(t *testing.T) {
 	}
 }
 
+func TestLinearReadsTheRestOfALongStateHistory(t *testing.T) {
+	f := newLinear(t)
+	// Started on day 12 and done on day 13, which is all the issues query
+	// carries. Then opened again on day 14, started on day 15 and done on day
+	// 19. Linear still says completedAt day 13.
+	start := history("started", day(12), "completed", day(13))
+	start["pageInfo"] = obj{"hasNextPage": true, "endCursor": "h1"}
+	f.add("u1", "ENG-1", "completed", day(10), day(19), obj{"startedAt": ts(day(12)), "completedAt": ts(day(13)), "stateHistory": start})
+	f.more = map[string][][]obj{"u1": {
+		history("unstarted", day(14), "started", day(15))["nodes"].([]obj),
+		history("completed", day(19))["nodes"].([]obj),
+	}}
+	s := openStore(t, t.TempDir())
+	if _, err := linearSyncer(f, s, Options{}).Sync(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	e := linearTickets(t, s)["ENG-1"]
+	if e.StartedAt == nil || !e.StartedAt.Equal(day(12)) || e.DoneAt == nil || !e.DoneAt.Equal(day(19)) || e.Reopened != 1 {
+		t.Errorf("ENG-1: started %v, done %v, reopened %d", e.StartedAt, e.DoneAt, e.Reopened)
+	}
+	var after []string
+	for _, c := range lOf(f.take(), "history") {
+		after = append(after, c.after)
+	}
+	if !reflect.DeepEqual(after, []string{"h1", "h2"}) {
+		t.Errorf("history pages asked for: %v", after)
+	}
+}
+
 func TestLinearRecord(t *testing.T) {
 	states := map[string]string{}
 	for _, typ := range linearStateTypes {
@@ -767,6 +813,16 @@ func TestLinearRecord(t *testing.T) {
 		// Done on day 3, opened again on day 4, done on day 5, opened on day 6, done on day 8.
 		{"opened again twice", base("completed", `,"completedAt":"`+ts(day(8))+`"`+hist(span("started", 2), span("completed", 3), span("started", 4), span("completed", 5), span("unstarted", 6), span("completed", 8))),
 			record.TicketDone, at(2), at(8), at(8), 2},
+		// Linear keeps the first time an issue was done in completedAt, also
+		// after it was opened again and done once more. The history has the
+		// last time.
+		{"done again takes the last time from the history", base("completed", `,"completedAt":"`+ts(day(3))+`"`+hist(span("started", 2), span("completed", 3), span("unstarted", 4), span("started", 5), span("completed", 7))),
+			record.TicketDone, at(2), at(7), at(7), 1},
+		{"cancelled again takes the last time from the history", base("canceled", `,"canceledAt":"`+ts(day(3))+`"`+hist(span("canceled", 3), span("started", 4), span("canceled", 6))),
+			record.TicketCancelled, at(4), nil, at(6), 0},
+		// A history that ends somewhere else leaves Linear's own time.
+		{"done with a history that ends elsewhere takes completedAt", base("completed", `,"completedAt":"`+ts(day(8))+`"`+hist(span("started", 2))),
+			record.TicketDone, at(2), at(8), at(8), 0},
 		// Done, then cancelled: that is not opened again.
 		{"done then cancelled is not opened again", base("canceled", `,"completedAt":"`+ts(day(3))+`","canceledAt":"`+ts(day(5))+`"`+hist(span("completed", 3), span("canceled", 5))),
 			record.TicketCancelled, nil, nil, at(5), 0},

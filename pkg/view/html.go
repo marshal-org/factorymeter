@@ -240,6 +240,8 @@ type htmlPage struct {
 	CoverRepos                            [][]string
 	MoreRepos                             string
 	Sources                               [][]string
+	Trackers                              [][]string
+	TrackerNote                           string
 	Limits                                []string
 	Tool, Generated                       string
 	// LightsOut is the link to the simulator, filled in with this line.
@@ -652,7 +654,35 @@ func buildHTML(r *contract.Report, opt HTMLOptions) *htmlPage {
 		}
 		p.Sources = append(p.Sources, []string{strings.ReplaceAll(s.Kind, "_", " "), src, fmt.Sprint(s.Records), s.Note})
 	}
+	p.Trackers, p.TrackerNote = trackerRows(r), TrackerKeysNote
 	return p
+}
+
+// TrackerKeysNote says where the keys searched for come from.
+const TrackerKeysNote = "A pull request is tied to a ticket when its branch, title or description names a key with one of these prefixes, such as ENG-12, in any case. The prefixes are read from the tickets themselves, so a team or project that is added later is searched for after the next sync. Linear also ties the pull requests it has attached."
+
+// trackerRows are the rows of the table of ticket systems: one per Linear
+// workspace or Jira site.
+func trackerRows(r *contract.Report) [][]string {
+	var rows [][]string
+	for _, t := range r.Coverage.Trackers {
+		name, keys, synced := t.Name, strings.Join(t.Keys, ", "), "not finished"
+		if name == "" {
+			name = "-"
+		}
+		if keys == "" {
+			keys = "-"
+		}
+		if !t.SyncedAt.IsZero() {
+			synced = t.SyncedAt.UTC().Format("2006-01-02 15:04") + " UTC"
+		}
+		system := map[string]string{"linear": "Linear", "jira": "Jira"}[t.Source]
+		if system == "" {
+			system = t.Source
+		}
+		rows = append(rows, []string{system, name, fmt.Sprint(t.Tickets), fmt.Sprint(t.Linked), keys, synced})
+	}
+	return rows
 }
 
 // HTML writes the report as one page with its charts. The page carries its

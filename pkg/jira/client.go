@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -109,9 +110,19 @@ func parseSite(site string) (*url.URL, error) {
 		return nil, fmt.Errorf("the Jira site %s must be asked over https, so the token is not sent in the clear", u.Host)
 	case u.Scheme != "https" && u.Scheme != "http":
 		return nil, errors.New("the Jira site must be asked over https")
+	case !strings.Contains(u.Hostname(), ".") && !loopback(u.Hostname()):
+		// A name alone, such as acme, is not a host on the internet. It is
+		// most often the name of a site on atlassian.net. The name is only
+		// repeated when it looks like one, and not like a pasted token.
+		if siteName.MatchString(u.Hostname()) {
+			return nil, fmt.Errorf("the Jira site %s is not a whole host. Pass the host of the site, such as %s.atlassian.net", u.Hostname(), u.Hostname())
+		}
+		return nil, errors.New("the Jira site is not a whole host. Pass the host of the site, such as acme.atlassian.net")
 	}
 	return &url.URL{Scheme: u.Scheme, Host: strings.ToLower(u.Host)}, nil
 }
+
+var siteName = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,39}$`)
 
 func loopback(host string) bool {
 	if strings.EqualFold(host, "localhost") {
@@ -253,10 +264,15 @@ func message(body []byte) string {
 	var e struct {
 		ErrorMessages []string          `json:"errorMessages"`
 		Errors        map[string]string `json:"errors"`
+		// An address with no site behind it answers with one message.
+		ErrorMessage string `json:"errorMessage"`
 	}
 	if json.Unmarshal(body, &e) == nil {
 		if len(e.ErrorMessages) > 0 {
 			return short(e.ErrorMessages[0])
+		}
+		if e.ErrorMessage != "" {
+			return short(e.ErrorMessage)
 		}
 		keys := make([]string, 0, len(e.Errors))
 		for k := range e.Errors {

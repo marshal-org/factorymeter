@@ -14,7 +14,22 @@ fm="${FM_BIN:-$RUNNER_TEMP/factorymeter}"
 store="$RUNNER_TEMP/factorymeter-store"
 out="$RUNNER_TEMP/factorymeter-report"
 
-target="${FM_TARGET#https://github.com/}"
+# --config when the workflow names a file. Else the binary reads the
+# factorymeter.yml of the checkout, if the job checked the repository out.
+# The empty-array form keeps bash 3.2 quiet under set -u.
+cfg=()
+if [ -n "${FM_CONFIG:-}" ]; then
+  cfg=(--config "$FM_CONFIG")
+fi
+
+# The target: the input, else the target of the config file, else the
+# repository the workflow runs in.
+target="${FM_TARGET:-}"
+if [ -z "$target" ]; then
+  target="$("$fm" config ${cfg[@]+"${cfg[@]}"} --format json | jq -r '.target // ""')"
+fi
+target="${target:-$GITHUB_REPOSITORY}"
+target="${target#https://github.com/}"
 target="${target%/}"
 owner="${target%%/*}"
 
@@ -60,7 +75,7 @@ fetch() {
   fi
   rm -f "$store/store.lock"
   # A store from a newer version, or a damaged one, is not worth keeping.
-  if ! held="$("$fm" store info "$owner" --store "$store" --format json | jq -r '.owner')"; then
+  if ! held="$("$fm" store info "$owner" --no-config --store "$store" --format json | jq -r '.owner')"; then
     warn "this version cannot read the store that run $run saved. This run reads the whole history."
     return 1
   fi
@@ -69,7 +84,7 @@ fetch() {
     return 1
   fi
   echo "Restored the store that run $run saved."
-  "$fm" store info "$owner" --store "$store" || true
+  "$fm" store info "$owner" --no-config --store "$store" || true
 }
 
 do_restore() {
@@ -92,9 +107,19 @@ do_restore() {
 # and the token stay in JIRA_EMAIL and JIRA_API_TOKEN, where the binary reads
 # them. The site is not a secret and is an argument. With a part of the three
 # missing, as for a pull request from a fork, Jira is not read.
+#
+# A config file can turn Linear and Jira on and name the teams, the site and
+# the projects. The binary reads it. Without the keys it skips them with a
+# note, so a pull request from a fork still gets a report.
 do_sync() {
   local log="$RUNNER_TEMP/factorymeter-sync.log" team project missing=""
-  local args=(sync "$target" --store "$store" --since "${FM_HISTORY:-26w}")
+  local args=(sync "$target" --store "$store")
+  if [ ${#cfg[@]} -gt 0 ]; then
+    args+=("${cfg[@]}")
+  fi
+  if [ -n "${FM_HISTORY:-}" ]; then
+    args+=(--since "$FM_HISTORY")
+  fi
   if [ -n "${LINEAR_API_KEY:-}" ]; then
     args+=(--linear)
     set -f
@@ -105,11 +130,16 @@ do_sync() {
   elif [ -n "${FM_LINEAR_TEAMS:-}" ]; then
     warn "linear-teams is set and linear-api-key is empty, so Linear is not read."
   fi
-  [ -n "${FM_JIRA_SITE:-}" ] || missing="$missing jira-site"
+  # The site of the input, else the one the config file names.
+  local site="${FM_JIRA_SITE:-}"
+  if [ -z "$site" ]; then
+    site="$("$fm" config ${cfg[@]+"${cfg[@]}"} --format json | jq -r '.jira.site // ""')"
+  fi
+  [ -n "$site" ] || missing="$missing jira-site"
   [ -n "${JIRA_EMAIL:-}" ] || missing="$missing jira-email"
   [ -n "${JIRA_API_TOKEN:-}" ] || missing="$missing jira-api-token"
   if [ -z "$missing" ]; then
-    args+=(--jira "$FM_JIRA_SITE")
+    args+=(--jira "$site")
     set -f
     for project in $(printf '%s' "${FM_JIRA_PROJECTS:-}" | tr ',\r\n\t' '    '); do
       args+=(--jira-project "$project")
@@ -145,7 +175,7 @@ repo_is_private() {
 do_share() {
   local names=true save=false private
   if [ -f "$store/store.json" ]; then
-    private="$("$fm" store info "$owner" --store "$store" --format json | jq -r '[.scopes[].private] | any' || true)"
+    private="$("$fm" store info "$owner" --no-config --store "$store" --format json | jq -r '[.scopes[].private] | any' || true)"
     if [ "$private" != "false" ] && ! repo_is_private; then
       names=false
       warn "$GITHUB_REPOSITORY is public and the store holds a private repository or tickets of Linear or Jira. The report is written without names, and the store is not saved, so every run reads the whole history. Run the workflow in a private repository to keep both."
@@ -160,8 +190,14 @@ do_share() {
 do_report() {
   local json="$out/factorymeter.json"
   mkdir -p "$out"
-  set -- report "$target" --store "$store" --since "${FM_SINCE:-13w}" --format markdown \
+  set -- report "$target" --store "$store" --format markdown \
     --html "$out/factorymeter.html" --json "$json"
+  if [ ${#cfg[@]} -gt 0 ]; then
+    set -- "$@" "${cfg[@]}"
+  fi
+  if [ -n "${FM_SINCE:-}" ]; then
+    set -- "$@" --since "$FM_SINCE"
+  fi
   # Names are written only on a clear yes from the share step.
   if [ "${FM_NAMES:-}" != "true" ]; then
     set -- "$@" --summary

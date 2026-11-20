@@ -933,7 +933,7 @@ func TestJiraAWrongTokenIsAnErrorThatDoesNotShowIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	res, err := (&Jira{C: c, S: s, Opt: Options{Now: now, Since: floor}}).Sync(context.Background())
-	if err == nil || !strings.HasPrefix(err.Error(), "jira: jira rejected the email and the API token (401). Set JIRA_EMAIL and JIRA_API_TOKEN") {
+	if err == nil || !strings.HasPrefix(err.Error(), "jira rejected the email and the API token (401). Set JIRA_EMAIL and JIRA_API_TOKEN") {
 		t.Fatalf("error = %v", err)
 	}
 	if strings.Contains(err.Error(), jiraToken) || strings.Contains(err.Error(), jiraEmail) {
@@ -1105,7 +1105,7 @@ func TestJiraAPageThatComesTwiceIsAnError(t *testing.T) {
 	f.add("ENG-1", "3", day(1), day(3))
 	s := openStore(t, t.TempDir())
 	res, err := jiraSyncer(f, s, Options{}).Sync(context.Background())
-	if err == nil || err.Error() != "jira: jira answered with the same page twice" {
+	if err == nil || err.Error() != "jira answered with the same page twice" {
 		t.Fatalf("error = %v", err)
 	}
 	// What was read is kept, and the sync is not marked as finished.

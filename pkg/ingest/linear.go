@@ -29,6 +29,8 @@ var (
 	linearStatesQuery string
 	//go:embed queries/linear_issues.graphql
 	linearIssuesQuery string
+	//go:embed queries/linear_history.graphql
+	linearHistoryQuery string
 )
 
 const (
@@ -65,6 +67,19 @@ type SourceResult struct {
 	// Again is set when the stored tickets were dropped and read again,
 	// because the list of teams changed.
 	Again bool
+	// Keys are the key prefixes of the tickets in the store, such as ENG. A
+	// pull request that names a key with one of them is tied to its ticket.
+	Keys []string
+}
+
+// storedKeys reads the key prefixes of the tickets a source has in the store.
+func storedKeys(s *store.Store, source, name string) ([]string, error) {
+	var all []record.Ticket
+	err := store.Tickets.Each(s, source, name, time.Time{}, time.Time{}, func(_ string, rows []record.Ticket) error {
+		all = append(all, rows...)
+		return nil
+	})
+	return record.KeyPrefixes(all), err
 }
 
 // Linear syncs the tickets of the Linear workspace a key belongs to into a
@@ -119,6 +134,9 @@ func (l *Linear) Sync(ctx context.Context) (SourceResult, error) {
 		if n, cerr := l.S.Count(store.Links.Name, record.Linear, r.name); cerr == nil {
 			r.res.Links.Total = n
 		}
+		if keys, kerr := storedKeys(l.S, record.Linear, r.name); kerr == nil {
+			r.res.Keys = keys
+		}
 	}
 	if r.t.step != "" {
 		r.t.done(r.res.Tickets.Added, r.res.Tickets.Changed, err)
@@ -129,7 +147,7 @@ func (l *Linear) Sync(ctx context.Context) (SourceResult, error) {
 		return r.res, &StoppedError{Cause: cerr}
 	}
 	if err != nil {
-		return r.res, fmt.Errorf("linear: %w", err)
+		return r.res, named(record.Linear, err)
 	}
 	return r.res, nil
 }
@@ -222,7 +240,7 @@ func (r *linearSync) sync(ctx context.Context, began time.Time) error {
 		return err
 	}
 	if c := r.res.Tickets; c.Added+c.Changed > 0 {
-		r.logf("%d tickets new, %d updated", c.Added, c.Changed)
+		r.logf("%s new, %d updated", count(c.Added, "ticket", "tickets"), c.Changed)
 	}
 
 	if !r.st.Open {
@@ -382,6 +400,12 @@ func (r *linearSync) span(ctx context.Context, from, to time.Time, open bool) er
 		}
 		r.t.advance(len(out.Issues.Nodes), 0, time.Time{})
 		for i := range out.Issues.Nodes {
+			if err := r.history(ctx, &out.Issues.Nodes[i]); err != nil {
+				if ferr := flush(); ferr != nil && ctx.Err() == nil {
+					return ferr
+				}
+				return err
+			}
 			t, ls := linearRecord(&out.Issues.Nodes[i], r.states)
 			tickets = append(tickets, t)
 			links = append(links, ls...)
@@ -396,6 +420,39 @@ func (r *linearSync) span(ctx context.Context, from, to time.Time, open bool) er
 			}
 		}
 	}
+}
+
+// linearSpan is a stretch of time an issue spent in one state.
+type linearSpan struct {
+	StartedAt time.Time `json:"startedAt"`
+	StateID   string    `json:"stateId"`
+}
+
+// history reads the rest of the state history of an issue, when the issues
+// query carried only the start of it. The end matters most: it says when the
+// issue was last done, and whether it was opened again.
+func (r *linearSync) history(ctx context.Context, n *linearIssue) error {
+	info := n.StateHistory.PageInfo
+	for info.HasNextPage && info.EndCursor != "" {
+		var out struct {
+			Issue struct {
+				StateHistory struct {
+					Nodes    []linearSpan   `json:"nodes"`
+					PageInfo linearPageInfo `json:"pageInfo"`
+				} `json:"stateHistory"`
+			} `json:"issue"`
+		}
+		if err := r.l.C.Query(ctx, linearHistoryQuery, map[string]any{"id": n.ID, "after": info.EndCursor}, &out); err != nil {
+			return err
+		}
+		h := out.Issue.StateHistory
+		if h.PageInfo.HasNextPage && h.PageInfo.EndCursor == info.EndCursor {
+			return errors.New("linear answered with the same page of a state history twice")
+		}
+		n.StateHistory.Nodes = append(n.StateHistory.Nodes, h.Nodes...)
+		info = h.PageInfo
+	}
+	return nil
 }
 
 // linearIssue is an issue as the issues query returns it.
@@ -437,10 +494,8 @@ type linearIssue struct {
 		} `json:"nodes"`
 	} `json:"attachments"`
 	StateHistory struct {
-		Nodes []struct {
-			StartedAt time.Time `json:"startedAt"`
-			StateID   string    `json:"stateId"`
-		} `json:"nodes"`
+		Nodes    []linearSpan   `json:"nodes"`
+		PageInfo linearPageInfo `json:"pageInfo"`
 	} `json:"stateHistory"`
 }
 
@@ -507,11 +562,18 @@ func linearRecord(n *linearIssue, states map[string]string) (record.Ticket, []re
 	// back to the backlog since, and how often a done issue was opened again.
 	started := utc(n.StartedAt)
 	wasDone := false
+	// last is the stretch the issue is in now, as far as the history knows.
+	// Linear keeps the time an issue was first done in completedAt, also after
+	// it was opened again and done once more. The history has the last time.
+	var last *time.Time
+	lastTyp := ""
 	for _, s := range n.StateHistory.Nodes {
 		typ, ok := states[s.StateID]
 		if !ok {
 			continue
 		}
+		at := s.StartedAt.UTC()
+		last, lastTyp = &at, typ
 		open := typ != "completed" && typ != "canceled" && typ != "duplicate"
 		if wasDone && open {
 			t.Reopened++
@@ -531,11 +593,19 @@ func linearRecord(n *linearIssue, states map[string]string) (record.Ticket, []re
 	switch t.State {
 	case record.TicketDone:
 		t.DoneAt = utc(n.CompletedAt)
+		if lastTyp == "completed" {
+			t.DoneAt = last
+		}
 		if t.DoneAt == nil {
 			t.DoneAt = &t.UpdatedAt
 		}
 		t.ClosedAt = t.DoneAt
 	case record.TicketCancelled:
+		closedNow := lastTyp == "canceled" || lastTyp == "duplicate"
+		if closedNow && !(n.Trashed != nil && *n.Trashed) {
+			t.ClosedAt = last
+			break
+		}
 		for _, at := range []*time.Time{n.CanceledAt, n.ArchivedAt, &t.UpdatedAt} {
 			if t.ClosedAt = utc(at); t.ClosedAt != nil {
 				break

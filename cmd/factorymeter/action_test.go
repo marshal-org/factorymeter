@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -80,6 +82,9 @@ type runner struct {
 	t    *testing.T
 	temp string
 	env  map[string]string
+	// dir is the directory the steps run in, as the checkout of a job. Empty
+	// is the directory of the test.
+	dir string
 }
 
 func newRunner(t *testing.T) *runner {
@@ -128,7 +133,12 @@ func (r *runner) read(name string) string {
 func (r *runner) step(verb string, extra ...string) (string, map[string]string) {
 	r.t.Helper()
 	os.Remove(r.env["GITHUB_OUTPUT"])
-	cmd := exec.Command("bash", filepath.Join("..", "..", "scripts", "action.sh"), verb)
+	script, err := filepath.Abs(filepath.Join("..", "..", "scripts", "action.sh"))
+	if err != nil {
+		r.t.Fatal(err)
+	}
+	cmd := exec.Command("bash", script, verb)
+	cmd.Dir = r.dir
 	for k, v := range r.env {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}
@@ -368,5 +378,51 @@ func TestActionReport(t *testing.T) {
 	}
 	if r.read("summary") != "" {
 		t.Error("summary false wrote the job summary")
+	}
+}
+
+// A checkout with a config file: the steps take the target, the history and
+// the window from it, and an input still wins.
+func TestActionReadsTheConfigFileOfTheCheckout(t *testing.T) {
+	now := time.Now().UTC()
+	var hubCalls atomic.Int64
+	hub := fakeGitHub(t, now, &hubCalls)
+	r := newRunner(t)
+	r.dir = t.TempDir()
+	if err := os.WriteFile(filepath.Join(r.dir, "factorymeter.yml"), []byte("target: acme/app\nhistory: 3w\nwindow: 1w\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	delete(r.env, "FM_TARGET")
+	r.env["GITHUB_REPOSITORY"] = "other/repo"
+	env := []string{"GITHUB_TOKEN=a-fake-github-token", "GITHUB_API_URL=" + hub.URL, "GITHUB_GRAPHQL_URL=" + hub.URL + "/graphql", "FM_TARGET="}
+
+	text, _ := r.step("sync", env...)
+	from := now.Add(-21 * 24 * time.Hour).Truncate(24 * time.Hour).Format("2006-01-02")
+	if !strings.Contains(text, "of acme/app. History goes back to "+from) || !strings.Contains(text, "config: factorymeter.yml") {
+		t.Errorf("sync did not take the file:\n%s", text)
+	}
+	_, out := r.step("report", append(env, "FM_NAMES=true")...)
+	var rep struct {
+		Target string `json:"target"`
+		Window struct {
+			Since time.Time `json:"since"`
+			Until time.Time `json:"until"`
+		} `json:"window"`
+	}
+	raw, _ := os.ReadFile(out["json"])
+	if err := json.Unmarshal(raw, &rep); err != nil || rep.Target != "acme/app" || rep.Window.Until.Sub(rep.Window.Since) != 7*24*time.Hour {
+		t.Errorf("report: %+v %v", rep, err)
+	}
+	// The input wins over the file.
+	_, out = r.step("report", append(env, "FM_NAMES=true", "FM_SINCE=2w")...)
+	raw, _ = os.ReadFile(out["json"])
+	if err := json.Unmarshal(raw, &rep); err != nil || rep.Window.Until.Sub(rep.Window.Since) != 14*24*time.Hour {
+		t.Errorf("report with an input: %+v %v", rep, err)
+	}
+	// Without a file, the target is the repository the workflow runs in.
+	os.Remove(filepath.Join(r.dir, "factorymeter.yml"))
+	_, out = r.step("restore", env...)
+	if out["name"] != "factorymeter-store-other" {
+		t.Errorf("restore without a file: %v", out)
 	}
 }

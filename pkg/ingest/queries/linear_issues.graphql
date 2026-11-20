@@ -45,6 +45,10 @@ query ($after: String, $filter: IssueFilter) {
           startedAt
           stateId
         }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
       }
     }
     pageInfo {

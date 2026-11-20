@@ -182,7 +182,7 @@ func TestSyncWithJira(t *testing.T) {
 		t.Errorf("no line of requests to GitHub:\n%s", text)
 	}
 	from := now.Add(-14 * 24 * time.Hour).Format("2006-01-02")
-	for _, want := range []string{"Jira 127.0.0.1: tickets 2 (+2), from " + from + "\n", fmt.Sprintf("%d requests to Jira in ", jiraCalls.Load())} {
+	for _, want := range []string{"Jira 127.0.0.1: tickets 2 (+2), keys ENG, from " + from + "\n", fmt.Sprintf("%d requests to Jira in ", jiraCalls.Load())} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the output lacks %q:\n%s", want, text)
 		}
@@ -298,7 +298,7 @@ func TestSyncWithJira(t *testing.T) {
 	}
 	// A next sync reads what changed, and nothing did.
 	text, err = sync("--jira", jsrv.URL)
-	if err != nil || !strings.Contains(text, "Jira 127.0.0.1: tickets 2, from "+from+"\n") || strings.Contains(text, "note:") {
+	if err != nil || !strings.Contains(text, "Jira 127.0.0.1: tickets 2, keys ENG, from "+from+"\n") || strings.Contains(text, "note:") {
 		t.Errorf("a next sync: %v\n%s", err, text)
 	}
 
@@ -309,7 +309,7 @@ func TestSyncWithJira(t *testing.T) {
 	}
 	// The project that is there reads again, since the list of projects changed.
 	text, err = sync("--jira", jsrv.URL, "--jira-project", "eng")
-	if err != nil || !strings.Contains(text, "Jira 127.0.0.1: tickets 2 (+2), from ") || !strings.Contains(text, "note: Jira 127.0.0.1: the list of projects changed, so the tickets were read again from the start.") {
+	if err != nil || !strings.Contains(text, "Jira 127.0.0.1: tickets 2 (+2), keys ENG, from ") || !strings.Contains(text, "note: Jira 127.0.0.1: the list of projects changed, so the tickets were read again from the start.") {
 		t.Errorf("one project: %v\n%s", err, text)
 	}
 	// A project with no tickets drops what the other one had.
@@ -337,7 +337,7 @@ func TestSyncWithLinearAndJira(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v\n%s", err, text)
 	}
-	hubAt, linAt, jiraAt := strings.Index(text, "requests to GitHub in"), strings.Index(text, "Linear acme: tickets 2 (+2), links to pull requests 1 (+1)"), strings.Index(text, "Jira 127.0.0.1: tickets 2 (+2), from ")
+	hubAt, linAt, jiraAt := strings.Index(text, "requests to GitHub in"), strings.Index(text, "Linear acme: tickets 2 (+2), links to pull requests 1 (+1)"), strings.Index(text, "Jira 127.0.0.1: tickets 2 (+2), keys ENG, from ")
 	if hubAt < 0 || linAt < hubAt || jiraAt < linAt || strings.Contains(text, "note:") {
 		t.Errorf("the three sources do not come in order:\n%s", text)
 	}
@@ -441,7 +441,7 @@ func TestActionSyncReadsJira(t *testing.T) {
 
 	before := hubCalls.Load()
 	text, out = r.step("sync", append(env, site, email, token)...)
-	if !strings.Contains(text, "Jira 127.0.0.1: tickets 2 (+2), from ") || strings.Contains(text, fakeJiraToken) || strings.Contains(text, fakeJiraEmail) {
+	if !strings.Contains(text, "Jira 127.0.0.1: tickets 2 (+2), keys ENG, from ") || strings.Contains(text, fakeJiraToken) || strings.Contains(text, fakeJiraEmail) {
 		t.Errorf("with an account:\n%s", text)
 	}
 	// The output counts the requests to GitHub, not the ones to Jira.

@@ -213,6 +213,19 @@ func TestLoadOfOneRepositoryCountsItsLinkedTicketsOnly(t *testing.T) {
 	if strings.Contains(limits, "counts for the repository of the first pull request") {
 		t.Error("the report of one repository explains how tickets are split by repository")
 	}
+	// Six tickets, three of them linked, and the key prefixes of their teams.
+	if got := r.Coverage.Trackers; len(got) != 1 || got[0].Source != "linear" || got[0].Name != "acme" || got[0].Tickets != 6 || got[0].Linked != 3 ||
+		!reflect.DeepEqual(got[0].Keys, []string{"ENG", "OPS"}) || got[0].SyncedAt.IsZero() {
+		t.Errorf("trackers = %+v", got)
+	}
+	// A summary names no workspace and no key.
+	sum, err := l.Report(Options{Target: repo, Weeks: 2, History: 4, Now: end, Summary: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := sum.Coverage.Trackers; len(got) != 1 || got[0].Name != "" || len(got[0].Keys) != 0 || got[0].Keys == nil || got[0].Tickets != 6 {
+		t.Errorf("summary trackers = %+v", got)
+	}
 
 	if _, err := Load(s, registry(t), "acme/nope"); err == nil || !strings.Contains(err.Error(), "holds nothing for acme/nope") {
 		t.Errorf("a repository the store does not hold: %v", err)
@@ -385,6 +398,10 @@ func TestTicketKeysInText(t *testing.T) {
 		{"XENG-1", nil},
 		{"2ENG-1", nil},
 		{"my_ENG-1", []string{"a"}},
+		// A letter right after the number makes it another word.
+		{"ENG-1x", nil},
+		{"ENG-12abc ENG-1a", nil},
+		{"eng-1-fix eng-12/x eng-12.", []string{"a", "b"}},
 		// A key a ticket had before finds it. A key a ticket has now wins.
 		{"ENG-7", []string{"d"}},
 		{"OPS-3", []string{"d"}},
