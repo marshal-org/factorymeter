@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.5.0](https://github.com/marshal-org/factorymeter/compare/v0.4.0...v0.5.0) (2026-11-20)
+
+
+### Features
+
+* **cli:** factorymeter init asks a few questions and writes the config ([034885a](https://github.com/marshal-org/factorymeter/commit/034885adbd4f00b978ba238c325f361318ab1ae7))
+* **cli:** factorymeter upgrade replaces the binary in place ([034885a](https://github.com/marshal-org/factorymeter/commit/034885adbd4f00b978ba238c325f361318ab1ae7))
+* **cli:** store tickets lists each ticket with its pull requests ([034885a](https://github.com/marshal-org/factorymeter/commit/034885adbd4f00b978ba238c325f361318ab1ae7))
+* **config:** read settings from a factorymeter.yml ([d1f339a](https://github.com/marshal-org/factorymeter/commit/d1f339a40c96ac944f1cf187f0852bd3fa95e8ec))
+* install in one line, upgrade in place, and an init wizard ([034885a](https://github.com/marshal-org/factorymeter/commit/034885adbd4f00b978ba238c325f361318ab1ae7))
+* **report:** list each ticket system with the keys it searches for ([d1f339a](https://github.com/marshal-org/factorymeter/commit/d1f339a40c96ac944f1cf187f0852bd3fa95e8ec))
+* **site:** a one-line install script ([034885a](https://github.com/marshal-org/factorymeter/commit/034885adbd4f00b978ba238c325f361318ab1ae7))
+
+
+### Bug Fixes
+
+* **jira:** refuse a site name without a domain and read single errors ([d1f339a](https://github.com/marshal-org/factorymeter/commit/d1f339a40c96ac944f1cf187f0852bd3fa95e8ec))
+* **linear:** take the last done time from the state history ([d1f339a](https://github.com/marshal-org/factorymeter/commit/d1f339a40c96ac944f1cf187f0852bd3fa95e8ec))
+* **spec:** a key followed by a letter is not a ticket key ([d1f339a](https://github.com/marshal-org/factorymeter/commit/d1f339a40c96ac944f1cf187f0852bd3fa95e8ec))
+* **spec:** a pull request opened after a ticket closed does not start it ([d1f339a](https://github.com/marshal-org/factorymeter/commit/d1f339a40c96ac944f1cf187f0852bd3fa95e8ec))
+
 ## [0.4.0](https://github.com/marshal-org/factorymeter/compare/v0.3.0...v0.4.0) (2026-11-19)
 
 
