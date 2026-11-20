@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -109,7 +110,8 @@ func TestReplace(t *testing.T) {
 		}
 		b, _ := os.ReadFile(target)
 		st, _ := os.Stat(target)
-		if string(b) != "new" || st.Mode().Perm() != 0o750|0o111 {
+		// Windows has no such modes.
+		if string(b) != "new" || (runtime.GOOS != "windows" && st.Mode().Perm() != 0o750|0o111) {
 			t.Errorf("windows %v: %q %v", windows, b, st.Mode())
 		}
 		entries, _ := os.ReadDir(dir)
@@ -122,9 +124,10 @@ func TestReplace(t *testing.T) {
 		}
 		CleanOld(target)
 	}
-	// A directory that cannot be written to leaves the old binary.
-	if os.Getuid() == 0 {
-		t.Skip("root can write anywhere")
+	// A directory that cannot be written to leaves the old binary. Windows
+	// does not refuse a write for the mode of a directory.
+	if os.Getuid() == 0 || runtime.GOOS == "windows" {
+		t.Skip("root can write anywhere, and Windows ignores the mode")
 	}
 	dir := t.TempDir()
 	target := filepath.Join(dir, "factorymeter")

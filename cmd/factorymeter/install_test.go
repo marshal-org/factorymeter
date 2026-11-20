@@ -56,9 +56,12 @@ func TestInstallScript(t *testing.T) {
 	for _, sh := range shells {
 		t.Run(strings.Join(sh, " "), func(t *testing.T) {
 			home := t.TempDir()
+			// The system directories only: no /usr/local/bin, which a runner
+			// may let anyone write to, so the script never picks it here.
+			path := "/usr/bin:/bin"
 			run := func(env ...string) (string, error) {
 				cmd := exec.Command(sh[0], append(sh[1:], script)...)
-				cmd.Env = append([]string{"HOME=" + home, "PATH=" + os.Getenv("PATH"), "FACTORYMETER_RELEASES_URL=" + srv.URL}, env...)
+				cmd.Env = append([]string{"HOME=" + home, "PATH=" + path, "FACTORYMETER_RELEASES_URL=" + srv.URL}, env...)
 				b, err := cmd.CombinedOutput()
 				return string(b), err
 			}
@@ -71,6 +74,13 @@ func TestInstallScript(t *testing.T) {
 			if v, err := exec.Command(installed, "--version").Output(); err != nil || !strings.Contains(string(v), "v9.9.9") {
 				t.Errorf("the installed binary says %q %v", v, err)
 			}
+			// With ~/.local/bin on the PATH there is nothing to add.
+			path = filepath.Join(home, ".local", "bin") + ":/usr/bin:/bin"
+			out, err = run()
+			if err != nil || !strings.Contains(out, "Installed factorymeter v9.9.9 to "+installed) || strings.Contains(out, "is not on your PATH") {
+				t.Errorf("on the PATH: %v\n%s", err, out)
+			}
+			path = "/usr/bin:/bin"
 			// A directory picked by hand, and a release picked by hand. The
 			// stand-in serves the v9.9.9 binary as v9.9.8 too, which the
 			// script finds out by running it.
