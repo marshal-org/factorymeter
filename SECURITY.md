@@ -33,8 +33,13 @@ Useful things to include:
 - **Read only.** The client sends `GET` requests and GraphQL queries. It refuses a GraphQL
   mutation before it reaches the network.
 - **No telemetry.** The only host it talks to is the GitHub API. With `sync --linear` it also
-  talks to the Linear API, and with `sync --jira` to the Jira site you name. It talks to no
-  other host.
+  talks to the Linear API, and with `sync --jira` to the Jira site you name. `factorymeter
+  upgrade` and the install script download a release from github.com, and only when you run
+  them. `factorymeter init` lists your Linear teams and Jira projects when their keys are set.
+  It talks to no other host.
+- **A release is checked before it runs.** `upgrade` and the install script check the binary
+  against the `checksums.txt` of its release, and run it once, before it takes the place of the
+  one you have.
 - **The token stays in memory.** It is never printed, logged or written to a report. The same
   holds for the Linear key, which is read from `LINEAR_API_KEY` only, and for the Jira email
   and API token, which are read from `JIRA_EMAIL` and `JIRA_API_TOKEN` only.

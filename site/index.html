@@ -128,17 +128,15 @@
 <div class="steps">
 <div>
 <h3>1. Get it</h3>
-<p>A binary for macOS, Linux or Windows, each with checksums, a signature and a build attestation:</p>
-<pre><code>curl -fsSL -o factorymeter \
-  https://github.com/marshal-org/factorymeter/releases/latest/download/factorymeter-darwin-arm64
-chmod +x factorymeter</code></pre>
-<p class="small">Or with Go: <code>go install github.com/marshal-org/factorymeter/cmd/factorymeter@latest</code>. Other systems are on the <a href="https://github.com/marshal-org/factorymeter/releases/latest">releases page</a>.</p>
+<p>One line on macOS or Linux. It takes the newest release, checks it against the release's checksums, and puts it in <code>~/.local/bin</code>:</p>
+<pre><code>curl -fsSL https://marshal-org.github.io/factorymeter/install.sh | sh</code></pre>
+<p class="small">Later, <code>factorymeter upgrade</code> replaces it in place. Windows: the <a href="https://github.com/marshal-org/factorymeter/releases/latest">releases page</a>. With Go: <code>go install github.com/marshal-org/factorymeter/cmd/factorymeter@latest</code>.</p>
 </div>
 <div>
 <h3>2. Read your line</h3>
-<p>It takes a token from <code>GITHUB_TOKEN</code>, or from the GitHub CLI when you are logged in.</p>
-<pre><code>factorymeter sync my-org     # 26 weeks of history, once
-factorymeter serve my-org    # open http://127.0.0.1:7377</code></pre>
+<p>A few questions, a <code>factorymeter.yml</code>, then the first sync. It takes a token from <code>GITHUB_TOKEN</code>, or from the GitHub CLI when you are logged in.</p>
+<pre><code>factorymeter init     # what to read, Linear or Jira, how far back
+factorymeter serve    # open http://127.0.0.1:7377</code></pre>
 <p class="small">The first sync shows what it reads and how long is left. A busy repository takes about ten minutes: openstatus, with 911 changes and 13,242 CI runs, took 10. Every later sync reads only what changed.</p>
 </div>
 </div>

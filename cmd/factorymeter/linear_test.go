@@ -152,7 +152,12 @@ func fakeLinear(t *testing.T, now time.Time, calls *atomic.Int64) *httptest.Serv
 		case strings.Contains(req.Query, "teams("):
 			nodes := []obj{}
 			team, _ := filter["key"].(map[string]any)
-			for _, k := range team["in"].([]any) {
+			if team == nil {
+				// The list of every team, as init asks for it.
+				nodes = append(nodes, obj{"key": "ENG", "name": "Engineering"}, obj{"key": "OPS", "name": "Operations"})
+			}
+			in, _ := team["in"].([]any)
+			for _, k := range in {
 				if k == "ENG" {
 					nodes = append(nodes, obj{"key": "ENG"})
 				}

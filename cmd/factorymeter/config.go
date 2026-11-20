@@ -26,7 +26,7 @@ var configNames = []string{
 }
 
 // readsConfig are the commands that read the config file.
-var readsConfig = map[string]bool{"sync": true, "report": true, "serve": true, "store info": true, "store path": true, "config": true}
+var readsConfig = map[string]bool{"sync": true, "report": true, "serve": true, "store info": true, "store path": true, "store tickets": true, "config": true}
 
 // fileConfig is a config file: what the flags of sync, report and serve would
 // say, kept in a repository. A flag on the command line wins over the file.

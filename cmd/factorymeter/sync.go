@@ -549,6 +549,6 @@ or a Jira site is listed with them, with its name followed by "(Linear)" or
 			return nil
 		},
 	}
-	cmd.AddCommand(info, path)
+	cmd.AddCommand(info, path, storeTicketsCmd())
 	return cmd
 }

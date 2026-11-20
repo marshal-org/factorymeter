@@ -71,6 +71,29 @@ jobs:
           GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o /dev/null ./cmd/factorymeter
       - name: No long dashes
         run: scripts/check-dashes.sh
+      - name: The live tests compile
+        run: go vet -tags live ./test/live
+
+  # upgrade replaces a running binary, which each system allows in its own
+  # way, and the install script runs in each shell. So those tests also run
+  # on macOS and Windows.
+  upgrade:
+    name: Upgrade on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Test upgrade and the install script
+        run: go test -count=1 -run "Upgrade|InstallScript|Replace|Newer|Asset|LatestAndFetch" ./pkg/upgrade ./cmd/factorymeter
 
   lint:
     name: Static analysis

@@ -31,3 +31,6 @@ coverage.html
 .vscode/
 *.swp
 *.swo
+
+# Settings of the live tests, with keys. See test/live/README.md.
+.env.live

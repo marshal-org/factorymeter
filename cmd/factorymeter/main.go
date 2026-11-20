@@ -68,6 +68,7 @@ week, how long changes wait, and how often they go back. It names the station
 that holds the line, the one next in line, and where to invest, with agents
 next to people.
 
+  factorymeter init             a few questions, a factorymeter.yml, the first sync
   factorymeter sync my-org      read the history into a store on this machine
   factorymeter serve my-org     see the line as a page in the browser
   factorymeter report my-org    print it, or write it as Markdown, JSON or HTML
@@ -75,7 +76,8 @@ next to people.
 It only reads. It needs a token that can read the repository, taken from
 GITHUB_TOKEN or GH_TOKEN, or from "gh auth token" when the GitHub CLI is
 logged in. "sync --linear" and "sync --jira" also read tickets, with keys from
-the environment. Nothing is sent anywhere except to the API it reads.`,
+the environment. Nothing is sent anywhere except to the API it reads.
+"factorymeter upgrade" replaces this binary with the newest release.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Version:       version,
@@ -93,7 +95,7 @@ the environment. Nothing is sent anywhere except to the API it reads.`,
 		}
 		return loadConfig(cmd, configPath, noConfig)
 	}
-	root.AddCommand(reportCmd(), serveCmd(), syncCmd(), snapshotCmd(), trendCmd(), storeCmd(), classifyCmd(), signaturesCmd(), metricsCmd(), rulesCmd(), contractCmd(), configCmd())
+	root.AddCommand(reportCmd(), serveCmd(), syncCmd(), snapshotCmd(), trendCmd(), storeCmd(), classifyCmd(), signaturesCmd(), metricsCmd(), rulesCmd(), contractCmd(), configCmd(), upgradeCmd(), initCmd())
 	return root
 }
 

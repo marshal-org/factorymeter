@@ -3,6 +3,7 @@ package measure
 import (
 	"encoding/json"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -449,5 +450,47 @@ func TestPullOf(t *testing.T) {
 		if ok != (c.repo != "") || (ok && (repo != c.repo || num != c.num)) {
 			t.Errorf("%q = %q, %d, %v", c.id, repo, num, ok)
 		}
+	}
+}
+
+// The tickets the list shows for one repository are the ones its report
+// counts, with the same starts.
+func TestTicketsListsWhatTheReportCounts(t *testing.T) {
+	s := linearStore(t, end)
+	rows, err := Tickets(s, repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var keys []string
+	var waits []float64
+	for _, r := range rows {
+		if r.Source != record.Linear {
+			continue
+		}
+		keys = append(keys, r.Key)
+		if r.Start != nil {
+			waits = append(waits, r.Start.Sub(r.Created).Hours())
+		}
+		if len(r.Pulls) == 0 {
+			t.Errorf("%s is listed with no pull request", r.Key)
+		}
+	}
+	if !reflect.DeepEqual(keys, []string{"ENG-1", "ENG-3", "ENG-4"}) {
+		t.Errorf("keys = %v", keys)
+	}
+	l, err := Load(s, registry(t), repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := vals(l.obsOf("spec.wait", sel{}))
+	sort.Float64s(got)
+	sort.Float64s(waits)
+	if !same(got, waits) {
+		t.Errorf("waits of the list %v, of the report %v", waits, got)
+	}
+	// The owner lists every ticket.
+	all, err := Tickets(s, "acme")
+	if err != nil || len(all) < 6 {
+		t.Errorf("owner: %d rows, %v", len(all), err)
 	}
 }
