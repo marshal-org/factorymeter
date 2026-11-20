@@ -23,17 +23,21 @@ branding:
 
 inputs:
   target:
-    description: owner/repo for one repository, or an owner for all of its active repositories. An owner needs a token that can read those repositories.
+    description: owner/repo for one repository, or an owner for all of its active repositories. An owner needs a token that can read those repositories. Empty takes the target of the config file, else the repository the workflow runs in.
     required: false
-    default: ${{ github.repository }}
+    default: ""
+  config:
+    description: "A config file to read, such as .github/factorymeter.yml. Empty reads the factorymeter.yml, .factorymeter.yml or .github/factorymeter.yml of the checkout, when the job checked the repository out. An input wins over the file. The file never holds a key: those stay inputs from secrets."
+    required: false
+    default: ""
   since:
-    description: "The window the report covers, in whole weeks: 13w or 26w."
+    description: "The window the report covers, in whole weeks: 13w or 26w. Empty takes the window of the config file, else 13w."
     required: false
-    default: 13w
+    default: ""
   history:
-    description: "How far back the first run reads: weeks (26w), days (180d) or a date (2026-01-31). The report compares the window with the one before it, so give at least twice the window."
+    description: "How far back the first run reads: weeks (26w), days (180d) or a date (2026-01-31). The report compares the window with the one before it, so give at least twice the window. Empty takes the history of the config file, else 26w."
     required: false
-    default: 26w
+    default: ""
   token:
     description: A token that can read the target. The job's own token is enough for the repository the workflow runs in.
     required: false
@@ -152,6 +156,7 @@ runs:
       env:
         GH_TOKEN: ${{ github.token }}
         FM_TARGET: ${{ inputs.target }}
+        FM_CONFIG: ${{ inputs.config }}
         FM_STORE: ${{ inputs.store }}
         FM_STORE_NAME: ${{ inputs.store-artifact-name }}
       run: bash "$GITHUB_ACTION_PATH/scripts/action.sh" restore
@@ -162,6 +167,7 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.token }}
         FM_TARGET: ${{ inputs.target }}
+        FM_CONFIG: ${{ inputs.config }}
         FM_HISTORY: ${{ inputs.history }}
         LINEAR_API_KEY: ${{ inputs.linear-api-key }}
         FM_LINEAR_TEAMS: ${{ inputs.linear-teams }}
@@ -180,6 +186,7 @@ runs:
       env:
         GH_TOKEN: ${{ github.token }}
         FM_TARGET: ${{ inputs.target }}
+        FM_CONFIG: ${{ inputs.config }}
         FM_STORE: ${{ inputs.store }}
       run: bash "$GITHUB_ACTION_PATH/scripts/action.sh" share
 
@@ -188,6 +195,7 @@ runs:
       shell: bash
       env:
         FM_TARGET: ${{ inputs.target }}
+        FM_CONFIG: ${{ inputs.config }}
         FM_SINCE: ${{ inputs.since }}
         FM_SUMMARY: ${{ inputs.summary }}
         FM_NAMES: ${{ steps.share.outputs.names }}

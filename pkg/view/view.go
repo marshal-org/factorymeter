@@ -432,6 +432,10 @@ func build(r *contract.Report) *page {
 		rows = append(rows, []string{strings.ReplaceAll(s.Kind, "_", " "), src, fmt.Sprint(s.Records), s.Note})
 	}
 	p.table([]string{"Records", "Source", ">In the window", "Note"}, rows)
+	if len(r.Coverage.Trackers) > 0 {
+		p.table([]string{"Tickets from", "Workspace or site", ">Tickets", ">Linked to a pull request", "Keys searched for", "Synced"}, trackerRows(r))
+		p.para(TrackerKeysNote)
+	}
 	if len(r.Limits) > 0 {
 		p.head(2, "Limits")
 		p.list(r.Limits)

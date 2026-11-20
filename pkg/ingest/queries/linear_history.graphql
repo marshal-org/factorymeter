@@ -1,0 +1,17 @@
+# The rest of the state history of one issue, for an issue whose history is
+# longer than the issues query carries. The newest moves are at the end, and
+# they say when the issue was last done.
+query ($id: String!, $after: String) {
+  issue(id: $id) {
+    stateHistory(first: 50, after: $after) {
+      nodes {
+        startedAt
+        stateId
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}

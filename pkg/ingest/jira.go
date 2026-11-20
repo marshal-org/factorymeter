@@ -101,6 +101,9 @@ func (j *Jira) Sync(ctx context.Context) (SourceResult, error) {
 		if n, cerr := j.S.Count(store.Tickets.Name, record.Jira, r.name); cerr == nil {
 			r.res.Tickets.Total = n
 		}
+		if keys, kerr := storedKeys(j.S, record.Jira, r.name); kerr == nil {
+			r.res.Keys = keys
+		}
 	}
 	if r.t.step != "" {
 		r.t.done(r.res.Tickets.Added, r.res.Tickets.Changed, err)
@@ -111,7 +114,7 @@ func (j *Jira) Sync(ctx context.Context) (SourceResult, error) {
 		return r.res, &StoppedError{Cause: cerr}
 	}
 	if err != nil {
-		return r.res, fmt.Errorf("jira: %w", err)
+		return r.res, named(record.Jira, err)
 	}
 	return r.res, nil
 }
@@ -124,6 +127,23 @@ func (r *jiraSync) save() error {
 	r.sc.Source, r.sc.Name, r.sc.Private, r.sc.State = record.Jira, r.name, true, b
 	r.sc.From = r.st.Floor
 	return r.j.S.PutScope(r.sc)
+}
+
+// count writes a number with the word for it: 1 ticket, 2 tickets.
+func count(n int, one, many string) string {
+	if n == 1 {
+		return "1 " + one
+	}
+	return strconv.Itoa(n) + " " + many
+}
+
+// named puts the name of a source before an error, unless the error starts
+// with it already, as the errors of its client do.
+func named(source string, err error) error {
+	if strings.HasPrefix(strings.ToLower(err.Error()), source+" ") {
+		return err
+	}
+	return fmt.Errorf("%s: %w", source, err)
 }
 
 var jiraProjectKey = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
@@ -187,7 +207,7 @@ func (r *jiraSync) sync(ctx context.Context, began time.Time) error {
 		return err
 	}
 	if c := r.res.Tickets; c.Added+c.Changed > 0 {
-		r.logf("%d tickets new, %d updated", c.Added, c.Changed)
+		r.logf("%s new, %d updated", count(c.Added, "ticket", "tickets"), c.Changed)
 	}
 
 	if !r.st.Open {

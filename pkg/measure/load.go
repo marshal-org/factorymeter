@@ -37,11 +37,18 @@ func Load(s *store.Store, reg *signature.Registry, target string) (*Line, error)
 	}
 	keys := ticketKeys{id: map[string]string{}}
 	stored := map[string][]pullLink{}
-	for _, sc := range sources {
-		if err := each(store.Tickets, s, sc, keys.add); err != nil {
+	prefixes := make([][]string, len(sources))
+	for i, sc := range sources {
+		var all []record.Ticket
+		err := each(store.Tickets, s, sc, func(t *record.Ticket) {
+			keys.add(t)
+			all = append(all, record.Ticket{Key: t.Key, Aliases: t.Aliases})
+		})
+		if err != nil {
 			return nil, err
 		}
-		err := each(store.Links, s, sc, func(l *record.Link) {
+		prefixes[i] = record.KeyPrefixes(all)
+		err = each(store.Links, s, sc, func(l *record.Link) {
 			if l.FromKind != record.KindChange || l.ToKind != record.KindTicket {
 				return
 			}
@@ -91,8 +98,8 @@ func Load(s *store.Store, reg *signature.Registry, target string) (*Line, error)
 			return nil, err
 		}
 	}
-	for _, sc := range sources {
-		ticket := b.TicketSource(SourceScope{Source: sc.Source, SyncedAt: sc.SyncedAt, Notes: sc.Notes, LinkedOnly: one})
+	for i, sc := range sources {
+		ticket := b.TicketSource(SourceScope{Source: sc.Source, Name: sc.Name, Keys: prefixes[i], SyncedAt: sc.SyncedAt, Notes: sc.Notes, LinkedOnly: one})
 		if err := each(store.Tickets, s, sc, ticket); err != nil {
 			return nil, err
 		}
@@ -133,8 +140,8 @@ type ticketKeys struct {
 func (k *ticketKeys) add(t *record.Ticket) {
 	for _, key := range append([]string{t.Key}, t.Aliases...) {
 		key = strings.ToUpper(key)
-		i := strings.LastIndex(key, "-")
-		if i <= 0 || i == len(key)-1 {
+		prefix, ok := record.KeyPrefix(key)
+		if !ok {
 			continue
 		}
 		// A key a ticket has now wins over the same key another ticket had.
@@ -145,7 +152,7 @@ func (k *ticketKeys) add(t *record.Ticket) {
 		if k.prefixes == nil {
 			k.prefixes = map[string]bool{}
 		}
-		k.prefixes[key[:i]] = true
+		k.prefixes[prefix] = true
 	}
 }
 
@@ -175,8 +182,9 @@ func alnum(c byte) bool {
 }
 
 // in returns the IDs of the tickets whose keys the texts name, each once. A
-// key counts when it stands alone: no letter or digit right before it, and no
-// digit right after.
+// key counts when it stands alone: no letter or digit right before it or right
+// after it. So ENG-12 counts in "eng-12-fix" and "(ENG-12)", and not in
+// "ENG-12x" or "xENG-12".
 func (k *ticketKeys) in(texts ...string) []string {
 	if k.re == nil {
 		return nil
@@ -187,7 +195,7 @@ func (k *ticketKeys) in(texts ...string) []string {
 			if m[0] > 0 && alnum(text[m[0]-1]) {
 				continue
 			}
-			if m[1] < len(text) && text[m[1]] >= '0' && text[m[1]] <= '9' {
+			if m[1] < len(text) && alnum(text[m[1]]) {
 				continue
 			}
 			id, ok := k.id[strings.ToUpper(text[m[0]:m[1]])]

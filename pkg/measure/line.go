@@ -65,10 +65,15 @@ type Line struct {
 // ticketSource is what the report says about a ticket system that is not a
 // repository, such as a Linear workspace.
 type ticketSource struct {
-	source     string
-	synced     time.Time
-	notes      []string
-	unfinished bool
+	source string
+	name   string
+	keys   []string
+	// tickets counts the tickets of the system, and linked those a change
+	// of the report is linked to.
+	tickets, linked int
+	synced          time.Time
+	notes           []string
+	unfinished      bool
 	// linkedOnly says only the tickets a change links to were counted.
 	linkedOnly bool
 	// skipped counts the tickets left out for that reason.
@@ -851,8 +856,11 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 // SourceScope is what the store knows about a ticket system that is not a
 // repository.
 type SourceScope struct {
-	// Source is the system, such as "linear".
-	Source   string
+	// Source is the system, such as "linear", and Name the workspace or site.
+	Source string
+	Name   string
+	// Keys are the key prefixes of its tickets, such as ENG.
+	Keys     []string
 	SyncedAt time.Time
 	Notes    []string
 	// LinkedOnly says the report is of one repository, so only the tickets
@@ -865,11 +873,17 @@ type SourceScope struct {
 func (b *Builder) TicketSource(sc SourceScope) func(*record.Ticket) {
 	l := b.l
 	i := len(l.tickets)
-	l.tickets = append(l.tickets, ticketSource{source: sc.Source, synced: sc.SyncedAt, notes: sc.Notes,
+	l.tickets = append(l.tickets, ticketSource{source: sc.Source, name: sc.Name, keys: sc.Keys, synced: sc.SyncedAt, notes: sc.Notes,
 		unfinished: sc.SyncedAt.IsZero(), linkedOnly: sc.LinkedOnly})
 	return func(t *record.Ticket) {
-		if _, ok := b.linked[t.ID]; !ok && sc.LinkedOnly {
-			l.tickets[i].skipped++
+		ts := &l.tickets[i]
+		ts.tickets++
+		_, linked := b.linked[t.ID]
+		if linked {
+			ts.linked++
+		}
+		if !linked && sc.LinkedOnly {
+			ts.skipped++
 			return
 		}
 		b.Ticket(t)
@@ -897,7 +911,10 @@ func (b *Builder) Ticket(t *record.Ticket) {
 	l.items = append(l.items, item{kind: record.KindTicket, key: t.Key, url: t.URL, title: t.Title, class: classNone})
 
 	start := val(t.StartedAt)
-	if linked && (start.IsZero() || first.at.Before(start)) {
+	// A pull request opened after the ticket was closed did not start it. It
+	// only names it, as in "a duplicate of ENG-12".
+	closed := val(t.ClosedAt)
+	if linked && (start.IsZero() || first.at.Before(start)) && (closed.IsZero() || !first.at.After(closed)) {
 		start = first.at
 	}
 	// A ticket written up after the work began did not wait.

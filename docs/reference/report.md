@@ -57,6 +57,7 @@ Inside this version fields are only added. A reader must ignore a field it does 
 |---|---|---|
 | `repos` | list of RepoCoverage | One entry per repository in the store. Empty in a summary. |
 | `sources` | list of SourceCoverage | One entry per kind of record. |
+| `trackers` | list of TrackerCoverage | One entry per ticket system that is not a repository, such as a Linear workspace or a Jira site. Empty when none is in the store. |
 
 ## RepoCoverage
 
@@ -76,6 +77,17 @@ Inside this version fields are only added. A reader must ignore a field it does 
 | `source` | string | Where the records come from, such as github. Empty when nothing is connected. |
 | `records` | integer | How many records of this kind the window holds. |
 | `note` | string | What to know about this source, such as which environment counts as production. Empty when there is nothing to say. |
+
+## TrackerCoverage
+
+| Field | Type | Meaning |
+|---|---|---|
+| `source` | string | The ticket system. One of `linear`, `jira`. |
+| `name` | string | The URL key of the Linear workspace, or the host of the Jira site. Empty in a summary. |
+| `synced_at` | time | When it was last synced. The zero time while its first sync has not finished. |
+| `tickets` | integer | Its tickets in the store, in the window or not. |
+| `linked` | integer | Of those, the tickets a pull request in the report is linked to: attached to the ticket by the system, or naming its key in the branch, title or description. |
+| `keys` | list of string | The key prefixes a pull request is searched for, such as ENG: the teams or projects its tickets are in, now or before. Found in the tickets, never set by hand. Empty in a summary. |
 
 ## Verdict
 

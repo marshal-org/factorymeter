@@ -236,7 +236,7 @@ func TestReportMatchesSchemaFields(t *testing.T) {
 	r := Report{
 		Schema: Version, GeneratedAt: time.Unix(0, 0).UTC(),
 		Window:          Window{Periods: []Period{{}}, Previous: &Period{}},
-		Coverage:        Coverage{Repos: []RepoCoverage{{}}, Sources: []SourceCoverage{{}}},
+		Coverage:        Coverage{Repos: []RepoCoverage{{}}, Sources: []SourceCoverage{{}}, Trackers: []TrackerCoverage{{Source: "linear", Keys: []string{"ENG"}}}},
 		Stations:        []Station{{HeldShare: &one, Oldest: []Item{{}}}},
 		Metrics:         []Series{{Value: &one, Points: []Point{{}}}},
 		Recommendations: []Recommendation{{Evidence: []Evidence{{}}, Items: []Item{{}}}},

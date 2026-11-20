@@ -747,7 +747,7 @@ func (r *repoSync) tickets(ctx context.Context) error {
 		return err
 	}
 	if c := r.res.Tickets; c.Added+c.Changed > 0 {
-		r.logf("%d issues new, %d updated", c.Added, c.Changed)
+		r.logf("%s new, %d updated", count(c.Added, "issue", "issues"), c.Changed)
 	}
 	if !t.Open {
 		n, err := r.ticketRange(ctx, time.Time{}, t.Floor, true, nil)

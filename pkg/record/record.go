@@ -9,6 +9,7 @@ package record
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -230,6 +231,38 @@ func DeployID(source, repo, via, name string) string {
 // TicketID builds the id of a ticket from its key.
 func TicketID(source, key string) string {
 	return source + ":" + key
+}
+
+// KeyPrefix is the part of a ticket key before its number, in upper case:
+// ENG for ENG-12. It is false for a key with no prefix or no number.
+func KeyPrefix(key string) (string, bool) {
+	i := strings.LastIndex(key, "-")
+	if i <= 0 || i == len(key)-1 {
+		return "", false
+	}
+	for _, c := range key[i+1:] {
+		if c < '0' || c > '9' {
+			return "", false
+		}
+	}
+	return strings.ToUpper(key[:i]), true
+}
+
+// KeyPrefixes are the prefixes of the keys of tickets, and of the keys they had
+// before, each once and sorted.
+func KeyPrefixes(tickets []Ticket) []string {
+	seen := map[string]bool{}
+	out := []string{}
+	for i := range tickets {
+		for _, k := range append([]string{tickets[i].Key}, tickets[i].Aliases...) {
+			if p, ok := KeyPrefix(k); ok && !seen[p] {
+				seen[p] = true
+				out = append(out, p)
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // SourceName is how a source is written for a reader.

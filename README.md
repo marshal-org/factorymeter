@@ -141,7 +141,7 @@ it cannot change anything even with a token that could.
 
 `sync --linear` also reads the tickets of a Linear workspace. Make a personal API key in Linear
 under Settings, Security and access, and put it in `LINEAR_API_KEY`. Read access is all it
-needs. There is no flag for the key, so it never lands in your shell history. factorymeter never
+needs: when Linear asks, give the key the Read permission only. There is no flag for the key, so it never lands in your shell history. factorymeter never
 prints it and never writes it to a file.
 
 ```bash
@@ -156,8 +156,11 @@ queries only and refuses a mutation, the same as the GitHub client.
 ### A Jira account, if your tickets live in Jira
 
 `sync --jira <site>` also reads the tickets of a Jira Cloud site. Make an API token under
-Manage account, Security, API tokens, and put it in `JIRA_API_TOKEN`. Put the email of that
-account in `JIRA_EMAIL`. An account that can browse the projects is all it needs. There is no
+Manage account, Security, API tokens, and put it in `JIRA_API_TOKEN`. Use **Create API token**,
+not the one with scopes: a scoped token only works through Atlassian's gateway, and factorymeter
+asks your site itself. Put the email of that account in `JIRA_EMAIL`. An account that can browse
+the projects is all it needs. A token without scopes can do whatever its account can, so for a
+token that can only read, make it for an account that only has Browse projects. There is no
 flag for either, so they never land in your shell history. factorymeter never prints them and
 never writes them to a file.
 
@@ -170,6 +173,19 @@ factorymeter sync my-org --jira acme.atlassian.net --jira-project ENG   # only t
 
 The client has one verb, `GET`, and sends the account to the site you name and to no other
 host. It does not follow a redirect. Jira Data Center is not read.
+
+### How a pull request finds its ticket
+
+There is no list of prefixes to keep. After a sync, factorymeter knows the key of every ticket
+in the store, such as `MAR-12` or `SAM1-7`. It searches the branch, the title and the
+description of each pull request for a key with one of those prefixes, in any case, standing on
+its own: `ofir/mar-12-fix` and `(MAR-12)` count, `MAR-12x` and `xMAR-12` do not. A ticket that
+moved to another team or project is still found by its old key. Linear also ties the pull
+requests it has attached to an issue. `sync` prints the prefixes it found, and the Coverage
+part of the report shows them with how many tickets each system linked.
+
+[docs/tickets.md](docs/tickets.md) has the whole of it: what is read from Linear and Jira, how
+a ticket is tied to a pull request, and how the spec station counts.
 
 ## Sync, then report
 
@@ -197,6 +213,32 @@ end it says what the store now holds and which command to run next.
 In a pipe or a CI log there is no live view: `sync` writes one line per event to stderr and
 a table to stdout. `--plain` gives the same lines in a terminal, and `--quiet` leaves the
 progress out.
+
+### A config file
+
+Settings you give every time can live in a `factorymeter.yml` next to your code instead.
+`factorymeter config init` writes one with every setting, commented out:
+
+```yaml
+target: my-org
+history: 26w          # how far back the first sync reads
+window: 13w           # the window of a report
+linear:
+  teams: [ENG, OPS]   # or "linear: true" for every team
+jira:
+  site: acme.atlassian.net
+  projects: [ENG]
+```
+
+Then `factorymeter sync`, `factorymeter report` and `factorymeter serve` need no arguments. A
+flag on the command line wins over the file. `factorymeter config` shows what the file sets.
+The file is found as `factorymeter.yml`, `.factorymeter.yml` or `.github/factorymeter.yml` in
+the directory you run in, or named with `--config`. `--no-config` reads none.
+
+The file never holds a key or a token. They stay in the environment, and a file with a key such
+as `token` or `api_key`, or a value that looks like a token, is refused without repeating it.
+When the file turns Linear or Jira on and the key is not set, `sync` says so and reads the
+rest, so one file serves a person with keys and a run without them.
 
 Run both once a week and the report follows the line week after week. A sync that is stopped
 goes on where it left off. The store is a directory of Parquet files:
@@ -315,12 +357,11 @@ The report prints the limits that apply every time. They are not fine print.
 - **A Linear ticket starts when it first enters a started state, or when the first pull request
   linked to it is opened, whichever is earlier.** A pull request is linked when Linear has it
   attached, or when its branch, title or description names the key of the ticket, such as
-  `ENG-123`. A word that only looks like a key is taken for one.
+  `ENG-123`. A word that only looks like a key is taken for one. A pull request opened after the
+  ticket was closed does not start it.
 - **A Linear ticket has no repository of its own.** It counts for the repository of the first
   pull request linked to it. The report of one repository counts only the tickets linked to its
   pull requests. The report of the owner counts them all.
-- **The Linear adapter is proven against Linear's published schema and a stand-in server, not
-  yet against a live workspace.** Tell us what you see.
 - **A Jira ticket starts when it first enters a status of the category In Progress, or when the
   first pull request linked to it is opened, whichever is earlier.** A pull request is linked
   when its branch, title or description names the key of the ticket, such as `ENG-123`. Jira
@@ -328,8 +369,7 @@ The report prints the limits that apply every time. They are not fine print.
   ticket, a Jira ticket counts for the repository of the first pull request linked to it.
 - **Epics are not tickets.** An issue above the level of a story or a task is left out. Subtasks
   are counted.
-- **The Jira adapter is proven against Atlassian's published API description and a stand-in
-  server, not yet against a live site.** Jira Cloud only. Tell us what you see.
+- **Jira Cloud only.** Jira Data Center and Server are not read.
 - **CI means GitHub Actions.** Other CI systems are not read.
 - **A run of the merge queue belongs to one pull request.** The queue runs CI on a branch it makes
   and names after a pull request. The run counts for that one, also when the branch carries the
@@ -380,9 +420,10 @@ jobs:
 
 | Input | Default | Meaning |
 |---|---|---|
-| `target` | the repository the workflow runs in | `owner/repo`, or an owner for all of its active repositories |
-| `since` | `13w` | the window the report covers, in whole weeks |
-| `history` | `26w` | how far back the first run reads. The report compares the window with the one before it, so give at least twice the window |
+| `target` | the config file, else the repository the workflow runs in | `owner/repo`, or an owner for all of its active repositories |
+| `config` | the `factorymeter.yml` of the checkout | a [config file](#a-config-file) to read. The job has to check the repository out for the Action to see it. An input wins over the file |
+| `since` | the config file, else `13w` | the window the report covers, in whole weeks |
+| `history` | the config file, else `26w` | how far back the first run reads. The report compares the window with the one before it, so give at least twice the window |
 | `token` | the job's own token | a token that can read the target. An owner-wide report needs your own read-only token |
 | `linear-api-key` | empty | a Linear personal API key. With it the tickets of Linear are read too. Pass it from a secret |
 | `linear-teams` | empty | the keys of the Linear teams to read, separated by commas or spaces. Empty reads every team the key can see |
@@ -447,6 +488,21 @@ To read Jira as well, give the site, and the account from secrets:
 
 When one of the three is empty, Jira is not read, a warning names what is empty, and the run
 goes on.
+
+A config file in the repository can hold the teams, the site and the projects instead of the
+inputs. Check the repository out first so the Action can read it. The keys still come from
+secrets:
+
+<!-- x-release-please-start-version -->
+```yaml
+      - uses: actions/checkout@v7
+      - uses: marshal-org/factorymeter@v0.4.0
+        with:
+          linear-api-key: ${{ secrets.LINEAR_API_KEY }}
+          jira-email: ${{ secrets.JIRA_EMAIL }}
+          jira-api-token: ${{ secrets.JIRA_API_TOKEN }}
+```
+<!-- x-release-please-end -->
 
 The Action builds the binary from the commit you pinned, so the code that runs is the code you
 can read.

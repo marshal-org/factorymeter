@@ -213,7 +213,7 @@ func TestSyncWithLinear(t *testing.T) {
 		t.Errorf("no line of requests to GitHub:\n%s", text)
 	}
 	from := now.Add(-14 * 24 * time.Hour).Format("2006-01-02")
-	for _, want := range []string{"Linear acme: tickets 2 (+2), links to pull requests 1 (+1), from " + from + "\n", fmt.Sprintf("%d requests to Linear in ", linCalls.Load())} {
+	for _, want := range []string{"Linear acme: tickets 2 (+2), links to pull requests 1 (+1), keys ENG, from " + from + "\n", fmt.Sprintf("%d requests to Linear in ", linCalls.Load())} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the output lacks %q:\n%s", want, text)
 		}

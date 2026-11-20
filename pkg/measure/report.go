@@ -589,7 +589,7 @@ func capital(s string) string {
 // coverage says what the report stands on, and adds what the reader should
 // know to the limits.
 func (l *Line) coverage(o Options, w window, status map[string]stationState, limits []string) (contract.Coverage, []string) {
-	cov := contract.Coverage{Repos: []contract.RepoCoverage{}}
+	cov := contract.Coverage{Repos: []contract.RepoCoverage{}, Trackers: []contract.TrackerCoverage{}}
 	var unjoined, runs, cut, releases, blind, ships, byCommit int
 	var unfinished, stale []string
 	envs := map[string]bool{}
@@ -696,6 +696,14 @@ func (l *Line) coverage(o Options, w window, status map[string]stationState, lim
 	}
 	for i := range l.tickets {
 		t := &l.tickets[i]
+		tc := contract.TrackerCoverage{Source: t.source, Name: t.name, SyncedAt: t.synced, Tickets: t.tickets, Linked: t.linked, Keys: t.keys}
+		if o.Summary {
+			tc.Name, tc.Keys = "", []string{}
+		}
+		if tc.Keys == nil {
+			tc.Keys = []string{}
+		}
+		cov.Trackers = append(cov.Trackers, tc)
 		name := record.SourceName(t.source)
 		switch {
 		case t.unfinished:

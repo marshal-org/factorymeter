@@ -135,6 +135,12 @@ func TestTicketsAtTheSpecStation(t *testing.T) {
 	link(2, repo+"#14")
 	// A link to a ticket in a repository the store does not hold.
 	link(2, "acme/lib#9")
+	// Change 3 was opened after tickets 17 and 18 were closed. It names them,
+	// as in "a duplicate of #18": that did not start them.
+	c = change(3, at(-1))
+	rb.Change(&c)
+	link(3, repo+"#17")
+	link(3, repo+"#18")
 	rb.Done()
 
 	ticket := func(n int, state string, created time.Time, done, closed *time.Time, reopened int) {
@@ -148,22 +154,24 @@ func TestTicketsAtTheSpecStation(t *testing.T) {
 	ticket(14, record.TicketCancelled, at(-4), nil, ptr(at(-2)), 0)    // started, then dropped
 	ticket(15, record.TicketUnstarted, at(-2), nil, nil, 0)            // waits
 	ticket(16, record.TicketDone, at(-7), ptr(at(-1)), ptr(at(-1)), 2) // came back twice
+	ticket(17, record.TicketDone, at(-5), ptr(at(-3)), ptr(at(-3)), 0) // done by hand, named later
+	ticket(18, record.TicketCancelled, at(-6), nil, ptr(at(-5)), 0)    // a duplicate, named later
 	l := b.Line()
 
 	want := map[string][]float64{
 		// 13 started when it was created, not before. 14 waited a day.
 		"spec.flow": {1, 1}, "spec.wait": {0, 24},
-		// 12 and 16 were finished. 16 had been finished before.
-		"spec.rework": {0, 1},
+		// 12, 16 and 17 were finished. 16 had been finished before.
+		"spec.rework": {0, 0, 1},
 	}
 	for stream, w := range want {
 		if got := vals(l.obs[stream]); !same(got, w) {
 			t.Errorf("%s = %v, want %v", stream, got, w)
 		}
 	}
-	// 11 never stood in the queue and 13 stood in it for no time. 12 and 16
-	// left it when they were closed, never having started.
-	stays := [][2]float64{{-8, -6}, {-4, -3}, {-2, 0}, {-7, -1}}
+	// 11 and 18 never stood in the queue and 13 stood in it for no time. 12,
+	// 16 and 17 left it when they were closed, never having started.
+	stays := [][2]float64{{-8, -6}, {-4, -3}, {-2, 0}, {-7, -1}, {-5, -3}}
 	got := l.stays["spec.queue"]
 	if len(got) != len(stays) {
 		t.Fatalf("spec.queue = %+v, want %d stays", got, len(stays))

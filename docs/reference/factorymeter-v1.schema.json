@@ -15,11 +15,19 @@
             "$ref": "#/$defs/SourceCoverage"
           },
           "type": "array"
+        },
+        "trackers": {
+          "description": "One entry per ticket system that is not a repository, such as a Linear workspace or a Jira site. Empty when none is in the store.",
+          "items": {
+            "$ref": "#/$defs/TrackerCoverage"
+          },
+          "type": "array"
         }
       },
       "required": [
         "repos",
-        "sources"
+        "sources",
+        "trackers"
       ],
       "type": "object"
     },
@@ -483,6 +491,51 @@
         "version",
         "registry_version",
         "record_schema"
+      ],
+      "type": "object"
+    },
+    "TrackerCoverage": {
+      "properties": {
+        "keys": {
+          "description": "The key prefixes a pull request is searched for, such as ENG: the teams or projects its tickets are in, now or before. Found in the tickets, never set by hand. Empty in a summary.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "linked": {
+          "description": "Of those, the tickets a pull request in the report is linked to: attached to the ticket by the system, or naming its key in the branch, title or description.",
+          "type": "integer"
+        },
+        "name": {
+          "description": "The URL key of the Linear workspace, or the host of the Jira site. Empty in a summary.",
+          "type": "string"
+        },
+        "source": {
+          "description": "The ticket system.",
+          "enum": [
+            "linear",
+            "jira"
+          ],
+          "type": "string"
+        },
+        "synced_at": {
+          "description": "When it was last synced. The zero time while its first sync has not finished.",
+          "format": "date-time",
+          "type": "string"
+        },
+        "tickets": {
+          "description": "Its tickets in the store, in the window or not.",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source",
+        "name",
+        "synced_at",
+        "tickets",
+        "linked",
+        "keys"
       ],
       "type": "object"
     },

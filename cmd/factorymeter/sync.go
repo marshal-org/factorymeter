@@ -20,6 +20,17 @@ import (
 	"github.com/marshal-org/factorymeter/pkg/store"
 )
 
+// skippedAny says whether a note on a ticket system the config file turns on
+// and the run could not read names that system.
+func skippedAny(notes []string, system string) bool {
+	for _, n := range notes {
+		if strings.Contains(n, " turns "+system+" on") || strings.Contains(n, "names a "+system+" site") {
+			return true
+		}
+	}
+	return false
+}
+
 // storeDir picks the store of a target: the --store directory when given,
 // else the owner's default one.
 func storeDir(flag, target string) (dir, owner string, err error) {
@@ -38,7 +49,7 @@ func syncCmd() *cobra.Command {
 	var linearTeams, jiraProjects []string
 	var jiraSite string
 	cmd := &cobra.Command{
-		Use:   "sync <owner/repo | owner>",
+		Use:   "sync [owner/repo | owner]",
 		Short: "Read what changed on GitHub into the local store",
 		Long: `sync reads pull requests, reviews, commits, issues, GitHub Actions runs,
 deployments and releases into a store on this machine.
@@ -72,17 +83,22 @@ of the run, and from how long the last sync took. --plain prints plain lines
 instead. When the output is not a terminal, as in CI or in a pipe, the lines
 are plain and the table on standard output stays as it was.
 
+The target and every flag here except the keys can live in a config file
+instead, such as a factorymeter.yml next to your code. Then "factorymeter
+sync" needs no argument. "factorymeter config init" writes one.
+
 The store is a directory of Parquet files. Nothing leaves this machine.`,
 		Example: `  factorymeter sync marshal-org/runlease
+  factorymeter sync                     # the target and settings of factorymeter.yml
   factorymeter sync my-org --since 13w --workers 8
   factorymeter sync my-org --store ./factorymeter-store
   LINEAR_API_KEY=... factorymeter sync my-org --linear
   LINEAR_API_KEY=... factorymeter sync my-org --linear-team ENG --linear-team OPS
   JIRA_EMAIL=... JIRA_API_TOKEN=... factorymeter sync my-org --jira acme.atlassian.net
   JIRA_EMAIL=... JIRA_API_TOKEN=... factorymeter sync my-org --jira acme.atlassian.net --jira-project ENG`,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			target, err := parseTarget(args[0])
+			target, err := targetOf(args)
 			if err != nil {
 				return err
 			}
@@ -109,16 +125,33 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 			}
 			// A missing key is an error before the first request, not after
 			// the whole of GitHub is read.
+			//
+			// When only the config file turns Linear or Jira on, a missing key
+			// skips it with a note instead: the same file serves a person with
+			// the keys and a run without them, such as a pull request from a
+			// fork.
+			var skipped []string
 			var lc *linear.Client
 			if withLinear || len(linearTeams) > 0 {
-				if lc, err = linearClient(quiet); err != nil {
+				lc, err = linearClient(quiet)
+				switch {
+				case err != nil && !onCommandLine(cmd, "linear", "linear-team") && strings.TrimSpace(os.Getenv("LINEAR_API_KEY")) == "":
+					skipped = append(skipped, config.file.path+" turns Linear on, and LINEAR_API_KEY is empty, so Linear is not read.")
+					lc = nil
+				case err != nil:
 					return err
 				}
 			}
 			var jc *jira.Client
 			switch site := strings.TrimSpace(jiraSite); {
 			case site != "":
-				if jc, err = jiraClient(site, quiet); err != nil {
+				jc, err = jiraClient(site, quiet)
+				noAccount := strings.TrimSpace(os.Getenv("JIRA_EMAIL")) == "" || strings.TrimSpace(os.Getenv("JIRA_API_TOKEN")) == ""
+				switch {
+				case err != nil && !onCommandLine(cmd, "jira") && noAccount:
+					skipped = append(skipped, config.file.path+" names a Jira site, and JIRA_EMAIL or JIRA_API_TOKEN is empty, so Jira is not read.")
+					jc = nil
+				case err != nil:
 					return err
 				}
 			case cmd.Flags().Changed("jira"):
@@ -132,7 +165,7 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 			}
 			defer s.Close()
 			w := cmd.OutOrStdout()
-			pl := syncPlan{target: target, now: now, since: opt.Since, steps: opt.Steps(), workers: opt.Workers, store: path,
+			pl := syncPlan{target: target, now: now, since: opt.Since, steps: opt.Steps(), workers: opt.Workers, store: path, config: configPath(),
 				linear: lc != nil, teams: linearTeams, projects: jiraProjects, known: s.Scopes(record.GitHub)}
 			if jc != nil {
 				pl.jira = jc.Site()
@@ -161,6 +194,9 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 				defer v.end()
 			case !quiet:
 				opt.Logf = progress
+				if pl.config != "" {
+					progress("config: %s", pl.config)
+				}
 				progress("store: %s", path)
 				progress("%s", pl.line())
 			}
@@ -178,7 +214,7 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 				name, source, flag string
 				read               bool
 			}{{"Linear", record.Linear, "--linear", lc != nil}, {"Jira", record.Jira, "--jira", jc != nil}} {
-				if sys.read || len(s.Scopes(sys.source)) == 0 {
+				if sys.read || len(s.Scopes(sys.source)) == 0 || skippedAny(skipped, sys.name) {
 					continue
 				}
 				note := fmt.Sprintf("the store holds %s tickets, and this sync did not read %s. Pass %s to read what changed on them.", sys.name, sys.name, sys.flag)
@@ -186,6 +222,13 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 					fmt.Fprintln(w, "note: "+note)
 				} else {
 					v.warnf("%s", strings.ToUpper(note[:1])+note[1:])
+				}
+			}
+			for _, n := range skipped {
+				if table {
+					fmt.Fprintln(w, "note: "+n)
+				} else {
+					v.warnf("%s", n)
 				}
 			}
 			if halted && v != nil && serr != nil {
@@ -343,7 +386,11 @@ func printSource(w io.Writer, system, parts string, links bool, r ingest.SourceR
 		if links {
 			linked = ", links to pull requests " + delta(r.Links)
 		}
-		fmt.Fprintf(w, "%s: tickets %s%s, from %s%s\n", name, delta(r.Tickets), linked, from, state)
+		keys := ""
+		if len(r.Keys) > 0 {
+			keys = ", keys " + strings.Join(r.Keys, " ")
+		}
+		fmt.Fprintf(w, "%s: tickets %s%s%s, from %s%s\n", name, delta(r.Tickets), linked, keys, from, state)
 	}
 	if r.Again {
 		fmt.Fprintf(w, "note: %s: the list of %s changed, so the tickets were read again from the start.\n", name, parts)
@@ -400,18 +447,18 @@ func storeCmd() *cobra.Command {
 	}
 	var dir, format string
 	info := &cobra.Command{
-		Use:   "info <owner>",
+		Use:   "info [owner]",
 		Short: "Print what the store holds",
 		Long: `info prints the repositories in an owner's store, how many records each
 has, how far back they go and when each was last synced. A Linear workspace
 or a Jira site is listed with them, with its name followed by "(Linear)" or
 "(Jira)". It reads the store only. It does not need a token and makes no request.`,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if format != "text" && format != "json" {
 				return fmt.Errorf("unknown format %q. Use text or json", format)
 			}
-			target, err := parseTarget(args[0])
+			target, err := targetOf(args)
 			if err != nil {
 				return err
 			}
@@ -486,11 +533,11 @@ or a Jira site is listed with them, with its name followed by "(Linear)" or
 	info.Flags().StringVar(&dir, "store", "", "store directory (default: the owner's directory in the user cache)")
 	info.Flags().StringVar(&format, "format", "text", "text or json")
 	path := &cobra.Command{
-		Use:   "path <owner>",
+		Use:   "path [owner]",
 		Short: "Print the directory of an owner's store",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			target, err := parseTarget(args[0])
+			target, err := targetOf(args)
 			if err != nil {
 				return err
 			}

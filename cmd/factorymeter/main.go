@@ -49,6 +49,16 @@ func main() {
 	// is stored and the lock on the store is let go.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer stop()
+	if err := newRoot().ExecuteContext(ctx); err != nil {
+		if !errors.As(err, new(toldErr)) {
+			fmt.Fprintln(os.Stderr, "factorymeter:", err)
+		}
+		os.Exit(1)
+	}
+}
+
+// newRoot is the factorymeter command with every command under it.
+func newRoot() *cobra.Command {
 	root := &cobra.Command{
 		Use:   "factorymeter",
 		Short: "Measure your software delivery line, split by agent and human pull requests",
@@ -70,13 +80,21 @@ the environment. Nothing is sent anywhere except to the API it reads.`,
 		SilenceErrors: true,
 		Version:       version,
 	}
-	root.AddCommand(reportCmd(), serveCmd(), syncCmd(), snapshotCmd(), trendCmd(), storeCmd(), classifyCmd(), signaturesCmd(), metricsCmd(), rulesCmd(), contractCmd())
-	if err := root.ExecuteContext(ctx); err != nil {
-		if !errors.As(err, new(toldErr)) {
-			fmt.Fprintln(os.Stderr, "factorymeter:", err)
+	var configPath string
+	var noConfig bool
+	root.PersistentFlags().StringVar(&configPath, "config", "", "read this config file instead of the factorymeter.yml in this directory")
+	root.PersistentFlags().BoolVar(&noConfig, "no-config", false, "read no config file")
+	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		// Only the commands that take a setting from it read the file. So a
+		// broken file never stops "metrics" or "rules", and "config init" can
+		// write over it.
+		if !readsConfig[strings.TrimPrefix(cmd.CommandPath(), "factorymeter ")] {
+			return nil
 		}
-		os.Exit(1)
+		return loadConfig(cmd, configPath, noConfig)
 	}
+	root.AddCommand(reportCmd(), serveCmd(), syncCmd(), snapshotCmd(), trendCmd(), storeCmd(), classifyCmd(), signaturesCmd(), metricsCmd(), rulesCmd(), contractCmd(), configCmd())
+	return root
 }
 
 // toldErr is an error the screen has already told the person. The run still

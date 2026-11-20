@@ -158,6 +158,12 @@
 <tbody>{{range .Sources}}<tr>{{range $i, $c := .}}{{if $i}}<td{{if eq $i 2}} class="num"{{end}}>{{$c}}</td>{{else}}<th scope="row">{{$c}}</th>{{end}}{{end}}</tr>
 {{end}}</tbody>
 </table></div>{{end}}
+{{if .Trackers}}<div class="scroll"><table>
+<thead><tr><th scope="col">Tickets from</th><th scope="col">Workspace or site</th><th class="num" scope="col">Tickets</th><th class="num" scope="col">Linked to a pull request</th><th scope="col">Keys searched for</th><th scope="col">Synced</th></tr></thead>
+<tbody>{{range .Trackers}}<tr>{{range $i, $c := .}}{{if $i}}<td{{if or (eq $i 2) (eq $i 3)}} class="num"{{end}}>{{$c}}</td>{{else}}<th scope="row">{{$c}}</th>{{end}}{{end}}</tr>
+{{end}}</tbody>
+</table></div>
+<p class="note">{{.TrackerNote}}</p>{{end}}
 {{if .Limits}}<h3>Limits</h3><ul class="plain">{{range .Limits}}<li>{{.}}</li>{{end}}</ul>{{end}}
 </section>
 </main>

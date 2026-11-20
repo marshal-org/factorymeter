@@ -53,8 +53,19 @@ type Period struct {
 
 // Coverage says what stands behind the report.
 type Coverage struct {
-	Repos   []RepoCoverage   `json:"repos" doc:"One entry per repository in the store. Empty in a summary."`
-	Sources []SourceCoverage `json:"sources" doc:"One entry per kind of record."`
+	Repos    []RepoCoverage    `json:"repos" doc:"One entry per repository in the store. Empty in a summary."`
+	Sources  []SourceCoverage  `json:"sources" doc:"One entry per kind of record."`
+	Trackers []TrackerCoverage `json:"trackers" doc:"One entry per ticket system that is not a repository, such as a Linear workspace or a Jira site. Empty when none is in the store."`
+}
+
+// TrackerCoverage is one ticket system that is not a repository.
+type TrackerCoverage struct {
+	Source   string    `json:"source" doc:"The ticket system." enum:"linear,jira"`
+	Name     string    `json:"name" doc:"The URL key of the Linear workspace, or the host of the Jira site. Empty in a summary."`
+	SyncedAt time.Time `json:"synced_at" doc:"When it was last synced. The zero time while its first sync has not finished."`
+	Tickets  int       `json:"tickets" doc:"Its tickets in the store, in the window or not."`
+	Linked   int       `json:"linked" doc:"Of those, the tickets a pull request in the report is linked to: attached to the ticket by the system, or naming its key in the branch, title or description."`
+	Keys     []string  `json:"keys" doc:"The key prefixes a pull request is searched for, such as ENG: the teams or projects its tickets are in, now or before. Found in the tickets, never set by hand. Empty in a summary."`
 }
 
 // RepoCoverage is one repository in the store.

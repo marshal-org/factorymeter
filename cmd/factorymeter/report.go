@@ -38,7 +38,7 @@ func reportCmd() *cobra.Command {
 	var dir, since, until, format, jsonPath, htmlPath, registryPath string
 	var summary bool
 	cmd := &cobra.Command{
-		Use:   "report <owner/repo | owner>",
+		Use:   "report [owner/repo | owner]",
 		Short: "Report how the line performs, station by station, from the local store",
 		Long: `report reads the local store that "sync" fills and prints how the delivery
 line performs: the constraint, then each station with its flow, wait, work,
@@ -60,7 +60,7 @@ station numbers only and is safe to share.`,
   factorymeter report my-org --format markdown >> "$GITHUB_STEP_SUMMARY"
   factorymeter report my-org --html line.html --format none
   factorymeter report my-org --summary --json line.json --format none`,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch format {
 			case "text", "markdown", "html", "json", "none":
@@ -75,7 +75,7 @@ station numbers only and is safe to share.`,
 			if err != nil {
 				return err
 			}
-			target, err := parseTarget(args[0])
+			target, err := targetOf(args)
 			if err != nil {
 				return err
 			}
