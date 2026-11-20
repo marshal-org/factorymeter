@@ -88,6 +88,10 @@ func fakeJira(t *testing.T, now time.Time, calls *atomic.Int64) *httptest.Server
 					values = append(values, obj{"key": k})
 				}
 			}
+			if len(q["keys"]) == 0 {
+				// The list of every project, as init asks for it.
+				values = []obj{{"key": "ENG", "name": "Engineering"}, {"key": "OPS", "name": "Operations"}}
+			}
 			out = obj{"values": values, "isLast": true}
 		case "/rest/api/3/search/jql":
 			jql := q.Get("jql")

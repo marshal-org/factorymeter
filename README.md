@@ -26,9 +26,9 @@
 </p>
 
 ```bash
-factorymeter sync owner/repo      # read the history into a store on your machine
-factorymeter serve owner/repo     # see the line in the browser, at http://127.0.0.1:7377
-factorymeter report owner/repo    # or print it, as text, Markdown, JSON or one HTML file
+curl -fsSL https://marshal-org.github.io/factorymeter/install.sh | sh   # install, on macOS or Linux
+factorymeter init      # a few questions, a factorymeter.yml, then the first sync
+factorymeter serve     # see the line in the browser, at http://127.0.0.1:7377
 ```
 
 <p align="center">
@@ -96,6 +96,38 @@ Every number has a fixed id and an exact definition. `factorymeter metrics` prin
 
 ## Install
 
+One line, on macOS or Linux:
+
+```bash
+curl -fsSL https://marshal-org.github.io/factorymeter/install.sh | sh
+```
+
+It downloads the newest release for your system from GitHub, checks it against the checksums of
+the release, and puts it in `~/.local/bin`. `FACTORYMETER_INSTALL_DIR` picks another directory
+and `FACTORYMETER_VERSION=v0.5.0` another release. It needs no token and changes nothing else.
+The script is [site/install.sh](site/install.sh), if you want to read it first.
+
+Then answer a few questions:
+
+```bash
+factorymeter init
+```
+
+`init` asks what to read, whether your tickets live in Linear or Jira, and how far back to go.
+With `LINEAR_API_KEY` or `JIRA_EMAIL` and `JIRA_API_TOKEN` set, it lists your teams and projects
+to pick from. It writes the answers to a [config file](#a-config-file) and offers to run the
+first sync.
+
+To upgrade, in place:
+
+```bash
+factorymeter upgrade           # the newest release, checked against its checksums
+factorymeter upgrade --check   # only say whether there is a newer one
+```
+
+`upgrade` replaces the binary you ran, wherever it is. A failure leaves the old one as it was.
+It is there from v0.5.0. On an older version, run the install line again, once.
+
 With Go:
 
 ```bash
@@ -103,8 +135,9 @@ go install github.com/marshal-org/factorymeter/cmd/factorymeter@latest
 ```
 
 Or download a binary for Linux, macOS or Windows from the
-[releases page](https://github.com/marshal-org/factorymeter/releases). The latest one is always at
-the same address:
+[releases page](https://github.com/marshal-org/factorymeter/releases). On Windows that is the
+way in, and `factorymeter upgrade` works there too. The latest one is always at the same
+address:
 
 ```bash
 curl -fsSL -o factorymeter https://github.com/marshal-org/factorymeter/releases/latest/download/factorymeter-darwin-arm64
@@ -258,6 +291,7 @@ Other useful commands:
 factorymeter metrics review                # the numbers of one station, with definitions
 factorymeter rules                         # every recommendation and when it is made
 factorymeter rules review                  # the rules of one station
+factorymeter store tickets my-org          # every ticket, and the pull requests tied to it, and how
 factorymeter classify owner/repo#123       # why one pull request counted as agent or human
 factorymeter signatures list               # every signature in use
 ```

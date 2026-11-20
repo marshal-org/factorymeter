@@ -25,7 +25,9 @@ go build -o factorymeter ./cmd/factorymeter
 ./factorymeter report marshal-org/runlease
 ```
 
-The unit tests need no token and no network.
+The unit tests need no token and no network. The live tests run the binary against a real
+GitHub repository, Linear workspace and Jira Cloud site, and are run by hand:
+[test/live/README.md](test/live/README.md).
 
 ## Before you open a pull request
 

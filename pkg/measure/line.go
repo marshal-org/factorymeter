@@ -868,6 +868,25 @@ type SourceScope struct {
 	LinkedOnly bool
 }
 
+// SpecStart is when the spec station takes a ticket to start: the first time
+// it moved to a started state, or when the first pull request tied to it was
+// opened, whichever is earlier. firstLink is zero when no pull request is
+// tied to it. A pull request opened after the ticket was closed did not start
+// it: it only names it, as in "a duplicate of ENG-12". A ticket written up
+// after the work began did not wait, so it starts when it was created. Zero
+// is a ticket that never started.
+func SpecStart(t *record.Ticket, firstLink time.Time) time.Time {
+	start := val(t.StartedAt)
+	closed := val(t.ClosedAt)
+	if !firstLink.IsZero() && (start.IsZero() || firstLink.Before(start)) && (closed.IsZero() || !firstLink.After(closed)) {
+		start = firstLink
+	}
+	if !start.IsZero() && start.Before(t.CreatedAt) {
+		start = t.CreatedAt
+	}
+	return start
+}
+
 // TicketSource starts a ticket system that is not a repository. Call it after
 // every repository, then pass its tickets to the Ticket it returns.
 func (b *Builder) TicketSource(sc SourceScope) func(*record.Ticket) {
@@ -910,17 +929,11 @@ func (b *Builder) Ticket(t *record.Ticket) {
 	it := int32(len(l.items))
 	l.items = append(l.items, item{kind: record.KindTicket, key: t.Key, url: t.URL, title: t.Title, class: classNone})
 
-	start := val(t.StartedAt)
-	// A pull request opened after the ticket was closed did not start it. It
-	// only names it, as in "a duplicate of ENG-12".
-	closed := val(t.ClosedAt)
-	if linked && (start.IsZero() || first.at.Before(start)) && (closed.IsZero() || !first.at.After(closed)) {
-		start = first.at
+	var firstAt time.Time
+	if linked {
+		firstAt = first.at
 	}
-	// A ticket written up after the work began did not wait.
-	if !start.IsZero() && start.Before(t.CreatedAt) {
-		start = t.CreatedAt
-	}
+	start := SpecStart(t, firstAt)
 	if !start.IsZero() {
 		l.add("spec.flow", start, 1, k)
 		l.add("spec.wait", start, hours(start.Sub(t.CreatedAt)), k)
