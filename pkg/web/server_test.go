@@ -226,7 +226,7 @@ func TestQueryAndLinks(t *testing.T) {
 	// links keep them, and the menu says how many.
 	src.asked = nil
 	body = get(h, "GET", "http://localhost/?repo=acme%2Flib&repo=acme%2Fapp&repo=acme%2Flib").Body.String()
-	if len(src.asked) != 1 || len(src.asked[0].Repos) != 0 {
+	if len(src.asked) != 1 || len(src.asked[0].Repos) != 0 || !strings.Contains(body, "<summary>All repositories</summary>") {
 		t.Errorf("every repository ticked is the whole owner, asked %+v", src.asked)
 	}
 	three := &fake{repos: []string{"acme/app", "acme/api", "acme/lib"}}
