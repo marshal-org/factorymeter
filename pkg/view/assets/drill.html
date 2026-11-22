@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="{{.CSP}}">
+<meta name="referrer" content="no-referrer">
+<title>{{.Name}}: what it counted</title>
+<style>{{.CSS}}</style>
+<script>{{.JS}}</script>
+</head>
+<body>
+<header class="top">
+<div class="wrap bar">
+<span class="brand">factorymeter</span>
+<nav class="pages" aria-label="Pages"><a href="{{.Back}}">Back to the line</a></nav>
+<button type="button" id="theme" class="ghost" hidden>Dark</button>
+</div>
+</header>
+<main class="wrap drill-page">
+<p class="eyebrow">{{.Station}}{{if .Target}} · <strong>{{.Target}}</strong>{{end}}</p>
+<h1 class="drill-h">{{.Name}}</h1>
+<p class="drill-v"><span class="v">{{.Value}}</span> <span class="drill-p">{{.Period}}</span></p>
+<p class="note">{{.How}}</p>
+{{if .Others}}<p class="note">{{.Others}}</p>{{end}}
+{{if .Rows}}<div class="scroll"><table>
+<thead><tr><th scope="col">{{.ItemHead}}</th><th scope="col">Title</th><th scope="col">Who</th><th scope="col">{{.WhenHead}}</th>{{if .ValueHead}}<th class="num" scope="col">{{.ValueHead}}</th>{{end}}</tr></thead>
+<tbody>{{range .Rows}}<tr{{if .Dim}} class="dim"{{end}}><th scope="row">{{if .URL}}<a href="{{.URL}}" rel="noreferrer">{{.Key}}</a>{{else}}{{.Key}}{{end}}</th><td>{{.Title}}</td><td>{{.Who}}</td><td>{{.When}}</td>{{if $.ValueHead}}<td class="num">{{.Value}}</td>{{end}}</tr>
+{{end}}</tbody></table></div>{{else}}<p class="none">Nothing was counted in this period.</p>{{end}}
+<p class="note">{{.Definition}}</p>
+</main>
+</body>
+</html>

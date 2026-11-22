@@ -215,6 +215,9 @@ type Options struct {
 	Until time.Time
 	// Weeks is the length of the window. Zero means 13.
 	Weeks int
+	// Since, when set, starts the window: it then covers the whole weeks
+	// from Since to Until, rounded up, and Weeks is not read.
+	Since time.Time
 	// History is how many weekly points a series carries. Zero means 26.
 	History int
 	// Summary leaves every name, title and link out.
@@ -267,6 +270,10 @@ func (l *Line) window(o Options) (window, []string) {
 		w.until = o.Now
 	}
 	w.until = w.until.UTC().Truncate(time.Second)
+	if !o.Since.IsZero() {
+		o.Weeks = max(1, int((w.until.Sub(o.Since)+week-time.Second)/week))
+		o.History = max(o.History, o.Weeks)
+	}
 
 	history := o.History
 	if !from.IsZero() {

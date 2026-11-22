@@ -1049,3 +1049,25 @@ func TestStatus(t *testing.T) {
 		t.Errorf("verdict: %+v", r.Verdict)
 	}
 }
+
+// A commit with a wrong date, a merge commit and a commit from long before
+// the change was opened do not start it. Each would count years of writing.
+func TestOldCommitsDoNotStartAChange(t *testing.T) {
+	t0 := end.Add(-3 * day)
+	b := NewBuilder(registry(t))
+	rb := b.Repo(RepoScope{Name: repo, From: end.Add(-26 * week), SyncedAt: end})
+	c := change(1, t0)
+	epoch := commit("e", time.Unix(0, 0).UTC())
+	old := commit("o", t0.Add(-(line.EarlyCommitDays+1)*day))
+	merge := commit("m", t0.Add(-10*day))
+	merge.Parents = 2
+	mine := commit("a", t0.Add(-2*h))
+	c.Commits = []record.Commit{epoch, old, merge, mine}
+	c.CommitCount = 4
+	rb.Change(&c)
+	rb.Done()
+	l := b.Line()
+	if got := vals(l.obs["code.work"]); !same(got, []float64{2}) {
+		t.Errorf("code.work = %v, want [2]: only the commit written for the change starts it", got)
+	}
+}

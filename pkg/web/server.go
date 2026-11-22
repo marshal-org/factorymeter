@@ -34,6 +34,9 @@ type Query struct {
 	Weeks int
 	// Until ends the window. Zero means the last sync.
 	Until time.Time
+	// From, when set, starts the window on that day; the window then runs
+	// over whole weeks back from its end, and Weeks is not read.
+	From time.Time
 	// Repos narrows an owner to some of its repositories. Empty means
 	// every one.
 	Repos []string
@@ -46,6 +49,9 @@ type Source interface {
 	// Repos lists the repositories a query may name. It is empty when the
 	// target is one repository, and when names must stay out of the page.
 	Repos() ([]string, error)
+	// Drill lists the items one number of the report counted, over the
+	// window, or over one week of its charts when week is 0 or more.
+	Drill(q Query, metric string, week int) (*view.DrillPage, error)
 }
 
 // ErrNoData is the error a Source wraps when it holds nothing to report.
@@ -99,7 +105,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusMethodNotAllowed, "This server only reads. Use GET.")
 		return
 	}
-	if r.URL.Path != "/" && r.URL.Path != "/report.json" {
+	if r.URL.Path != "/" && r.URL.Path != "/report.json" && r.URL.Path != "/items" {
 		fail(w, http.StatusNotFound, "There is no such page. The report is at / and at /report.json.")
 		return
 	}
@@ -108,9 +114,33 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	q, err := parse(r.URL.Query(), repos)
+	v := r.URL.Query()
+	var metric string
+	week := -1
+	if r.URL.Path == "/items" {
+		metric = v.Get("metric")
+		if metric == "" {
+			fail(w, http.StatusBadRequest, "Name the number with metric=, such as metric=review.wait.p50.")
+			return
+		}
+		if s := v.Get("week"); s != "" {
+			n, err := strconv.Atoi(s)
+			if err != nil || n < 0 || n > maxWeeks {
+				fail(w, http.StatusBadRequest, fmt.Sprintf("cannot read week=%q. Use the index of a week of the charts, from 0", s))
+				return
+			}
+			week = n
+		}
+		v.Del("metric")
+		v.Del("week")
+	}
+	q, err := parse(v, repos)
 	if err != nil {
 		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if r.URL.Path == "/items" {
+		s.items(w, r, q, metric, week)
 		return
 	}
 	rep, err := s.src.Report(q)
@@ -132,7 +162,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = enc.Encode(rep)
 		h.Set("Content-Type", "application/json; charset=utf-8")
 	} else {
-		err = view.HTML(&buf, rep, view.HTMLOptions{Nav: nav(q, repos)})
+		err = view.HTML(&buf, rep, view.HTMLOptions{Nav: nav(q, repos, rep)})
 		h.Set("Content-Type", "text/html; charset=utf-8")
 	}
 	if err != nil {
@@ -146,6 +176,45 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// items answers with the page of the items behind one number.
+func (s *server) items(w http.ResponseWriter, r *http.Request, q Query, metric string, week int) {
+	page, err := s.src.Drill(q, metric, week)
+	switch {
+	case errors.Is(err, ErrNoData):
+		fail(w, http.StatusNotFound, err.Error())
+		return
+	case errors.Is(err, ErrBadQuery):
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	case err != nil:
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if page.Back == "" {
+		page.Back = link("/", q)
+	}
+	var buf bytes.Buffer
+	if err := view.WriteDrill(&buf, page); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	h := w.Header()
+	h.Set("Content-Type", "text/html; charset=utf-8")
+	h.Set("Content-Length", strconv.Itoa(buf.Len()))
+	w.WriteHeader(http.StatusOK)
+	if r.Method != http.MethodHead {
+		_, _ = w.Write(buf.Bytes())
+	}
+}
+
+// ErrBadQuery is the error a Source wraps for a number or week that is not
+// there.
+var ErrBadQuery = errors.New("bad query")
+
+// Link is the address of the page for a query, for a Source that writes
+// links back to the line.
+func Link(path string, q Query) string { return link(path, q) }
+
 func fail(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(code)
@@ -157,8 +226,8 @@ func fail(w http.ResponseWriter, code int, msg string) {
 func parse(v url.Values, repos []string) (Query, error) {
 	q := Query{Weeks: defaultWeeks}
 	for k := range v {
-		if k != "since" && k != "until" && k != "repo" {
-			return q, fmt.Errorf("unknown parameter %q. Use since, until and repo", k)
+		if k != "since" && k != "until" && k != "repo" && k != "from" {
+			return q, fmt.Errorf("unknown parameter %q. Use since, from, until and repo", k)
 		}
 	}
 	if s := v.Get("since"); s != "" {
@@ -175,6 +244,19 @@ func parse(v url.Values, repos []string) (Query, error) {
 		}
 		// The window takes in the whole of the day it names.
 		q.Until = t.Add(24 * time.Hour)
+	}
+	if s := v.Get("from"); s != "" {
+		t, err := time.Parse("2006-01-02", s)
+		if err != nil {
+			return q, fmt.Errorf("cannot read from=%q. Use a date such as 2026-01-31", s)
+		}
+		if !q.Until.IsZero() && !t.Before(q.Until) {
+			return q, fmt.Errorf("from=%s is not before the end of the window", s)
+		}
+		if !q.Until.IsZero() && q.Until.Sub(t) > maxWeeks*7*24*time.Hour {
+			return q, fmt.Errorf("from=%s reaches back more than %d weeks", s, maxWeeks)
+		}
+		q.From = t
 	}
 	for _, s := range v["repo"] {
 		if s == "" || slices.Contains(q.Repos, s) {
@@ -196,7 +278,9 @@ func parse(v url.Values, repos []string) (Query, error) {
 // link is the address of the page for a query, with the defaults left out.
 func link(path string, q Query) string {
 	v := url.Values{}
-	if q.Weeks != defaultWeeks {
+	if !q.From.IsZero() {
+		v.Set("from", q.From.Format("2006-01-02"))
+	} else if q.Weeks != defaultWeeks {
 		v.Set("since", strconv.Itoa(q.Weeks)+"w")
 	}
 	if !q.Until.IsZero() {
@@ -211,8 +295,16 @@ func link(path string, q Query) string {
 	return path + "?" + v.Encode()
 }
 
-func nav(q Query, repos []string) *view.Nav {
-	n := &view.Nav{JSON: link("/report.json", q)}
+func nav(q Query, repos []string, rep *contract.Report) *view.Nav {
+	n := &view.Nav{JSON: link("/report.json", q), KeepRepos: q.Repos}
+	// The items behind a number: the address of the page with its settings,
+	// to which the page adds the metric.
+	n.Drill = link("/items", q)
+	if rep != nil && !rep.Window.Since.IsZero() {
+		n.From = rep.Window.Since.UTC().Format("2006-01-02")
+		// The window ends at a moment; the form names the day it is in.
+		n.Until = rep.Window.Until.UTC().Add(-time.Second).Format("2006-01-02")
+	}
 	weeks := windows
 	if !slices.Contains(weeks, q.Weeks) {
 		weeks = append(slices.Clone(weeks), q.Weeks)
@@ -220,8 +312,8 @@ func nav(q Query, repos []string) *view.Nav {
 	}
 	for _, w := range weeks {
 		to := q
-		to.Weeks = w
-		n.Windows = append(n.Windows, view.Link{Label: strconv.Itoa(w) + " weeks", URL: link("/", to), Current: w == q.Weeks})
+		to.Weeks, to.From = w, time.Time{}
+		n.Windows = append(n.Windows, view.Link{Label: strconv.Itoa(w) + " weeks", URL: link("/", to), Current: q.From.IsZero() && w == q.Weeks})
 	}
 	if len(repos) > 1 {
 		to := q
@@ -242,7 +334,9 @@ func nav(q Query, repos []string) *view.Nav {
 			n.RepoLabel = fmt.Sprintf("%d of %d repositories", len(q.Repos), len(repos))
 		}
 		// The form sends the window again, so a pick keeps it.
-		if q.Weeks != defaultWeeks {
+		if !q.From.IsZero() {
+			n.Keep = append(n.Keep, view.Field{Name: "from", Value: q.From.Format("2006-01-02")})
+		} else if q.Weeks != defaultWeeks {
 			n.Keep = append(n.Keep, view.Field{Name: "since", Value: strconv.Itoa(q.Weeks) + "w"})
 		}
 		if !q.Until.IsZero() {

@@ -306,7 +306,7 @@
       "needs": [
         "change"
       ],
-      "definition": "Hours from the start of a change to it being marked ready for review, over the changes marked ready in the period. The start is the first commit or the opening of the change, whichever is earlier. The median.",
+      "definition": "Hours from the start of a change to it being marked ready for review, over the changes marked ready in the period. The start is the first commit or the opening of the change, whichever is earlier. Merge commits, and commits written more than 90 days before the change was opened, do not count: they are history the change carries, or a wrong date. The median.",
       "since": "v1"
     },
     {
@@ -325,7 +325,7 @@
       "needs": [
         "change"
       ],
-      "definition": "Hours from the start of a change to it being marked ready for review, over the changes marked ready in the period. The start is the first commit or the opening of the change, whichever is earlier. The 90th percentile: one item in ten took longer.",
+      "definition": "Hours from the start of a change to it being marked ready for review, over the changes marked ready in the period. The start is the first commit or the opening of the change, whichever is earlier. Merge commits, and commits written more than 90 days before the change was opened, do not count: they are history the change carries, or a wrong date. The 90th percentile: one item in ten took longer.",
       "since": "v1"
     },
     {
@@ -1395,7 +1395,7 @@
         "change",
         "deploy"
       ],
-      "definition": "Hours from the start of a change to the production deploy that shipped it, over the changes that reached production in the period. The start is the first commit or the opening of the change, whichever is earlier. The median. A production deploy of the commit a merge left on its branch holds the changes merged into that branch up to that merge. Of any other deploy only the time is known, and it is taken to hold the changes merged before it started.",
+      "definition": "Hours from the start of a change to the production deploy that shipped it, over the changes that reached production in the period. The start is the first commit or the opening of the change, whichever is earlier. Merge commits, and commits written more than 90 days before the change was opened, do not count: they are history the change carries, or a wrong date. The median. A production deploy of the commit a merge left on its branch holds the changes merged into that branch up to that merge. Of any other deploy only the time is known, and it is taken to hold the changes merged before it started.",
       "since": "v1"
     },
     {

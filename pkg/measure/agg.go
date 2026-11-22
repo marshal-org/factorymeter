@@ -44,6 +44,9 @@ type obs struct {
 	// and 0 when it does not.
 	v float64
 	k key
+	// item is the change, ticket or deploy it is about: an index into
+	// Line.items, or -1.
+	item int32
 }
 
 // stay is one item standing in a queue. A zero to means it still stands.

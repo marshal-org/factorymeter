@@ -21,6 +21,7 @@ import (
 	"github.com/marshal-org/factorymeter/pkg/record"
 	"github.com/marshal-org/factorymeter/pkg/signature"
 	"github.com/marshal-org/factorymeter/pkg/store"
+	"github.com/marshal-org/factorymeter/pkg/view"
 	"github.com/marshal-org/factorymeter/pkg/web"
 )
 
@@ -82,7 +83,9 @@ func (l *lines) Repos() ([]string, error) {
 	return names, nil
 }
 
-func (l *lines) Report(q web.Query) (*contract.Report, error) {
+// line is the line a query asks for, read again after a sync. l.mu must be
+// held: a Line is not safe for two requests at once.
+func (l *lines) line(q web.Query) (*measure.Line, string, error) {
 	// One repository ticked is the line of that repository. More are the
 	// owner narrowed to them.
 	target, only := l.target, l.only
@@ -95,11 +98,9 @@ func (l *lines) Report(q web.Query) (*contract.Report, error) {
 		only = q.Repos
 	}
 	key := target + "|" + strings.Join(only, ",")
-	l.mu.Lock()
-	defer l.mu.Unlock()
 	scopes, others, s, err := l.scopes(target, only)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer s.Close()
 	// The tickets of another source change the report of every target, so a
@@ -113,9 +114,9 @@ func (l *lines) Report(q web.Query) (*contract.Report, error) {
 		line, err := measure.LoadOnly(s, l.reg, target, only)
 		if err != nil {
 			if len(scopes) == 0 {
-				return nil, fmt.Errorf("%w: %v", web.ErrNoData, err)
+				return nil, "", fmt.Errorf("%w: %v", web.ErrNoData, err)
 			}
-			return nil, err
+			return nil, "", err
 		}
 		k = keptLine{stamp: stamp.String(), line: line}
 		if l.kept == nil {
@@ -123,8 +124,41 @@ func (l *lines) Report(q web.Query) (*contract.Report, error) {
 		}
 		l.kept[key] = k
 	}
-	return k.line.Report(measure.Options{Target: target, Weeks: q.Weeks, Until: q.Until, Summary: l.summary,
-		Now: l.now().UTC(), Version: version, Registry: strconv.Itoa(l.reg.Version)})
+	return k.line, target, nil
+}
+
+func (l *lines) options(q web.Query, target string) measure.Options {
+	return measure.Options{Target: target, Weeks: q.Weeks, Since: q.From, Until: q.Until, Summary: l.summary,
+		Now: l.now().UTC(), Version: version, Registry: strconv.Itoa(l.reg.Version)}
+}
+
+func (l *lines) Report(q web.Query) (*contract.Report, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	ln, target, err := l.line(q)
+	if err != nil {
+		return nil, err
+	}
+	return ln.Report(l.options(q, target))
+}
+
+// Drill lists the items behind one number. A summary names no item, so it
+// has none to list.
+func (l *lines) Drill(q web.Query, metric string, week int) (*view.DrillPage, error) {
+	if l.summary {
+		return nil, fmt.Errorf("%w: a summary leaves every name out, so it lists no items", web.ErrBadQuery)
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	ln, target, err := l.line(q)
+	if err != nil {
+		return nil, err
+	}
+	d, err := ln.Drill(l.options(q, target), metric, week)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", web.ErrBadQuery, err)
+	}
+	return drillPage(d, target, web.Link("/", q)), nil
 }
 
 // openBrowser opens a page in the browser of this machine. Tests replace it.

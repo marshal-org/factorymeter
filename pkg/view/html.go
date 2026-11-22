@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"io"
 	"math"
+	"net/url"
 	"strings"
 	"time"
 
@@ -67,6 +68,13 @@ type Nav struct {
 	AllRepos string
 	// Keep are the other settings of the page, sent again with the form.
 	Keep []Field
+	// Drill is the address of the items behind a number, with the settings
+	// of the page and without the metric. Empty: the page cannot drill.
+	Drill string
+	// From and Until are the dates of the window, for the date form, and
+	// Repos the repositories the form sends again.
+	From, Until string
+	KeepRepos   []string
 	// JSON is the link to the same report as factorymeter/v1 JSON.
 	JSON string
 }
@@ -182,6 +190,8 @@ type plotCard struct {
 
 type metricCard struct {
 	ID, Name, Basis, Was string
+	// DrillURL lists the items of the number, DrillLabel says how many.
+	DrillURL, DrillLabel string
 	Fig                  fig
 	// Alt is the 90th percentile of a card that also shows the median.
 	Alt   *fig
@@ -621,6 +631,22 @@ func buildHTML(r *contract.Report, opt HTMLOptions) *htmlPage {
 					c.Info.Code = m.ID + ", " + base + ".p90"
 					ch.tracks = []track{{name: "Median", key: "s1", s: s}, {name: "90th percentile", key: "s1 p90", s: hi}}
 					ch.label = c.Name + ", median and 90th percentile, week by week"
+				}
+			}
+			if opt.Nav != nil && opt.Nav.Drill != "" && !r.Summary {
+				sep := "?"
+				if strings.Contains(opt.Nav.Drill, "?") {
+					sep = "&"
+				}
+				c.DrillURL = opt.Nav.Drill + sep + "metric=" + url.QueryEscape(m.ID)
+				ch.drill = c.DrillURL + "&week="
+				if s.N > 0 {
+					what := noun(m.ID)
+					if m.Kind == line.Queue {
+						c.DrillLabel = "See the " + plural(s.N, what) + " in the queue"
+					} else {
+						c.DrillLabel = "See the " + plural(s.N, what)
+					}
 				}
 			}
 			c.Chart = ch.draw()

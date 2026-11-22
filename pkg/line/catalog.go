@@ -1,5 +1,7 @@
 package line
 
+import "strconv"
+
 // V1 is the first version of the contract.
 const V1 = "v1"
 
@@ -49,7 +51,7 @@ var sets = []set{
 		flowName:   "PRs made ready",
 		flow:       "Changes marked ready for review in the period. A change opened ready counts when it is opened.",
 		workName:   "Time to write a PR",
-		work:       "Hours from the start of a change to it being marked ready for review, over the changes marked ready in the period. The start is the first commit or the opening of the change, whichever is earlier.",
+		work:       "Hours from the start of a change to it being marked ready for review, over the changes marked ready in the period. The start is the first commit or the opening of the change, whichever is earlier. Merge commits, and commits written more than " + strconv.Itoa(EarlyCommitDays) + " days before the change was opened, do not count: they are history the change carries, or a wrong date.",
 		reworkName: "PRs abandoned",
 		rework:     "Share of the changes closed in the period that were closed without merging.",
 		queueName:  "PRs in draft",
@@ -139,7 +141,7 @@ var extra = []Metric{
 		Definition: "Hours from a change being opened to it merging, over the changes merged in the period. The 90th percentile: one change in ten took longer."},
 	{ID: "line.delivery.p50", Station: Whole, Kind: Other, Name: "Start to production, median", Unit: Hours, Good: Down, MinSample: MinSample,
 		Slices: changeSlices, Needs: []string{NeedChange, NeedDeploy},
-		Definition: "Hours from the start of a change to the production deploy that shipped it, over the changes that reached production in the period. The start is the first commit or the opening of the change, whichever is earlier. The median. " + deployNote},
+		Definition: "Hours from the start of a change to the production deploy that shipped it, over the changes that reached production in the period. The start is the first commit or the opening of the change, whichever is earlier. Merge commits, and commits written more than " + strconv.Itoa(EarlyCommitDays) + " days before the change was opened, do not count: they are history the change carries, or a wrong date. The median. " + deployNote},
 	{ID: "line.agent_share", Station: Whole, Kind: Other, Name: "Disclosed agent share", Unit: Share, Good: Neither, MinSample: MinSample,
 		Slices: repoOnly, Needs: []string{NeedChange},
 		Definition: "Changes by agents divided by changes by agents and by people, over the changes merged in the period. Automation is left out of both sides. It is a floor: an agent that leaves no trace counts as a person."},

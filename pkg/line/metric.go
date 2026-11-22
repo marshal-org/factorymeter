@@ -121,6 +121,11 @@ var byID = func() map[string]Metric {
 }()
 
 // ByID finds a metric by its id.
+// EarlyCommitDays is how long before a change was opened a commit may be
+// written and still start it. An older commit is history the change carries,
+// such as the commits of a branch it brings in, or a commit with a wrong date.
+const EarlyCommitDays = 90
+
 func ByID(id string) (Metric, bool) {
 	m, ok := byID[id]
 	return m, ok

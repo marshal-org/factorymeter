@@ -350,6 +350,17 @@ same report as `factorymeter/v1` JSON.
 script and loads nothing from the network, so it can be kept, sent, or published from a job.
 With `--summary` it holds station numbers only.
 
+On the served page:
+
+- **Drill down.** Every number in a station has a link to the PRs, tickets, CI rounds or deploys
+  it counted, and a click on a week of its chart lists that week's. The list says how the number
+  comes from the rows: a count, a median, a share or the hours held.
+- **Dates.** Pick 4, 13 or 26 weeks, or a start and an end date. A window runs over whole weeks,
+  so a start date is rounded back to the week it falls in.
+- **Repositories.** For an owner, tick the repositories to show. Search the list, and select or
+  clear all of what the search shows.
+- The station you have open stays open when you change any of these.
+
 What `serve` does and does not do:
 
 - It reads the store and nothing else. It takes no token and sends nothing.

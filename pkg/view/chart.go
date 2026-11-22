@@ -19,6 +19,10 @@ type svg struct{ strings.Builder }
 func (s *svg) open(name string, kv ...string) {
 	s.WriteString("<" + name)
 	for i := 0; i+1 < len(kv); i += 2 {
+		// An address that is not there is left out, not written empty.
+		if kv[i] == "data-drill" && kv[i+1] == "" {
+			continue
+		}
 		s.WriteString(" " + kv[i] + `="` + html.EscapeString(kv[i+1]) + `"`)
 	}
 	s.WriteString(">")
@@ -64,6 +68,9 @@ type chart struct {
 	// stack sets the tracks on top of each other. Only counts stack.
 	stack bool
 	label string
+	// drill is the address of the items of a week, without the week's
+	// index at its end. Empty draws a chart that cannot be clicked.
+	drill string
 }
 
 // windowStart is the index of the first week of the window among the
@@ -186,7 +193,8 @@ func (c chart) draw() template.HTML {
 	s := &svg{}
 	s.open("svg", "class", "chart", "viewBox", "0 0 "+px(chartW)+" "+px(chartH), "role", "img", "aria-label", c.label,
 		"data-names", strings.Join(names, "|"), "data-keys", strings.Join(keys, "|"), "data-v", strings.Join(rows, "~"),
-		"data-x", px(padSide), "data-step", strconv.FormatFloat(step, 'f', 4, 64), "data-y", px(padTop-4), "data-h", px(plotH+4))
+		"data-x", px(padSide), "data-step", strconv.FormatFloat(step, 'f', 4, 64), "data-y", px(padTop-4), "data-h", px(plotH+4),
+		"data-drill", c.drill)
 
 	// The furniture: two hairlines for the scale, the baseline, and a mark
 	// where the window starts.
