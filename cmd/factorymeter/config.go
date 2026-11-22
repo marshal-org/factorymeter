@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -18,7 +19,8 @@ import (
 )
 
 // configNames are the files a command looks for in the directory it runs in,
-// in this order. At most one of them may be there.
+// in this order. At most one of them may be there. When none is, the user
+// config file is read: see userConfigFile.
 var configNames = []string{
 	"factorymeter.yml", "factorymeter.yaml",
 	".factorymeter.yml", ".factorymeter.yaml",
@@ -109,12 +111,56 @@ var secretKey = regexp.MustCompile(`(?i)(token|secret|password|passwd|credential
 // secretValue is a value that looks like a token of GitHub, Linear or Jira.
 var secretValue = regexp.MustCompile(`^(lin_api_|lin_oauth_|ATATT|ATCTT|ghp_|gho_|ghu_|ghs_|ghr_|github_pat_)`)
 
+// userConfigFile is the config file of the person, read wherever they run
+// factorymeter when the directory has no config file of its own. It is
+// $FACTORYMETER_CONFIG, else factorymeter/config.yml under $XDG_CONFIG_HOME,
+// else %AppData%\factorymeter\config.yml on Windows and
+// ~/.config/factorymeter/config.yml elsewhere. macOS takes ~/.config too, as
+// most command line tools do there.
+func userConfigFile() (string, error) {
+	if v := strings.TrimSpace(os.Getenv("FACTORYMETER_CONFIG")); v != "" {
+		return v, nil
+	}
+	if v := strings.TrimSpace(os.Getenv("XDG_CONFIG_HOME")); v != "" && filepath.IsAbs(v) {
+		return filepath.Join(v, "factorymeter", "config.yml"), nil
+	}
+	if runtime.GOOS == "windows" {
+		base, err := os.UserConfigDir()
+		if err != nil {
+			return "", fmt.Errorf("no user config directory, set FACTORYMETER_CONFIG: %w", err)
+		}
+		return filepath.Join(base, "factorymeter", "config.yml"), nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("no home directory, set FACTORYMETER_CONFIG: %w", err)
+	}
+	return filepath.Join(home, ".config", "factorymeter", "config.yml"), nil
+}
+
 // findConfig returns the config file to read: the one named, else the one in
-// the directory, else none.
+// the directory, else the user config file when there is one, else none.
 func findConfig(named string, dir string) (string, error) {
 	if named != "" {
 		return named, nil
 	}
+	local, err := findLocalConfig(dir)
+	if err != nil || local != "" {
+		return local, err
+	}
+	user, err := userConfigFile()
+	if err != nil {
+		// No home is no reason to stop a run that needs no file.
+		return "", nil
+	}
+	if st, err := os.Stat(user); err == nil && !st.IsDir() {
+		return user, nil
+	}
+	return "", nil
+}
+
+// findLocalConfig returns the config file of the directory, or none.
+func findLocalConfig(dir string) (string, error) {
 	var found []string
 	for _, name := range configNames {
 		p := filepath.Join(dir, name)
@@ -368,13 +414,29 @@ func targetOf(args []string) (string, error) {
 	if config.file != nil {
 		return "", fmt.Errorf("no target. Give one, such as my-org or my-org/my-repo, or set target in %s", config.file.path)
 	}
-	return "", errors.New("no target. Give one, such as my-org or my-org/my-repo, or set target in a factorymeter.yml")
+	return "", errors.New(`no target. Give one, such as my-org or my-org/my-repo, or run "factorymeter init" to keep one in a config file`)
 }
 
-// configTemplate is what "config init" writes.
-const configTemplate = `# factorymeter reads this file when it runs in this directory. A flag on the
-# command line wins over it. Keys and tokens are never kept here: they come
-# from GITHUB_TOKEN, LINEAR_API_KEY, JIRA_EMAIL and JIRA_API_TOKEN.
+// The first lines of a config file, by where it is.
+const (
+	localHeader = `# factorymeter reads this file when it runs in this directory. A flag on the
+# command line wins over it.`
+	userHeader = `# factorymeter reads this file wherever it runs, unless the directory it runs
+# in has a factorymeter.yml of its own. A flag on the command line wins over it.`
+)
+
+// configHeader is the first lines of a config file at this path.
+func configHeader(user bool) string {
+	if user {
+		return userHeader
+	}
+	return localHeader
+}
+
+// configTemplate is what "config init" writes, after a header.
+const configTemplate = `%s
+# Keys and tokens are never kept here: they come from GITHUB_TOKEN,
+# LINEAR_API_KEY, JIRA_EMAIL and JIRA_API_TOKEN.
 #
 # Every setting is optional. "factorymeter config" shows what was read.
 
@@ -390,7 +452,8 @@ target: %s
 # Leave out every repository name, title and link, as for a public page.
 # summary: false
 
-# Where the store is. The default is the user cache directory.
+# Where the store is. The default is the user cache directory. A relative
+# path is taken from the directory factorymeter runs in.
 # store: .factorymeter-store
 
 # sync:
@@ -421,17 +484,24 @@ func configCmd() *cobra.Command {
 	var format string
 	cmd := &cobra.Command{
 		Use:   "config",
-		Short: "Show the config file this directory uses, and what it sets",
-		Long: `factorymeter reads a config file when it runs in a directory that has one:
-factorymeter.yml, .factorymeter.yml or .github/factorymeter.yml (or .yaml).
---config names another file, and --no-config reads none. A flag on the command
-line wins over the file.
+		Short: "Show the config file a run here uses, and what it sets",
+		Long: `factorymeter reads one config file. It is the first of:
+
+  1. the file --config names
+  2. factorymeter.yml, .factorymeter.yml or .github/factorymeter.yml (or .yaml)
+     in the directory it runs in
+  3. your user config file: $FACTORYMETER_CONFIG, else
+     ~/.config/factorymeter/config.yml ($XDG_CONFIG_HOME is followed, and on
+     Windows it is %AppData%\factorymeter\config.yml)
+
+--no-config reads none. A flag on the command line wins over the file.
 
 The file holds the target, the history and window, and the settings of sync,
 Linear, Jira and serve. It never holds a key or a token: those come from the
 environment, and a file that holds one is refused.
 
-"factorymeter config init" writes a file with every setting, commented out.`,
+"factorymeter config init" writes your user config file with every setting,
+commented out. With --here it writes a factorymeter.yml in this directory.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			w := cmd.OutOrStdout()
@@ -454,7 +524,11 @@ environment, and a file that holds one is refused.
 				return fmt.Errorf("--format is text or json, not %q", format)
 			}
 			if c == nil {
-				fmt.Fprintln(w, "No config file here. \"factorymeter config init\" writes one.")
+				msg := "No config file. \"factorymeter config init\" writes one."
+				if user, err := userConfigFile(); err == nil {
+					msg = fmt.Sprintf("No config file: none in this directory, and none at %s.\n\"factorymeter config init\" writes one there.", user)
+				}
+				fmt.Fprintln(w, msg)
 				return nil
 			}
 			fmt.Fprintf(w, "Config file: %s\n\n", c.path)
@@ -523,11 +597,16 @@ func (c *fileConfig) rows() [][2]string {
 }
 
 func configInitCmd() *cobra.Command {
-	var force bool
+	var force, here bool
 	cmd := &cobra.Command{
 		Use:   "init [owner/repo | owner]",
-		Short: "Write a factorymeter.yml with every setting, commented out",
-		Args:  cobra.MaximumNArgs(1),
+		Short: "Write your config file with every setting, commented out",
+		Long: `config init writes your user config file, ~/.config/factorymeter/config.yml,
+with every setting commented out. factorymeter reads it wherever it runs.
+
+With --here it writes factorymeter.yml in this directory instead, to keep the
+settings next to the code. A file here wins over the user config file.`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target := "my-org"
 			if len(args) > 0 {
@@ -537,33 +616,76 @@ func configInitCmd() *cobra.Command {
 				}
 				target = t
 			}
-			path := "factorymeter.yml"
 			dir, err := os.Getwd()
 			if err != nil {
 				return err
 			}
-			found, err := findConfig("", dir)
-			switch {
-			case err != nil:
-				return err
-			case found != "" && !force:
-				rel, _ := filepath.Rel(dir, found)
-				return fmt.Errorf("%s is already here. --force writes over it", rel)
-			case found != "":
-				// Over the file that is there, so the directory keeps one.
-				path = found
-			}
-			if err := os.WriteFile(path, []byte(fmt.Sprintf(configTemplate, target)), 0o644); err != nil {
+			dest, err := configDest(dir, here)
+			if err != nil {
 				return err
 			}
-			rel, _ := filepath.Rel(dir, path)
-			if rel == "" || strings.HasPrefix(rel, "..") {
-				rel = path
+			if dest.exists && !force {
+				return fmt.Errorf("%s is already there. --force writes over it", dest.show)
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Wrote %s. Every setting in it is optional.\n", rel)
+			if err := writeConfig(dest.path, fmt.Sprintf(configTemplate, configHeader(!here), target)); err != nil {
+				return err
+			}
+			w := cmd.OutOrStdout()
+			fmt.Fprintf(w, "Wrote %s. Every setting in it is optional.\n", dest.show)
+			if dest.shadow != "" {
+				fmt.Fprintf(w, "note: %s in this directory wins over it here.\n", dest.shadow)
+			}
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&force, "force", false, "write over a config file that is already here")
+	cmd.Flags().BoolVar(&force, "force", false, "write over a config file that is already there")
+	cmd.Flags().BoolVar(&here, "here", false, "write factorymeter.yml in this directory, not your user config file")
 	return cmd
+}
+
+// configTarget is where a command that writes a config file writes it.
+type configTarget struct {
+	// path is the file to write, and show is how to name it to the person.
+	path, show string
+	// exists is set when there is a file at path.
+	exists bool
+	// shadow is a config file of the directory that wins over the user
+	// config file, when one is written there.
+	shadow string
+}
+
+// configDest picks the file "init" and "config init" write: the user config
+// file, or with here the config file of the directory. A directory keeps one
+// config file, so with here it is the file that is there, when there is one.
+func configDest(dir string, here bool) (configTarget, error) {
+	local, err := findLocalConfig(dir)
+	if err != nil {
+		return configTarget{}, err
+	}
+	if here {
+		if local == "" {
+			return configTarget{path: filepath.Join(dir, "factorymeter.yml"), show: "factorymeter.yml"}, nil
+		}
+		return configTarget{path: local, show: relTo(dir, local), exists: true}, nil
+	}
+	user, err := userConfigFile()
+	if err != nil {
+		return configTarget{}, err
+	}
+	t := configTarget{path: user, show: user}
+	if st, err := os.Stat(user); err == nil && !st.IsDir() {
+		t.exists = true
+	}
+	if local != "" {
+		t.shadow = relTo(dir, local)
+	}
+	return t, nil
+}
+
+// writeConfig writes a config file, and the directory it goes in.
+func writeConfig(path, text string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(text), 0o644)
 }

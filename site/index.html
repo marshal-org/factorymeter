@@ -134,7 +134,7 @@
 </div>
 <div>
 <h3>2. Read your line</h3>
-<p>A few questions, a <code>factorymeter.yml</code>, then the first sync. It takes a token from <code>GITHUB_TOKEN</code>, or from the GitHub CLI when you are logged in.</p>
+<p>A few questions, a config file in <code>~/.config/factorymeter</code>, then the first sync. It takes a token from <code>GITHUB_TOKEN</code>, or from the GitHub CLI when you are logged in.</p>
 <pre><code>factorymeter init     # what to read, Linear or Jira, how far back
 factorymeter serve    # open http://127.0.0.1:7377</code></pre>
 <p class="small">The first sync shows what it reads and how long is left. A busy repository takes about ten minutes: openstatus, with 911 changes and 13,242 CI runs, took 10. Every later sync reads only what changed.</p>

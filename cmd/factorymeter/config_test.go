@@ -223,10 +223,10 @@ func TestCommandsReadTheConfigFileOfTheDirectory(t *testing.T) {
 		t.Errorf("store path with a broken file: %v", err)
 	}
 	// config init will not write over it, and --force writes over that file.
-	if _, err := execute(newRoot(), "config", "init"); err == nil || !strings.Contains(err.Error(), "factorymeter.yml is already here") {
+	if _, err := execute(newRoot(), "config", "init", "--here"); err == nil || !strings.Contains(err.Error(), "factorymeter.yml is already there") {
 		t.Errorf("init over a file: %v", err)
 	}
-	if out, err := execute(newRoot(), "config", "init", "acme", "--force"); err != nil || out != "Wrote factorymeter.yml. Every setting in it is optional.\n" {
+	if out, err := execute(newRoot(), "config", "init", "acme", "--here", "--force"); err != nil || out != "Wrote factorymeter.yml. Every setting in it is optional.\n" {
 		t.Errorf("init --force: %q %v", out, err)
 	}
 	// What init writes reads back, with the target it was given.
@@ -239,7 +239,7 @@ func TestCommandsReadTheConfigFileOfTheDirectory(t *testing.T) {
 func TestConfigInitInAnEmptyDirectory(t *testing.T) {
 	t.Cleanup(func() { config = configState{} })
 	t.Chdir(t.TempDir())
-	if _, err := execute(newRoot(), "config", "init"); err != nil {
+	if _, err := execute(newRoot(), "config", "init", "--here"); err != nil {
 		t.Fatal(err)
 	}
 	c, err := readConfig("factorymeter.yml")

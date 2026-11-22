@@ -75,7 +75,7 @@ week, how long changes wait, and how often they go back. It names the station
 that holds the line, the one next in line, and where to invest, with agents
 next to people.
 
-  factorymeter init             a few questions, a factorymeter.yml, the first sync
+  factorymeter init             a few questions, a config file, the first sync
   factorymeter sync my-org      read the history into a store on this machine
   factorymeter serve my-org     see the line as a page in the browser
   factorymeter report my-org    print it, or write it as Markdown, JSON or HTML
@@ -91,7 +91,7 @@ the environment. Nothing is sent anywhere except to the API it reads.
 	}
 	var configPath string
 	var noConfig bool
-	root.PersistentFlags().StringVar(&configPath, "config", "", "read this config file instead of the factorymeter.yml in this directory")
+	root.PersistentFlags().StringVar(&configPath, "config", "", "read this config file, not the one of this directory or your user config file")
 	root.PersistentFlags().BoolVar(&noConfig, "no-config", false, "read no config file")
 	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		// Only the commands that take a setting from it read the file. So a

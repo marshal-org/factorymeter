@@ -154,9 +154,10 @@ type wizardAnswers struct {
 	jiraProjects    []string
 }
 
-func (w wizardAnswers) yaml() string {
+func (w wizardAnswers) yaml(user bool) string {
 	var b strings.Builder
-	b.WriteString(`# Written by "factorymeter init". A flag on the command line wins over it.
+	b.WriteString(configHeader(user) + `
+# Written by "factorymeter init".
 # Keys and tokens are never kept here: they come from GITHUB_TOKEN,
 # LINEAR_API_KEY, JIRA_EMAIL and JIRA_API_TOKEN. "factorymeter config init"
 # shows every setting there is.
@@ -271,14 +272,18 @@ func jiraProjectList(ctx context.Context, site string) ([][2]string, error) {
 }
 
 func initCmd() *cobra.Command {
-	var force bool
+	var force, here bool
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Answer a few questions and get a factorymeter.yml, then the first sync",
+		Short: "Answer a few questions and get a config file, then the first sync",
 		Long: `init asks what to read, whether your tickets live in Linear or Jira, and how
-far back to go. It writes the answers to factorymeter.yml in this directory,
-and offers to run the first sync. From then on "factorymeter sync",
-"factorymeter report" and "factorymeter serve" need no arguments.
+far back to go. It writes the answers to your user config file,
+~/.config/factorymeter/config.yml, and offers to run the first sync. From then
+on "factorymeter sync", "factorymeter report" and "factorymeter serve" need no
+arguments, in any directory.
+
+With --here it writes factorymeter.yml in this directory instead, to keep the
+settings next to the code. A file here wins over the user config file.
 
 When LINEAR_API_KEY is set it lists the teams of your Linear workspace, and
 when JIRA_EMAIL and JIRA_API_TOKEN are set it lists the projects of your Jira
@@ -306,33 +311,35 @@ question takes its answer in brackets.`,
 					err = toldErr{context.Canceled}
 				}
 			}()
-			const path = "factorymeter.yml"
 			dir, err := os.Getwd()
 			if err != nil {
 				return err
 			}
-			if found, err := findConfig("", dir); err != nil {
+			dest, err := configDest(dir, here)
+			if err != nil {
 				return err
-			} else if found != "" && !force {
+			}
+			if dest.exists && !force {
 				a.say("")
-				a.say("  There is a config file here already: %s.", relTo(dir, found))
-				if !a.yes("Write a new factorymeter.yml in its place?", false) {
+				a.say("  There is a config file already: %s.", dest.show)
+				if !a.yes("Write a new one in its place?", false) {
 					a.say("  Nothing was written. \"factorymeter config\" shows what it sets.")
 					return nil
 				}
-				if relTo(dir, found) != path {
-					// Keep one file in the directory.
-					if err := os.Remove(found); err != nil {
-						return err
-					}
+			}
+			if here && dest.exists && dest.show != "factorymeter.yml" {
+				// Keep one file in the directory, under the name init writes.
+				if err := os.Remove(dest.path); err != nil {
+					return err
 				}
+				dest = configTarget{path: filepath.Join(dir, "factorymeter.yml"), show: "factorymeter.yml"}
 			}
 
 			a.say("")
 			a.say("  factorymeter init")
 			a.say("")
-			a.say("  A few questions, then factorymeter.yml is written here. Press Enter to")
-			a.say("  take the answer in [brackets].")
+			a.say("  A few questions, then they are written to %s.", dest.show)
+			a.say("  Press Enter to take the answer in [brackets].")
 			a.say("")
 
 			// What to read.
@@ -446,16 +453,16 @@ question takes its answer in brackets.`,
 				}
 			}
 
-			text := ans.yaml()
+			text := ans.yaml(!here)
 			// The file is read back as sync will read it, before it is written.
 			if _, err := parseConfig([]byte(text)); err != nil {
 				return fmt.Errorf("the answers do not make a config file: %w", err)
 			}
-			if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+			if err := writeConfig(dest.path, text); err != nil {
 				return err
 			}
 			a.say("")
-			a.say("  Wrote %s:", path)
+			a.say("  Wrote %s:", dest.show)
 			a.say("")
 			for _, l := range strings.Split(strings.TrimRight(text, "\n"), "\n") {
 				if !strings.HasPrefix(l, "#") && l != "" {
@@ -466,6 +473,11 @@ question takes its answer in brackets.`,
 			a.say("  Pull requests are tied to tickets by the keys of the tickets, such as")
 			a.say("  ENG-12, in their branch, title or description. There is nothing to list:")
 			a.say("  the keys are read from the tickets.")
+			if dest.shadow != "" {
+				a.say("")
+				a.say("  Note: %s in this directory wins over it here. Run", dest.shadow)
+				a.say("  \"factorymeter init --here\" to change that one instead.")
+			}
 			a.say("")
 			a.say("  5. Run the first sync now?")
 			if !a.yes(">", true) {
@@ -474,7 +486,8 @@ question takes its answer in brackets.`,
 				return nil
 			}
 			root := newRoot()
-			root.SetArgs([]string{"sync"})
+			// The sync reads the file just written, also where another wins.
+			root.SetArgs([]string{"sync", "--config", dest.path})
 			root.SetIn(cmd.InOrStdin())
 			root.SetOut(cmd.OutOrStdout())
 			root.SetErr(cmd.ErrOrStderr())
@@ -486,7 +499,8 @@ question takes its answer in brackets.`,
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&force, "force", false, "write over a config file that is already here without asking")
+	cmd.Flags().BoolVar(&force, "force", false, "write over a config file that is already there without asking")
+	cmd.Flags().BoolVar(&here, "here", false, "write factorymeter.yml in this directory, not your user config file")
 	return cmd
 }
 
