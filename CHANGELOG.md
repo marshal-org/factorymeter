@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/marshal-org/factorymeter/compare/v0.9.0...v0.10.0) (2026-11-22)
+
+
+### Features
+
+* **spec:** a ticket in triage or the backlog is not waiting for the line ([2b4acdf](https://github.com/marshal-org/factorymeter/commit/2b4acdfdcee102c86ece5431e1e2ded43e818f3e))
+
 ## [0.9.0](https://github.com/marshal-org/factorymeter/compare/v0.8.0...v0.9.0) (2026-11-22)
 
 
