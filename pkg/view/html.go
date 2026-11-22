@@ -305,21 +305,41 @@ func name(m line.Metric) string {
 
 // basis says what a value is drawn from, in a few words.
 func basis(m line.Metric, s *contract.Series, weeks int) string {
+	what := noun(m.ID)
 	switch {
 	case m.Unit == line.PerWeek:
-		return fmt.Sprintf("Average week: %d in %s", s.N, plural(weeks, "week"))
+		return fmt.Sprintf("Average week: %s in %s", plural(s.N, what), plural(weeks, "week"))
 	case m.Kind == line.Queue:
 		return "At the end of the window"
 	case m.Kind == line.Held && m.Unit == line.Hours:
 		return "Average week"
 	case strings.HasSuffix(m.ID, ".p50"):
-		return "Median of " + plural(s.N, "item")
+		return "Median of " + plural(s.N, what)
 	case strings.HasSuffix(m.ID, ".p90"):
-		return "90th percentile of " + plural(s.N, "item")
+		return "90th percentile of " + plural(s.N, what)
 	case m.Unit == line.Share:
-		return "Share of " + plural(s.N, "item")
+		return "Share of " + plural(s.N, what)
 	}
-	return plural(s.N, "item")
+	return plural(s.N, what)
+}
+
+// noun is what a metric counts, as its definition says: tickets at spec, CI
+// rounds at CI, deployments for the time and failures of a deploy, and pull
+// requests for the rest.
+func noun(id string) string {
+	station, rest, _ := strings.Cut(id, ".")
+	switch {
+	case station == line.Spec:
+		return "ticket"
+	case station == line.CI:
+		return "CI round"
+	case id == "release.deploys":
+		return "deploy"
+	case (station == line.Verify && !strings.HasPrefix(rest, "flow") && !strings.HasPrefix(rest, "held")) ||
+		(station == line.Release && (strings.HasPrefix(rest, "work") || rest == "rework")):
+		return "deployment"
+	}
+	return "PR"
 }
 
 // was says what a value was in the window before, and how it moved.
@@ -595,7 +615,7 @@ func buildHTML(r *contract.Report, opt HTMLOptions) *htmlPage {
 					f := figure(hi)
 					c.Alt = &f
 					c.Name = strings.TrimSuffix(label(m), ", median")
-					c.Basis = "Median and 90th percentile of " + plural(s.N, "item")
+					c.Basis = "Median and 90th percentile of " + plural(s.N, noun(m.ID))
 					c.Info.Lines = []string{strings.TrimSuffix(m.Definition, " The median."),
 						"The median is the middle item: half took less. The 90th percentile is the slow end: one item in ten took longer."}
 					c.Info.Code = m.ID + ", " + base + ".p90"

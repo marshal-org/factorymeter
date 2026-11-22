@@ -104,12 +104,12 @@ The constraint is the station that holds work the longest. For each station that
 
 | Id | Name | Unit | Better when | Minimum sample | Cut by |
 |---|---|---|---|---|---|
-| `code.flow` | Changes made ready | `per_week` | higher | none | `class`, `agent`, `repo` |
-| `code.work.p50` | Time to write a change, median | `hours` | lower | 5 | `class`, `agent`, `repo` |
-| `code.work.p90` | Time to write a change, 90th percentile | `hours` | lower | 5 | `class`, `agent`, `repo` |
-| `code.rework` | Changes abandoned | `share` | lower | 5 | `class`, `agent`, `repo` |
-| `code.queue` | Changes in draft | `count` | lower | none | `class`, `agent`, `repo` |
-| `code.queue.oldest` | Changes in draft, age of the oldest | `hours` | lower | none | `class`, `agent`, `repo` |
+| `code.flow` | PRs made ready | `per_week` | higher | none | `class`, `agent`, `repo` |
+| `code.work.p50` | Time to write a PR, median | `hours` | lower | 5 | `class`, `agent`, `repo` |
+| `code.work.p90` | Time to write a PR, 90th percentile | `hours` | lower | 5 | `class`, `agent`, `repo` |
+| `code.rework` | PRs abandoned | `share` | lower | 5 | `class`, `agent`, `repo` |
+| `code.queue` | PRs in draft | `count` | lower | none | `class`, `agent`, `repo` |
+| `code.queue.oldest` | PRs in draft, age of the oldest | `hours` | lower | none | `class`, `agent`, `repo` |
 | `code.held.total` | Hours a week held at code | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `code.held.share` | Share of the line's time held at code | `share` | lower | 5 | `class`, `agent`, `repo` |
 
@@ -166,11 +166,11 @@ The constraint is the station that holds work the longest. For each station that
 
 | Id | Name | Unit | Better when | Minimum sample | Cut by |
 |---|---|---|---|---|---|
-| `verify.flow` | Changes verified | `per_week` | higher | none | `class`, `agent`, `repo` |
+| `verify.flow` | PRs verified | `per_week` | higher | none | `class`, `agent`, `repo` |
 | `verify.wait.p50` | Wait for an environment, median | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `verify.wait.p90` | Wait for an environment, 90th percentile | `hours` | lower | 5 | `class`, `agent`, `repo` |
-| `verify.work.p50` | Time to bring the change up, median | `hours` | lower | 5 | `class`, `agent`, `repo` |
-| `verify.work.p90` | Time to bring the change up, 90th percentile | `hours` | lower | 5 | `class`, `agent`, `repo` |
+| `verify.work.p50` | Time to bring the PR up, median | `hours` | lower | 5 | `class`, `agent`, `repo` |
+| `verify.work.p90` | Time to bring the PR up, 90th percentile | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `verify.rework` | Verify deployments that failed | `share` | lower | 5 | `class`, `agent`, `repo` |
 | `verify.held.total` | Hours a week held at verify | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `verify.held.share` | Share of the line's time held at verify | `share` | lower | 5 | `class`, `agent`, `repo` |
@@ -196,17 +196,17 @@ The constraint is the station that holds work the longest. For each station that
 
 | Id | Name | Unit | Better when | Minimum sample | Cut by |
 |---|---|---|---|---|---|
-| `review.flow` | Changes reviewed | `per_week` | higher | none | `class`, `agent`, `repo` |
+| `review.flow` | PRs reviewed | `per_week` | higher | none | `class`, `agent`, `repo` |
 | `review.wait.p50` | Wait for first review, median | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `review.wait.p90` | Wait for first review, 90th percentile | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `review.work.p50` | First review to approval, median | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `review.work.p90` | First review to approval, 90th percentile | `hours` | lower | 5 | `class`, `agent`, `repo` |
-| `review.rework` | Changes sent back in review | `share` | lower | 5 | `class`, `agent`, `repo` |
-| `review.queue` | Changes waiting for first review | `count` | lower | none | `class`, `agent`, `repo` |
-| `review.queue.oldest` | Changes waiting for first review, age of the oldest | `hours` | lower | none | `class`, `agent`, `repo` |
+| `review.rework` | PRs sent back in review | `share` | lower | 5 | `class`, `agent`, `repo` |
+| `review.queue` | PRs waiting for first review | `count` | lower | none | `class`, `agent`, `repo` |
+| `review.queue.oldest` | PRs waiting for first review, age of the oldest | `hours` | lower | none | `class`, `agent`, `repo` |
 | `review.held.total` | Hours a week held at review | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `review.held.share` | Share of the line's time held at review | `share` | lower | 5 | `class`, `agent`, `repo` |
-| `review.skipped` | Changes merged with no review | `share` | lower | 5 | `class`, `agent`, `repo` |
+| `review.skipped` | PRs merged with no review | `share` | lower | 5 | `class`, `agent`, `repo` |
 
 - `review.flow`: Merged changes that left review in the period. A change leaves review at its last approval before the merge, or at the merge when it was reviewed and never approved. A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count. The count is divided by the length of the period in weeks.
 - `review.wait.p50`: Hours from a change being marked ready for review to its first review, over the changes that got their first review in the period. A review that lands while the change is a draft gives a wait of zero. A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count. The median.
@@ -233,12 +233,12 @@ The constraint is the station that holds work the longest. For each station that
 
 | Id | Name | Unit | Better when | Minimum sample | Cut by |
 |---|---|---|---|---|---|
-| `merge.flow` | Changes merged | `per_week` | higher | none | `class`, `agent`, `repo` |
+| `merge.flow` | PRs merged | `per_week` | higher | none | `class`, `agent`, `repo` |
 | `merge.wait.p50` | Wait to merge, median | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `merge.wait.p90` | Wait to merge, 90th percentile | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `merge.rework` | Merges reverted | `share` | lower | 5 | `class`, `agent`, `repo` |
-| `merge.queue` | Changes approved and not merged | `count` | lower | none | `class`, `agent`, `repo` |
-| `merge.queue.oldest` | Changes approved and not merged, age of the oldest | `hours` | lower | none | `class`, `agent`, `repo` |
+| `merge.queue` | PRs approved and not merged | `count` | lower | none | `class`, `agent`, `repo` |
+| `merge.queue.oldest` | PRs approved and not merged, age of the oldest | `hours` | lower | none | `class`, `agent`, `repo` |
 | `merge.held.total` | Hours a week held at merge | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `merge.held.share` | Share of the line's time held at merge | `share` | lower | 5 | `class`, `agent`, `repo` |
 
@@ -263,14 +263,14 @@ The constraint is the station that holds work the longest. For each station that
 
 | Id | Name | Unit | Better when | Minimum sample | Cut by |
 |---|---|---|---|---|---|
-| `release.flow` | Changes released | `per_week` | higher | none | `class`, `agent`, `repo` |
+| `release.flow` | PRs released | `per_week` | higher | none | `class`, `agent`, `repo` |
 | `release.wait.p50` | Wait for a release, median | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `release.wait.p90` | Wait for a release, 90th percentile | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `release.work.p50` | Deploy time, median | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `release.work.p90` | Deploy time, 90th percentile | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `release.rework` | Deploys that failed | `share` | lower | 5 | `class`, `agent`, `repo` |
-| `release.queue` | Changes merged and not released | `count` | lower | none | `class`, `agent`, `repo` |
-| `release.queue.oldest` | Changes merged and not released, age of the oldest | `hours` | lower | none | `class`, `agent`, `repo` |
+| `release.queue` | PRs merged and not released | `count` | lower | none | `class`, `agent`, `repo` |
+| `release.queue.oldest` | PRs merged and not released, age of the oldest | `hours` | lower | none | `class`, `agent`, `repo` |
 | `release.held.total` | Hours a week held at release | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `release.held.share` | Share of the line's time held at release | `share` | lower | 5 | `class`, `agent`, `repo` |
 | `release.deploys` | Production deploys | `per_week` | higher | none | `repo` |
@@ -293,7 +293,7 @@ The constraint is the station that holds work the longest. For each station that
 
 | Id | Name | Unit | Better when | Minimum sample | Cut by |
 |---|---|---|---|---|---|
-| `line.flow` | Changes merged | `per_week` | higher | none | `class`, `agent`, `repo` |
+| `line.flow` | PRs merged | `per_week` | higher | none | `class`, `agent`, `repo` |
 | `line.lead.p50` | Open to merge, median | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `line.lead.p90` | Open to merge, 90th percentile | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `line.delivery.p50` | Start to production, median | `hours` | lower | 5 | `class`, `agent`, `repo` |

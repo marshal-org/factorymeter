@@ -34,14 +34,14 @@ func TestHTML(t *testing.T) {
 		"Every number covers the 2 weeks from Oct 19, 2026 to Nov 1, 2026. A count is the average week of those weeks.",
 		"Arrows compare with the 2 weeks before, Oct 5, 2026 to Oct 18, 2026. The charts go back 4 weeks",
 		// Each value says what it is drawn from and what it is compared with.
-		"Average week: 6 in 2 weeks",
+		"Average week: 6 PRs in 2 weeks",
 		"The 2 weeks before: 2.5 (&#43;20%, better)",
 		// The week each point stands for, once for every chart.
 		`<body data-weeks="Week to Oct 12, 2026|Week to Oct 19, 2026|Week to Oct 26, 2026|Week to Nov 2, 2026">`,
 		// Review holds 60 percent of the line: strained, and the reason is told.
 		`<li class="st h-bad is-constraint" data-station="review">`,
 		"<li>Load: holds 60% of the hours changes spend on the line.</li>",
-		"<li>Rework: changes sent back in review, 25%.</li>",
+		"<li>Rework: PRs sent back in review, 25%.</li>",
 		"<li>Wait: the median got worse: 3.5h, from 1.0h in the 2 weeks before.</li>",
 		// Code has no number to grade, and merge holds 40 percent.
 		`<li class="st h-none" data-station="code">`,
@@ -407,6 +407,19 @@ func TestMeter(t *testing.T) {
 	for share, want := range map[float64]string{0.25: `width="25"`, 2: `width="100"`, -1: `class="fill" width="0"`} {
 		if got := string(meter(share)); !strings.Contains(got, want) {
 			t.Errorf("meter(%v) = %s, want %s", share, got, want)
+		}
+	}
+}
+
+func TestNounOfAMetric(t *testing.T) {
+	for id, want := range map[string]string{
+		"spec.wait.p50": "ticket", "ci.rework": "CI round", "code.work.p50": "PR", "review.wait.p50": "PR",
+		"verify.flow": "PR", "verify.wait.p50": "deployment", "verify.rework": "deployment",
+		"release.wait.p50": "PR", "release.work.p50": "deployment", "release.rework": "deployment",
+		"release.deploys": "deploy", "line.lead.p50": "PR", "merge.held.share": "PR",
+	} {
+		if got := noun(id); got != want {
+			t.Errorf("noun(%q) = %q, want %q", id, got, want)
 		}
 	}
 }

@@ -149,7 +149,7 @@
 <h2>Coverage</h2>
 <p class="note">What the numbers stand on.</p>
 {{if .CoverRepos}}<div class="scroll"><table>
-<thead><tr><th scope="col">Repository</th><th scope="col">From</th><th scope="col">Synced</th><th class="num" scope="col">Changes</th></tr></thead>
+<thead><tr><th scope="col">Repository</th><th scope="col">From</th><th scope="col">Synced</th><th class="num" scope="col">PRs</th></tr></thead>
 <tbody>{{range .CoverRepos}}<tr>{{range $i, $c := .}}{{if $i}}<td{{if eq $i 3}} class="num"{{end}}>{{$c}}</td>{{else}}<th scope="row">{{$c}}</th>{{end}}{{end}}</tr>
 {{end}}{{if .MoreRepos}}<tr><th scope="row">{{.MoreRepos}}</th><td></td><td></td><td></td></tr>{{end}}</tbody>
 </table></div>{{end}}

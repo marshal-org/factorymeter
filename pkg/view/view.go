@@ -450,7 +450,7 @@ func build(r *contract.Report) *page {
 		}
 		rows = append(rows, []string{c.Repo, from, synced, fmt.Sprint(c.Changes)})
 	}
-	p.table([]string{"Repository", "From", "Synced", ">Changes"}, rows)
+	p.table([]string{"Repository", "From", "Synced", ">PRs"}, rows)
 	rows = nil
 	for _, s := range r.Coverage.Sources {
 		src := s.Source
