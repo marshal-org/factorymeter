@@ -49,6 +49,13 @@ func main() {
 	// is stored and the lock on the store is let go.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer stop()
+	// The first Ctrl-C asks for a clean stop. After it the signals go back to
+	// their default, so a second Ctrl-C ends the process at once, even in a
+	// step that is slow to stop.
+	go func() {
+		<-ctx.Done()
+		stop()
+	}()
 	if err := newRoot().ExecuteContext(ctx); err != nil {
 		if !errors.As(err, new(toldErr)) {
 			fmt.Fprintln(os.Stderr, "factorymeter:", err)
