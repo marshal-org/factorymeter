@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.0](https://github.com/marshal-org/factorymeter/compare/v0.7.0...v0.8.0) (2026-11-22)
+
+
+### Features
+
+* **page:** say PRs in every chart, not changes or items ([b8032c8](https://github.com/marshal-org/factorymeter/commit/b8032c849d700469871a8a28c36bac3b32dfb650))
+* **serve:** tick several repositories in the page's repository menu ([4223e92](https://github.com/marshal-org/factorymeter/commit/4223e920c26264d0cf9a1da9346e31544daa3b00))
+
 ## [0.7.0](https://github.com/marshal-org/factorymeter/compare/v0.6.0...v0.7.0) (2026-11-22)
 
 
