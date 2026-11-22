@@ -62,7 +62,7 @@ func TestHTMLPairsMedianAnd90th(t *testing.T) {
 	out := htmlOf(t, r, HTMLOptions{})
 	for _, want := range []string{
 		"<h4>Wait for first review</h4>",
-		"Median and 90th percentile of 6 items",
+		"Median and 90th percentile of 6 PRs",
 		`<span class="cut">90th</span><span class="v">9.0h</span>`,
 		`data-names="Median|90th percentile" data-keys="s1|s1 p90"`,
 		"<code>review.wait.p50, review.wait.p90</code>",

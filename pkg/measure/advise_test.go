@@ -407,7 +407,7 @@ func TestQueueRulesPointAtItems(t *testing.T) {
 		t.Errorf("approved items: %s", got)
 	}
 	// All four stand in the queue. The rule counts only the three.
-	if e := m.Evidence[0]; e.Metric != "merge.queue" || num(e.Value) != "4" || !strings.HasPrefix(e.Text, "Changes approved and not merged: 4.") {
+	if e := m.Evidence[0]; e.Metric != "merge.queue" || num(e.Value) != "4" || !strings.HasPrefix(e.Text, "PRs approved and not merged: 4.") {
 		t.Errorf("approved evidence: %+v", e)
 	}
 	if it := m.Items[0]; it.Kind != record.KindChange || it.URL != "https://example.invalid/5" || it.Title != "Change 5" || it.Class != "human" {
