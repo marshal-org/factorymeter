@@ -312,10 +312,10 @@ func TestSyncWithLinear(t *testing.T) {
 		t.Errorf("repos of the page = %v, %v", got, err)
 	}
 	// A sync of Linear alone makes the kept line of one repository stale.
-	if _, err := src.Report(web.Query{Weeks: 2, Repo: "acme/app"}); err != nil {
+	if _, err := src.Report(web.Query{Weeks: 2, Repos: []string{"acme/app"}}); err != nil {
 		t.Fatal(err)
 	}
-	kept := src.kept["acme/app"].line
+	kept := src.kept["acme/app|"].line
 	s, err := store.OpenWrite(dir, "acme", now)
 	if err != nil {
 		t.Fatal(err)
@@ -326,7 +326,7 @@ func TestSyncWithLinear(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Close()
-	if _, err := src.Report(web.Query{Weeks: 2, Repo: "acme/app"}); err != nil || src.kept["acme/app"].line == kept {
+	if _, err := src.Report(web.Query{Weeks: 2, Repos: []string{"acme/app"}}); err != nil || src.kept["acme/app|"].line == kept {
 		t.Errorf("after a sync of Linear the line was not read again, err %v", err)
 	}
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -63,7 +64,7 @@ func TestPage(t *testing.T) {
 	if strings.Contains(body, `class="menu"`) {
 		t.Error("the page offers a repository menu with nothing to choose")
 	}
-	if len(src.asked) != 1 || src.asked[0] != (Query{Weeks: 13}) {
+	if len(src.asked) != 1 || src.asked[0].Weeks != 13 || len(src.asked[0].Repos) != 0 || !src.asked[0].Until.IsZero() {
 		t.Errorf("asked %+v", src.asked)
 	}
 
@@ -198,8 +199,8 @@ func TestQueryAndLinks(t *testing.T) {
 		t.Fatalf("code %d: %s", w.Code, w.Body.String())
 	}
 	// The window takes in the whole of the day it names.
-	want := Query{Weeks: 26, Repo: "acme/app", Until: time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)}
-	if len(src.asked) != 1 || !src.asked[0].Until.Equal(want.Until) || src.asked[0].Weeks != 26 || src.asked[0].Repo != "acme/app" {
+	want := Query{Weeks: 26, Repos: []string{"acme/app"}, Until: time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)}
+	if len(src.asked) != 1 || !src.asked[0].Until.Equal(want.Until) || src.asked[0].Weeks != 26 || !slices.Equal(src.asked[0].Repos, want.Repos) {
 		t.Errorf("asked %+v, want %+v", src.asked, want)
 	}
 	body := w.Body.String()
@@ -208,12 +209,34 @@ func TestQueryAndLinks(t *testing.T) {
 		// is left out of the address.
 		`<a href="/?repo=acme%2Fapp&amp;until=2026-11-01">13 weeks</a>`,
 		`<a href="/?repo=acme%2Fapp&amp;since=26w&amp;until=2026-11-01" class="on" aria-current="true">26 weeks</a>`,
-		// A repository link keeps the window.
+		// The menu is a form of ticks that sends the window again.
 		`<summary>acme/app</summary>`,
-		`<a href="/?since=26w&amp;until=2026-11-01">All repositories</a>`,
-		`<a href="/?repo=acme%2Flib&amp;since=26w&amp;until=2026-11-01">acme/lib</a>`,
+		`<form class="menu-list picks" method="get" action="/"><input type="hidden" name="since" value="26w"><input type="hidden" name="until" value="2026-11-01">`,
+		`<a class="all" href="/?since=26w&amp;until=2026-11-01">All repositories</a>`,
+		`<label><input type="checkbox" name="repo" value="acme/app" checked>acme/app</label>`,
+		`<label><input type="checkbox" name="repo" value="acme/lib">acme/lib</label>`,
 		`<a href="/report.json?repo=acme%2Fapp&amp;since=26w&amp;until=2026-11-01">the same report as JSON</a>`,
 	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the page lacks %q", want)
+		}
+	}
+
+	// Several repositories ticked: the query names them all, the window
+	// links keep them, and the menu says how many.
+	src.asked = nil
+	body = get(h, "GET", "http://localhost/?repo=acme%2Flib&repo=acme%2Fapp&repo=acme%2Flib").Body.String()
+	if len(src.asked) != 1 || len(src.asked[0].Repos) != 0 {
+		t.Errorf("every repository ticked is the whole owner, asked %+v", src.asked)
+	}
+	three := &fake{repos: []string{"acme/app", "acme/api", "acme/lib"}}
+	body = get(Handler(three, Options{}), "GET", "http://localhost/?repo=acme%2Flib&repo=acme%2Fapp").Body.String()
+	if len(three.asked) != 1 || !slices.Equal(three.asked[0].Repos, []string{"acme/app", "acme/lib"}) {
+		t.Errorf("asked %+v", three.asked)
+	}
+	for _, want := range []string{`<summary>2 of 3 repositories</summary>`,
+		`value="acme/app" checked>`, `value="acme/api">`, `value="acme/lib" checked>`,
+		`<a href="/?repo=acme%2Fapp&amp;repo=acme%2Flib&amp;since=4w">4 weeks</a>`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page lacks %q", want)
 		}
