@@ -231,10 +231,27 @@
       cross.setAttribute("height", num(svg, "data-h"));
       cross.setAttribute("visibility", "visible");
       fill(svg, i);
+      if (svg.getAttribute("data-drill")) {
+        var more = el("div", "tip-m");
+        more.textContent = "Click to see the items of this week";
+        tip.appendChild(more);
+      }
       tip.hidden = false;
       place(e);
     }
+    // A chart that can drill opens the items of the week clicked.
+    function open(e) {
+      var svg = e.currentTarget, base = svg.getAttribute("data-drill");
+      if (!base) return;
+      var box = svg.getBoundingClientRect(), view = svg.viewBox.baseVal;
+      if (!box.width || !view.width) return;
+      var step = num(svg, "data-step");
+      var count = (svg.getAttribute("data-v") || "").split("~")[0].split("|").length;
+      var i = Math.floor(((e.clientX - box.left) * view.width / box.width - num(svg, "data-x")) / step);
+      if (step && i >= 0 && i < count) window.location.href = base + i;
+    }
     [].forEach.call(charts, function (svg) {
+      svg.addEventListener("click", open);
       svg.addEventListener("pointermove", over);
       svg.addEventListener("pointerdown", over);
       svg.addEventListener("pointerleave", hide);
@@ -251,7 +268,51 @@
     });
   }
 
-  function ready() { theme(); pages(); notes(); tips(); menus(); }
+  // The repository menu gets a search box and select all / clear all. With
+  // no script it is a plain list of ticks.
+  function picks() {
+    [].forEach.call(document.querySelectorAll("form.picks"), function (f) {
+      var find = f.querySelector(".find"), bulk = f.querySelector(".bulk");
+      var labels = [].slice.call(f.querySelectorAll("label"));
+      if (find) {
+        find.hidden = false;
+        find.addEventListener("input", function () {
+          var q = find.value.trim().toLowerCase();
+          labels.forEach(function (l) { l.hidden = q !== "" && l.textContent.toLowerCase().indexOf(q) < 0; });
+        });
+        // Enter in the search box must not send the form.
+        find.addEventListener("keydown", function (e) { if (e.key === "Enter") e.preventDefault(); });
+      }
+      if (bulk) {
+        bulk.hidden = false;
+        [].forEach.call(bulk.querySelectorAll("button"), function (b) {
+          b.addEventListener("click", function () {
+            var on = b.getAttribute("data-all") === "1";
+            // Only what the search shows is changed.
+            labels.forEach(function (l) { if (!l.hidden) l.querySelector("input").checked = on; });
+          });
+        });
+      }
+    });
+  }
+
+  // A new window, new dates or new repositories keep the station that is
+  // open: the links and forms of the scope carry the # of the page along.
+  function keep() {
+    var scope = document.querySelector(".scope");
+    if (!scope) return;
+    function here(u) { return u.split("#")[0] + (window.location.hash || ""); }
+    scope.addEventListener("click", function (e) {
+      var a = e.target.closest ? e.target.closest("a[href]") : null;
+      if (a && scope.contains(a)) a.setAttribute("href", here(a.getAttribute("href")));
+    });
+    scope.addEventListener("submit", function (e) {
+      var f = e.target;
+      f.setAttribute("action", here(f.getAttribute("action") || "/"));
+    });
+  }
+
+  function ready() { theme(); pages(); notes(); tips(); menus(); picks(); keep(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ready);
   else ready();
 })();

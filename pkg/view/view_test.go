@@ -24,6 +24,11 @@ func TestNumber(t *testing.T) {
 		{line.Hours, p(5), "5.0h"},
 		{line.Hours, p(47.9), "47.9h"},
 		{line.Hours, p(72), "3.0d"},
+		// Longer waits read in weeks, months and years, not thousands of hours.
+		{line.Hours, p(24 * 20), "2.9w"},
+		{line.Hours, p(24 * 100), "3.3mo"},
+		{line.Hours, p(24 * 365.25 * 3), "3.0y"},
+		{line.Hours, p(17_000_000), "1939.3y"},
 		{line.Share, p(0), "0%"},
 		{line.Share, p(0.004), "<1%"},
 		{line.Share, p(0.25), "25%"},
@@ -107,7 +112,7 @@ func TestCell(t *testing.T) {
 		// A number with no better direction still shows which way it moved.
 		{&contract.Series{Unit: "share", Value: p(0.5), Previous: p(0.2), Trend: contract.TrendUnknown}, "50% ▲"},
 		// Held hours are a sum over a week and stay in hours.
-		{&contract.Series{Metric: "release.held.total", Unit: "hours", Value: p(8382)}, "8382h"},
+		{&contract.Series{Metric: "release.held.total", Unit: "hours", Value: p(8382)}, "8,382h"},
 		{&contract.Series{Metric: "code.held.total", Unit: "hours", Value: p(2.25)}, "2.2h"},
 	}
 	for _, c := range cases {
@@ -218,7 +223,7 @@ func TestMarkdown(t *testing.T) {
 		// 1 and 1.5 of 4.5 are 1.6 and 2.3 of 7 steps: both drawn as step 2.
 		"| " + name("review.wait.p50") + " | 3.5h ▲! | 1.0h | +250% | worse | 6 | ▃·▃█ |\n",
 		"| " + name("review.rework") + " | 25% ▲! | 20% | +5 pts | worse | 6 |  |\n",
-		"| " + name("review.held.total") + " | 8382h ▲! | 130h | 64x | worse | 6 | ▅█ |\n",
+		"| " + name("review.held.total") + " | 8,382h ▲! | 130h | 64x | worse | 6 | ▅█ |\n",
 		"Standing longest in the queue:\n",
 		"- acme/app#13, standing 30.0h, human: Wait for me\n",
 		"### The whole line\n",

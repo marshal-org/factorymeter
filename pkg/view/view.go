@@ -96,13 +96,7 @@ func Number(unit string, v *float64) string {
 	x := *v
 	switch line.Unit(unit) {
 	case line.Hours:
-		switch {
-		case x < 1:
-			return fmt.Sprintf("%.0fm", x*60)
-		case x < 48:
-			return fmt.Sprintf("%.1fh", x)
-		}
-		return fmt.Sprintf("%.1fd", x/24)
+		return Duration(x)
 	case line.Share:
 		if x > 0 && x < 0.005 {
 			return "<1%"
@@ -112,6 +106,32 @@ func Number(unit string, v *float64) string {
 		return fmt.Sprintf("%.1f", x)
 	}
 	return fmt.Sprintf("%.0f", x)
+}
+
+// Duration prints hours as a person would say them: minutes, hours, days,
+// weeks, months or years, whichever reads shortest.
+func Duration(hours float64) string {
+	const (
+		dayH   = 24.0
+		weekH  = 7 * dayH
+		monthH = 365.25 / 12 * dayH
+		yearH  = 365.25 * dayH
+	)
+	one := func(v float64, unit string) string { return fmt.Sprintf("%.1f", v) + unit }
+	x := hours
+	switch {
+	case x < 1:
+		return fmt.Sprintf("%.0fm", x*60)
+	case x < 48:
+		return one(x, "h")
+	case x < 14*dayH:
+		return one(x/dayH, "d")
+	case x < 2*monthH:
+		return one(x/weekH, "w")
+	case x < 2*yearH:
+		return one(x/monthH, "mo")
+	}
+	return one(x/yearH, "y")
 }
 
 // Change prints how a value moved: points for a share, percent for the rest.
@@ -183,9 +203,27 @@ func value(s *contract.Series, v *float64) string {
 		if *v < 10 {
 			return fmt.Sprintf("%.1fh", *v)
 		}
-		return fmt.Sprintf("%.0fh", *v)
+		return grouped(*v) + "h"
 	}
 	return Number(s.Unit, v)
+}
+
+// grouped prints a whole number with commas between the thousands.
+func grouped(v float64) string {
+	d := fmt.Sprintf("%.0f", v)
+	neg := strings.HasPrefix(d, "-")
+	d = strings.TrimPrefix(d, "-")
+	var b strings.Builder
+	for i, r := range d {
+		if i > 0 && (len(d)-i)%3 == 0 {
+			b.WriteByte(',')
+		}
+		b.WriteRune(r)
+	}
+	if neg {
+		return "-" + b.String()
+	}
+	return b.String()
 }
 
 // or shows a dash where a slice has no series.

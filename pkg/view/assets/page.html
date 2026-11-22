@@ -27,7 +27,8 @@
 <p class="eyebrow">Delivery line{{if .Target}} of <strong>{{.Target}}</strong>{{end}}{{if .Summary}} <span class="pill">summary, no names</span>{{end}}</p>
 {{with .Nav}}{{if or .Windows .Repos}}<div class="scope">
 {{if .Windows}}<span class="scope-l">Window</span><div class="seg" role="group" aria-label="Window">{{range .Windows}}<a href="{{.URL}}"{{if .Current}} class="on" aria-current="true"{{end}}>{{.Label}}</a>{{end}}</div>{{end}}
-{{if .Repos}}<details class="menu"><summary>{{.RepoLabel}}</summary><form class="menu-list picks" method="get" action="/">{{range .Keep}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">{{end}}<a class="all" href="{{.AllRepos}}">All repositories</a>{{range .Repos}}<label><input type="checkbox" name="repo" value="{{.Label}}"{{if .Current}} checked{{end}}>{{.Label}}</label>{{end}}<button type="submit">Show these</button></form></details>{{end}}
+{{if .From}}<details class="menu dates-m"><summary>Dates</summary><form class="menu-list dates" method="get" action="/">{{range .KeepRepos}}<input type="hidden" name="repo" value="{{.}}">{{end}}<label>From <input type="date" name="from" value="{{.From}}" required></label><label>To <input type="date" name="until" value="{{.Until}}" required></label><p class="hint">Rounded to whole weeks, back from the end date.</p><button type="submit">Show</button></form></details>{{end}}
+{{if .Repos}}<details class="menu"><summary>{{.RepoLabel}}</summary><form class="menu-list picks" method="get" action="/">{{range .Keep}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">{{end}}<input type="search" class="find" placeholder="Find a repository" aria-label="Find a repository" hidden><div class="bulk" hidden><button type="button" data-all="1">Select all</button><button type="button" data-all="0">Clear all</button></div><a class="all" href="{{.AllRepos}}">All repositories</a>{{range .Repos}}<label><input type="checkbox" name="repo" value="{{.Label}}"{{if .Current}} checked{{end}}>{{.Label}}</label>{{end}}<button type="submit">Show these</button></form></details>{{end}}
 </div>{{end}}{{end}}
 <p class="span">{{.Span}}</p>
 </div>
@@ -90,6 +91,7 @@
 <p class="card-v">{{if .Alt}}<span class="cut">median</span>{{end}}{{template "fig" .Fig}}{{with .Alt}}<span class="alt"><span class="cut">90th</span>{{template "fig" .}}</span>{{end}}</p>
 <p class="card-m">{{.Basis}}</p>
 <p class="card-m">{{.Was}}</p>
+{{if .DrillLabel}}<p class="card-m"><a class="drill-a" href="{{.DrillURL}}">{{.DrillLabel}}</a></p>{{end}}
 {{if .Chart}}{{.Chart}}{{if .Alt}}<ul class="legend mini" aria-label="Series"><li><span class="k s1"></span>Median</li><li><span class="k s1 p90"></span>90th percentile</li></ul>{{end}}{{else}}<p class="none">No week by week data.</p>{{end}}
 </article>
 {{end}}</div>{{end}}

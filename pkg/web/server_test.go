@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/marshal-org/factorymeter/pkg/contract"
+	"github.com/marshal-org/factorymeter/pkg/view"
 )
 
 // fake hands out one small report and remembers what it was asked.
@@ -20,16 +21,28 @@ type fake struct {
 	repos []string
 	err   error
 	asked []Query
+	// drilled is what Drill was asked: metric, week and repositories.
+	drilled []string
 }
 
 func (f *fake) Repos() ([]string, error) { return f.repos, nil }
+
+func (f *fake) Drill(q Query, metric string, week int) (*view.DrillPage, error) {
+	f.drilled = append(f.drilled, fmt.Sprintf("%s %d %v", metric, week, q.Repos))
+	if metric == "nope" {
+		return nil, fmt.Errorf("%w: no such number", ErrBadQuery)
+	}
+	return &view.DrillPage{Name: "PRs merged", Value: "3.0", How: "The 3 PRs below.",
+		Rows: []view.DrillRow{{Key: "acme/app#1", URL: "https://example.invalid/1", Title: "One"}, {Key: "acme/app#2", URL: "javascript:alert(1)", Title: "Two"}}}, nil
+}
 
 func (f *fake) Report(q Query) (*contract.Report, error) {
 	f.asked = append(f.asked, q)
 	if f.err != nil {
 		return nil, f.err
 	}
-	return &contract.Report{Schema: contract.Version, Target: "acme", Verdict: contract.Verdict{Headline: "Review is the constraint."}}, nil
+	return &contract.Report{Schema: contract.Version, Target: "acme", Verdict: contract.Verdict{Headline: "Review is the constraint."},
+		Window: contract.Window{Since: time.Date(2026, 8, 3, 0, 0, 0, 0, time.UTC), Until: time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)}}, nil
 }
 
 func get(h http.Handler, method, url string) *httptest.ResponseRecorder {
@@ -249,5 +262,71 @@ func TestQueryAndLinks(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page lacks %q", want)
 		}
+	}
+}
+
+func TestItemsPage(t *testing.T) {
+	src := &fake{repos: []string{"acme/app", "acme/lib"}}
+	h := Handler(src, Options{})
+	w := get(h, "GET", "http://localhost/items?metric=merge.flow&week=3&repo=acme%2Fapp&since=4w")
+	if w.Code != 200 {
+		t.Fatalf("code %d: %s", w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	for _, want := range []string{"<h1 class=\"drill-h\">PRs merged</h1>", `<a href="https://example.invalid/1" rel="noreferrer">acme/app#1</a>`,
+		// An address that is not http or https is not a link.
+		`<th scope="row">acme/app#2</th>`,
+		// Back to the line keeps the settings of the page.
+		`href="/?repo=acme%2Fapp&amp;since=4w"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the page lacks %q", want)
+		}
+	}
+	if strings.Contains(body, "javascript:") {
+		t.Error("the page links to a javascript: address")
+	}
+	if len(src.drilled) != 1 || src.drilled[0] != "merge.flow 3 [acme/app]" {
+		t.Errorf("drilled %v", src.drilled)
+	}
+	for url, want := range map[string]string{
+		"http://localhost/items":                             "metric=",
+		"http://localhost/items?metric=nope":                 "no such number",
+		"http://localhost/items?metric=x&week=-1":            "cannot read week",
+		"http://localhost/items?metric=x&week=two":           "cannot read week",
+		"http://localhost/items?metric=x&color=blue":         "unknown parameter",
+		"http://localhost/?from=2026-13-01":                  "cannot read from",
+		"http://localhost/?from=2026-11-01&until=2026-10-01": "not before the end",
+	} {
+		if w := get(h, "GET", url); w.Code != 400 || !strings.Contains(w.Body.String(), want) {
+			t.Errorf("%s: %d %q, want 400 with %q", url, w.Code, w.Body.String(), want)
+		}
+	}
+}
+
+func TestFromDateAndDrillLinks(t *testing.T) {
+	src := &fake{repos: []string{"acme/app", "acme/lib"}}
+	h := Handler(src, Options{})
+	w := get(h, "GET", "http://localhost/?from=2026-09-01&until=2026-10-31&repo=acme%2Fapp")
+	if w.Code != 200 {
+		t.Fatalf("code %d: %s", w.Code, w.Body.String())
+	}
+	if len(src.asked) != 1 || !src.asked[0].From.Equal(time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("asked %+v", src.asked)
+	}
+	body := w.Body.String()
+	for _, want := range []string{
+		// A preset window drops the custom start and is not the one in use.
+		`<a href="/?repo=acme%2Fapp&amp;until=2026-10-31">13 weeks</a>`,
+		// The repository form sends the custom start again.
+		`<input type="hidden" name="from" value="2026-09-01">`,
+		// The date form sends the repositories again.
+		`<input type="hidden" name="repo" value="acme/app">`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the page lacks %q", want)
+		}
+	}
+	if strings.Contains(body, `class="on" aria-current="true">13 weeks`) {
+		t.Error("a preset window is shown as in use with a custom start")
 	}
 }

@@ -1,12 +1,14 @@
 package measure
 
 import (
+	"net/url"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/marshal-org/factorymeter/pkg/line"
 	"github.com/marshal-org/factorymeter/pkg/model"
 	"github.com/marshal-org/factorymeter/pkg/record"
 	"github.com/marshal-org/factorymeter/pkg/signature"
@@ -109,16 +111,40 @@ func (l *Line) saw(kind, source string, at time.Time) {
 	l.sources[kind][source] = true
 }
 
-func (l *Line) add(stream string, at time.Time, v float64, k key) {
-	l.obs[stream] = append(l.obs[stream], obs{at: at, v: v, k: k})
+func (l *Line) add(stream string, at time.Time, v float64, k key, it int32) {
+	l.obs[stream] = append(l.obs[stream], obs{at: at, v: v, k: k, item: it})
 }
 
-func (l *Line) hit(stream string, at time.Time, yes bool, k key) {
+func (l *Line) hit(stream string, at time.Time, yes bool, k key, it int32) {
 	v := 0.0
 	if yes {
 		v = 1
 	}
-	l.add(stream, at, v, k)
+	l.add(stream, at, v, k, it)
+}
+
+// deployItem adds a production deploy to the items, so a number drawn from
+// deploys can name them.
+func (l *Line) deployItem(d *record.Deploy) int32 {
+	it := item{kind: record.KindDeploy, class: classNone}
+	short := d.SHA
+	if len(short) > 7 {
+		short = short[:7]
+	}
+	switch {
+	case d.Via == "release":
+		it.key, it.title = d.Repo+" "+d.Ref, "Release "+d.Ref
+		if d.Ref != "" {
+			it.url = "https://github.com/" + d.Repo + "/releases/tag/" + url.PathEscape(d.Ref)
+		}
+	default:
+		it.key, it.title = d.Repo+" "+short, "Deploy to "+d.Environment
+		if d.SHA != "" {
+			it.url = "https://github.com/" + d.Repo + "/commit/" + d.SHA
+		}
+	}
+	l.items = append(l.items, it)
+	return int32(len(l.items) - 1)
 }
 
 // stand records an item standing in a queue from one moment to another. A
@@ -270,6 +296,8 @@ type shaRef struct{ chg, commit int32 }
 type prodDeploy struct {
 	created, finished time.Time
 	outcome, via, sha string
+	// item is the deploy in Line.items.
+	item int32
 	// cut and base are set on a deploy of the commit a merge left: when that
 	// change merged, and into which branch. Such a deploy holds the changes
 	// merged into the branch up to then.
@@ -384,7 +412,11 @@ func (r *RepoBuilder) Change(c *record.Change) {
 	for i := range c.Commits {
 		k := &c.Commits[i]
 		x.commits[i] = commitLite{committed: k.CommittedAt, merge: k.Parents >= 2}
-		if !k.AuthoredAt.IsZero() && k.AuthoredAt.Before(x.start) {
+		// A merge commit brings in work done elsewhere, and a commit much
+		// older than the change is history it carries or a wrong date: such
+		// a commit would count years of writing.
+		if !k.AuthoredAt.IsZero() && k.AuthoredAt.Before(x.start) && k.Parents < 2 &&
+			!k.AuthoredAt.Before(c.CreatedAt.Add(-line.EarlyCommitDays*24*time.Hour)) {
 			x.start = k.AuthoredAt
 		}
 		if _, taken := r.sha[k.SHA]; !taken && k.SHA != "" {
@@ -512,7 +544,8 @@ func (r *RepoBuilder) CIRun(x *record.CIRun) {
 func (r *RepoBuilder) Deploy(d *record.Deploy) {
 	r.b.l.saw(record.KindDeploy, d.Source, d.CreatedAt)
 	if d.Production {
-		r.prod = append(r.prod, prodDeploy{created: d.CreatedAt, finished: val(d.FinishedAt), outcome: d.Outcome, via: d.Via, sha: d.SHA})
+		r.prod = append(r.prod, prodDeploy{created: d.CreatedAt, finished: val(d.FinishedAt), outcome: d.Outcome, via: d.Via, sha: d.SHA,
+			item: r.b.l.deployItem(d)})
 		if d.Via == "deployment" && d.Environment != "" {
 			r.envs[d.Environment] = true
 		}
@@ -601,7 +634,7 @@ func (r *RepoBuilder) Done() {
 	// branch before it. Of any other deploy only its time is known.
 	sh := shipping{bases: map[string]bool{}}
 	for _, d := range prod {
-		l.add("release.deploys", d.created, 1, repoKey)
+		l.add("release.deploys", d.created, 1, repoKey, d.item)
 		if d.outcome == record.DeploySuccess || d.outcome == record.DeployUnknown {
 			if i, ok := r.merges[d.sha]; ok && d.sha != "" {
 				d.cut, d.base = r.chgs[i].merged, r.chgs[i].base
@@ -615,10 +648,10 @@ func (r *RepoBuilder) Done() {
 		}
 		switch d.outcome {
 		case record.DeploySuccess:
-			l.add("release.work", d.finished, hours(d.finished.Sub(d.created)), repoKey)
-			l.hit("release.rework", d.finished, false, repoKey)
+			l.add("release.work", d.finished, hours(d.finished.Sub(d.created)), repoKey, d.item)
+			l.hit("release.rework", d.finished, false, repoKey, d.item)
 		case record.DeployFailure:
-			l.hit("release.rework", d.finished, true, repoKey)
+			l.hit("release.rework", d.finished, true, repoKey, d.item)
 		}
 	}
 
@@ -696,13 +729,13 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 		if rd.open {
 			continue
 		}
-		l.add("ci.flow", finish, 1, k)
+		l.add("ci.flow", finish, 1, k, c.item)
 		if first != nil && r.info.ciWait {
-			l.add("ci.wait", finish, hours(first.started.Sub(first.created)), k)
+			l.add("ci.wait", finish, hours(first.started.Sub(first.created)), k, c.item)
 		}
-		l.add("ci.work", finish, flight.merge().total(), k)
-		l.hit("ci.rework", finish, failed, k)
-		l.add("ci.held", finish, mine.merge().total(), k)
+		l.add("ci.work", finish, flight.merge().total(), k, c.item)
+		l.hit("ci.rework", finish, failed, k, c.item)
+		l.add("ci.held", finish, mine.merge().total(), k, c.item)
 	}
 	busy = busy.merge()
 	// stood is the hours between two moments with no CI run in flight.
@@ -716,31 +749,31 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 	// Verify.
 	sort.SliceStable(c.vdeps, func(i, j int) bool { return c.vdeps[i].created.Before(c.vdeps[j].created) })
 	for i, d := range c.vdeps {
-		l.add("verify.wait", d.created, hours(d.created.Sub(d.committed)), k)
+		l.add("verify.wait", d.created, hours(d.created.Sub(d.committed)), k, c.item)
 		if d.finished.IsZero() {
 			continue
 		}
 		switch d.outcome {
 		case record.DeploySuccess:
-			l.add("verify.work", d.finished, hours(d.finished.Sub(d.created)), k)
-			l.add("verify.held", d.finished, hours(d.finished.Sub(d.committed)), k)
-			l.hit("verify.rework", d.finished, false, k)
+			l.add("verify.work", d.finished, hours(d.finished.Sub(d.created)), k, c.item)
+			l.add("verify.held", d.finished, hours(d.finished.Sub(d.committed)), k, c.item)
+			l.hit("verify.rework", d.finished, false, k, c.item)
 			if i == 0 {
-				l.add("verify.flow", d.finished, 1, k)
+				l.add("verify.flow", d.finished, 1, k, c.item)
 			}
 		case record.DeployFailure:
-			l.hit("verify.rework", d.finished, true, k)
+			l.hit("verify.rework", d.finished, true, k, c.item)
 		}
 	}
 
 	// Code.
 	if !c.ready.IsZero() {
-		l.add("code.flow", c.ready, 1, k)
-		l.add("code.work", c.ready, hours(c.ready.Sub(c.start)), k)
-		l.add("code.held", c.ready, stood(c.start, c.ready), k)
+		l.add("code.flow", c.ready, 1, k, c.item)
+		l.add("code.work", c.ready, hours(c.ready.Sub(c.start)), k, c.item)
+		l.add("code.held", c.ready, stood(c.start, c.ready), k, c.item)
 	}
 	if !c.closed.IsZero() {
-		l.hit("code.rework", c.closed, c.merged.IsZero(), k)
+		l.hit("code.rework", c.closed, c.merged.IsZero(), k, c.item)
 	}
 	draftEnd := c.ready
 	if draftEnd.IsZero() {
@@ -758,7 +791,7 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 		if !c.ready.IsZero() {
 			wait = hours(first.Sub(c.ready))
 		}
-		l.add("review.wait", first, wait, k)
+		l.add("review.wait", first, wait, k, c.item)
 	}
 	if !c.ready.IsZero() {
 		until := end
@@ -783,10 +816,10 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 		for _, m := range c.commits {
 			sentBack = sentBack || (!m.merge && m.committed.After(first))
 		}
-		l.add("review.flow", leave, 1, k)
-		l.add("review.work", leave, hours(leave.Sub(first)), k)
-		l.hit("review.rework", leave, sentBack, k)
-		l.add("review.held", leave, stood(arrive, leave), k)
+		l.add("review.flow", leave, 1, k, c.item)
+		l.add("review.work", leave, hours(leave.Sub(first)), k, c.item)
+		l.hit("review.rework", leave, sentBack, k, c.item)
+		l.add("review.held", leave, stood(arrive, leave), k, c.item)
 	}
 
 	// Merge. Every approval opens a stay in the queue that lasts until the
@@ -812,16 +845,16 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 		if at.After(c.merged) {
 			at = c.merged
 		}
-		l.add("merge.flow", c.merged, 1, k)
-		l.add("merge.wait", c.merged, hours(c.merged.Sub(at)), k)
-		l.hit("merge.rework", c.merged, c.reverted, k)
-		l.add("merge.held", c.merged, stood(at, c.merged), k)
-		l.hit("review.skipped", c.merged, !reviewed, k)
+		l.add("merge.flow", c.merged, 1, k, c.item)
+		l.add("merge.wait", c.merged, hours(c.merged.Sub(at)), k, c.item)
+		l.hit("merge.rework", c.merged, c.reverted, k, c.item)
+		l.add("merge.held", c.merged, stood(at, c.merged), k, c.item)
+		l.hit("review.skipped", c.merged, !reviewed, k, c.item)
 
-		l.add("line.flow", c.merged, 1, k)
-		l.add("line.lead", c.merged, hours(c.merged.Sub(c.created)), k)
-		l.add("line.size", c.merged, float64(c.size), k)
-		l.hit("line.agent_share", c.merged, k.class == classAgent, k)
+		l.add("line.flow", c.merged, 1, k, c.item)
+		l.add("line.lead", c.merged, hours(c.merged.Sub(c.created)), k, c.item)
+		l.add("line.size", c.merged, float64(c.size), k, c.item)
+		l.hit("line.agent_share", c.merged, k.class == classAgent, k, c.item)
 	}
 
 	// Release. A change merged before the store's deploys begin cannot be
@@ -834,7 +867,7 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 	// cannot tell a line that did not release from one whose releases were
 	// not recorded yet.
 	if c.merged.Before(ships[0].created) {
-		l.add(unseenAtRelease, c.merged, 1, k)
+		l.add(unseenAtRelease, c.merged, 1, k, c.item)
 		return
 	}
 	d, ok := sh.of(c.merged, c.base)
@@ -846,10 +879,10 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 	if reach.Before(d.created) {
 		reach = d.created
 	}
-	l.add("release.flow", reach, 1, k)
-	l.add("release.wait", reach, hours(d.created.Sub(c.merged)), k)
-	l.add("release.held", reach, hours(reach.Sub(c.merged)), k)
-	l.add("line.delivery", reach, hours(reach.Sub(c.start)), k)
+	l.add("release.flow", reach, 1, k, c.item)
+	l.add("release.wait", reach, hours(d.created.Sub(c.merged)), k, c.item)
+	l.add("release.held", reach, hours(reach.Sub(c.merged)), k, c.item)
+	l.add("line.delivery", reach, hours(reach.Sub(c.start)), k, c.item)
 	l.stand("release.queue", c.merged, reach, k, c.item)
 }
 
@@ -935,11 +968,11 @@ func (b *Builder) Ticket(t *record.Ticket) {
 	}
 	start := SpecStart(t, firstAt)
 	if !start.IsZero() {
-		l.add("spec.flow", start, 1, k)
-		l.add("spec.wait", start, hours(start.Sub(t.CreatedAt)), k)
+		l.add("spec.flow", start, 1, k, it)
+		l.add("spec.wait", start, hours(start.Sub(t.CreatedAt)), k, it)
 	}
 	if done := val(t.DoneAt); !done.IsZero() {
-		l.hit("spec.rework", done, t.Reopened > 0, k)
+		l.hit("spec.rework", done, t.Reopened > 0, k, it)
 	}
 	until := start
 	if until.IsZero() {
