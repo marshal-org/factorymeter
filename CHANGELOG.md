@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0](https://github.com/marshal-org/factorymeter/compare/v0.5.0...v0.6.0) (2026-11-22)
+
+
+### Features
+
+* **config:** keep the config in ~/.config/factorymeter by default ([#27](https://github.com/marshal-org/factorymeter/issues/27)) ([4a0ba0c](https://github.com/marshal-org/factorymeter/commit/4a0ba0cad5e979dc990c6a6c7b86bf9879acbf3c))
+
+
+### Bug Fixes
+
+* **init:** stop on Ctrl-C during a question; a second Ctrl-C always quits ([5cef808](https://github.com/marshal-org/factorymeter/commit/5cef8084a6613e63798d20d70f35a9e2539915f9))
+
 ## [0.5.0](https://github.com/marshal-org/factorymeter/compare/v0.4.0...v0.5.0) (2026-11-20)
 
 
