@@ -345,7 +345,7 @@ func (p *phase) footer(st style, now time.Time, requests, width int) string {
 	state := []string{fmt.Sprintf("%d%%", int(f*100)), clock(elapsed)}
 	held := p.held(now)
 	if held > 0 {
-		state = append(state, st.yellow(p.system+"'s rate limit: going on in "+clock(held)))
+		state = append(state, st.yellow(p.system+"'s rate limit: retrying in "+clock(held)))
 	}
 	if left, ok := p.eta(now); ok {
 		state = append(state, about(left)+" left")
@@ -534,7 +534,7 @@ func (v *syncView) waiting(d time.Duration) {
 	}
 	if !v.toldWait {
 		v.toldWait = true
-		v.pending = append(v.pending, "  "+v.st.warn()+" "+v.st.yellow(p.system+"'s rate limit is reached. The sync waits for it and goes on by itself."))
+		v.pending = append(v.pending, "  "+v.st.warn()+" "+v.st.yellow(p.system+"'s rate limit is reached. The sync waits for it and retries by itself."))
 	}
 	now := v.clock()
 	p.hold(now, now.Add(d))

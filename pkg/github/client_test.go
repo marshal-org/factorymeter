@@ -107,7 +107,7 @@ func TestRateLimitIsWaitedOutAndRetried(t *testing.T) {
 	if n != 2 || c.Calls != 2 || len(*slept) != 1 || (*slept)[0] != 8*time.Second {
 		t.Errorf("requests=%d calls=%d slept=%v, want 2 requests and one 8 s wait", n, c.Calls, *slept)
 	}
-	if len(logged) != 1 || !strings.Contains(logged[0], "waiting 8s") {
+	if len(logged) != 1 || !strings.Contains(logged[0], "retrying in 8s") {
 		t.Errorf("log: %q", logged)
 	}
 }

@@ -35,6 +35,7 @@ var readsConfig = map[string]bool{"sync": true, "report": true, "serve": true, "
 // Keys and tokens are never in it: they come from the environment.
 type fileConfig struct {
 	Target   string       `yaml:"target" json:"target"`
+	Repos    []string     `yaml:"repos" json:"repos"`
 	Store    string       `yaml:"store" json:"store"`
 	History  string       `yaml:"history" json:"history"`
 	Window   string       `yaml:"window" json:"window"`
@@ -321,6 +322,7 @@ func (c *fileConfig) apply(cmd *cobra.Command) error {
 		vals      []string
 	}{
 		{"store", "store", str(c.Store)},
+		{"repos", "repo", c.Repos},
 		{sinceKey, "since", since},
 		{"summary", "summary", boolean(c.Summary)},
 		{"registry", "registry", str(c.Registry)},
@@ -442,6 +444,9 @@ const configTemplate = `%s
 
 # The repository (owner/repo) or the owner whose active repositories to read.
 target: %s
+
+# For an owner, the repositories to read. Leave it out for every active one.
+# repos: [app, api]
 
 # How far back the first sync reads: weeks (26w), days (180d) or a date.
 # history: 26w
@@ -570,6 +575,7 @@ func (c *fileConfig) rows() [][2]string {
 	}
 	list := func(v []string) string { return strings.Join(v, ", ") }
 	add("target", c.Target)
+	add("repos", list(c.Repos))
 	add("history", c.History)
 	add("window", c.Window)
 	add("summary", b(c.Summary))

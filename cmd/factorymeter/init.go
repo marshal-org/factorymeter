@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -16,6 +16,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/marshal-org/factorymeter/pkg/collector"
 	"github.com/marshal-org/factorymeter/pkg/jira"
 )
 
@@ -28,16 +29,20 @@ import (
 // cannot be broken off, so that goroutine waits on, and the line it gets is
 // never used.
 type asker struct {
-	ctx   context.Context
-	in    io.Reader
-	out   io.Writer
-	eof   bool
-	lines chan readLine
+	ctx context.Context
+	in  io.Reader
+	out io.Writer
+	eof bool
+	// The input arrives in chunks, as it is read: a line at a time from a
+	// terminal in its usual mode, a key at a time in raw mode.
+	chunks  chan readChunk
+	pending []byte
+	inErr   error
 }
 
-type readLine struct {
-	text string
-	err  error
+type readChunk struct {
+	b   []byte
+	err error
 }
 
 // errAskStopped ends the wizard from inside a question. initCmd recovers it.
@@ -45,26 +50,53 @@ var errAskStopped = errors.New("init was stopped")
 
 func (a *asker) say(format string, args ...any) { fmt.Fprintf(a.out, format+"\n", args...) }
 
-// read is the next line of the input, or errAskStopped once ctx is done.
-func (a *asker) read() (string, error) {
-	if a.lines == nil {
-		a.lines = make(chan readLine)
+// more waits for the next chunk of the input, or panics with errAskStopped
+// once ctx is done.
+func (a *asker) more() {
+	if a.inErr != nil {
+		return
+	}
+	if a.chunks == nil {
+		a.chunks = make(chan readChunk)
 		go func() {
-			r := bufio.NewReader(a.in)
+			buf := make([]byte, 4096)
 			for {
-				l, err := r.ReadString('\n')
-				a.lines <- readLine{l, err}
+				n, err := a.in.Read(buf)
+				if n > 0 {
+					a.chunks <- readChunk{b: append([]byte(nil), buf[:n]...)}
+				}
 				if err != nil {
+					a.chunks <- readChunk{err: err}
 					return
 				}
 			}
 		}()
 	}
 	select {
-	case l := <-a.lines:
-		return l.text, l.err
+	case c := <-a.chunks:
+		a.pending = append(a.pending, c.b...)
+		if c.err != nil {
+			a.inErr = c.err
+		}
 	case <-a.ctx.Done():
 		panic(errAskStopped)
+	}
+}
+
+// read is the next line of the input, or errAskStopped once ctx is done.
+func (a *asker) read() (string, error) {
+	for {
+		if i := bytes.IndexByte(a.pending, '\n'); i >= 0 {
+			l := string(a.pending[:i+1])
+			a.pending = a.pending[i+1:]
+			return l, nil
+		}
+		if a.inErr != nil {
+			l := string(a.pending)
+			a.pending = nil
+			return l, a.inErr
+		}
+		a.more()
 	}
 }
 
@@ -148,10 +180,13 @@ func gitTarget(ctx context.Context) string {
 // wizardAnswers are what the wizard learned, ready to be written.
 type wizardAnswers struct {
 	target, history string
-	linear          bool
-	teams           []string
-	jiraSite        string
-	jiraProjects    []string
+	// repos are the repositories of an owner picked to read, by name
+	// without the owner. Empty is every active one.
+	repos        []string
+	linear       bool
+	teams        []string
+	jiraSite     string
+	jiraProjects []string
 }
 
 func (w wizardAnswers) yaml(user bool) string {
@@ -164,7 +199,7 @@ func (w wizardAnswers) yaml(user bool) string {
 
 # The repository (owner/repo) or the owner whose active repositories to read.
 target: ` + w.target + `
-
+` + w.reposYAML() + `
 # How far back the first sync reads, and the window a report covers.
 history: ` + w.history + `
 window: 13w
@@ -185,6 +220,26 @@ window: 13w
 		}
 	}
 	return b.String()
+}
+
+// reposYAML is the repos line of the file, or nothing for every repository.
+func (w wizardAnswers) reposYAML() string {
+	if len(w.repos) == 0 {
+		return ""
+	}
+	return "repos: [" + strings.Join(w.repos, ", ") + "]\n"
+}
+
+// activeRepos lists the repositories of an owner pushed to since a time, as
+// an owner sync would read them.
+// Tests replace it.
+var activeRepos = func(ctx context.Context, owner string, since time.Time) ([]string, error) {
+	c, err := newClient(true)
+	if err != nil {
+		return nil, err
+	}
+	k := &collector.Collector{C: c, Opt: collector.Options{Since: since}}
+	return k.Repos(ctx, owner)
 }
 
 // pickKeys reads keys separated by spaces or commas, and checks them against
@@ -382,8 +437,35 @@ question takes its answer in brackets.`,
 				return err
 			})
 
+			step := 3
+			if !strings.Contains(ans.target, "/") {
+				a.say("")
+				a.say("  %d. Which repositories of %s?", step, ans.target)
+				step++
+				since, _ := parseWhen(ans.history, time.Now())
+				if repos, err := activeRepos(ctx, ans.target, since); err != nil {
+					a.say("     Could not list them (%v), so every active repository is read.", err)
+					a.say("     To read some of them, add repos: [app, api] to the file.")
+				} else if len(repos) == 0 {
+					a.say("     None was pushed to since %s, that this token can read.", since.Format("2006-01-02"))
+				} else {
+					a.say("     %d pushed to since %s, newest first:", len(repos), since.Format("2006-01-02"))
+					picked := a.pickMany(repos)
+					for _, i := range picked {
+						_, short, _ := strings.Cut(repos[i], "/")
+						ans.repos = append(ans.repos, short)
+					}
+					if len(ans.repos) == 0 {
+						a.say("     All of them, and any that becomes active later.")
+					} else {
+						a.say("     Picked: %s.", strings.Join(ans.repos, ", "))
+					}
+				}
+			}
+
 			a.say("")
-			a.say("  3. Do your tickets live in Linear?")
+			a.say("  %d. Do your tickets live in Linear?", step)
+			step++
 			if ans.linear = a.yes(">", false); ans.linear {
 				var known map[string]string
 				if strings.TrimSpace(os.Getenv("LINEAR_API_KEY")) == "" {
@@ -413,7 +495,8 @@ question takes its answer in brackets.`,
 			}
 
 			a.say("")
-			a.say("  4. Do your tickets live in Jira Cloud?")
+			a.say("  %d. Do your tickets live in Jira Cloud?", step)
+			step++
 			if a.yes(">", false) {
 				ans.jiraSite = a.ask("The host of the site, such as acme.atlassian.net:", "", func(s string) error {
 					if s == "" {
@@ -479,7 +562,7 @@ question takes its answer in brackets.`,
 				a.say("  \"factorymeter init --here\" to change that one instead.")
 			}
 			a.say("")
-			a.say("  5. Run the first sync now?")
+			a.say("  %d. Run the first sync now?", step)
 			if !a.yes(">", true) {
 				a.say("")
 				a.say("  Later: factorymeter sync, then factorymeter serve.")

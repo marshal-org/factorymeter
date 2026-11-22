@@ -191,7 +191,7 @@ func TestQueryWaitsOutARateLimit(t *testing.T) {
 	if c.Calls != 3 || out.Organization.URLKey != "acme" {
 		t.Errorf("calls = %d, urlKey = %q", c.Calls, out.Organization.URLKey)
 	}
-	if len(lines) != 2 || !strings.Contains(lines[0], "waiting 8s") {
+	if len(lines) != 2 || !strings.Contains(lines[0], "retrying in 8s") {
 		t.Errorf("log = %v", lines)
 	}
 }

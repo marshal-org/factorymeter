@@ -28,7 +28,7 @@
 ```bash
 curl -fsSL https://marshal-org.github.io/factorymeter/install.sh | sh   # install, on macOS or Linux
 factorymeter init      # a few questions, a factorymeter.yml, then the first sync
-factorymeter serve     # see the line in the browser, at http://127.0.0.1:7377
+factorymeter serve     # opens the line in your browser, at http://127.0.0.1:7377
 ```
 
 <p align="center">
@@ -257,6 +257,7 @@ directory, to keep the settings next to your code:
 
 ```yaml
 target: my-org
+repos: [app, api]     # some repositories of the owner; leave it out for every active one
 history: 26w          # how far back the first sync reads
 window: 13w           # the window of a report
 linear:
@@ -280,8 +281,12 @@ what it sets. One file is read, the first of:
 
 The file never holds a key or a token. They stay in the environment, and a file with a key such
 as `token` or `api_key`, or a value that looks like a token, is refused without repeating it.
-When the file turns Linear or Jira on and the key is not set, `sync` says so and reads the
-rest, so one file serves a person with keys and a run without them.
+When the file turns Linear or Jira on and the key is not set, `sync` says so before it starts
+and reads the rest, so one file serves a person with keys and a run without them. `report` and
+`serve` say so too while the store holds no ticket of that system.
+
+For an owner, `init` lists the repositories pushed to in the history and you tick the ones to
+read. `--repo app --repo api` on `sync`, `report` or `serve` does the same for one run.
 
 Run both once a week and the report follows the line week after week. A sync that is stopped
 goes on where it left off. The store is a directory of Parquet files:
@@ -309,8 +314,11 @@ factorymeter signatures list               # every signature in use
 ## See it as a page
 
 ```bash
-factorymeter serve my-org          # then open http://127.0.0.1:7377
+factorymeter serve my-org          # opens http://127.0.0.1:7377 in your browser
 ```
+
+At a terminal, `serve` opens the page in your browser (`$BROWSER` when set). `--no-open` leaves
+that out.
 
 `serve` shows the report as a page, read from the store. It has four pages:
 

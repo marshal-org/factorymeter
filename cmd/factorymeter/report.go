@@ -36,6 +36,7 @@ func weeksOf(s string) (int, error) {
 
 func reportCmd() *cobra.Command {
 	var dir, since, until, format, jsonPath, htmlPath, registryPath string
+	var repos []string
 	var summary bool
 	cmd := &cobra.Command{
 		Use:   "report [owner/repo | owner]",
@@ -79,6 +80,10 @@ station numbers only and is safe to share.`,
 			if err != nil {
 				return err
 			}
+			only, err := reposOf(target, repos)
+			if err != nil {
+				return err
+			}
 			path, _, err := storeDir(dir, target)
 			if err != nil {
 				return err
@@ -88,7 +93,10 @@ station numbers only and is safe to share.`,
 				return err
 			}
 			defer s.Close()
-			l, err := measure.Load(s, reg, target)
+			for _, n := range keysMissing(s) {
+				fmt.Fprintln(cmd.ErrOrStderr(), "note: "+n)
+			}
+			l, err := measure.LoadOnly(s, reg, target, only)
 			if err != nil {
 				return err
 			}
@@ -129,6 +137,7 @@ station numbers only and is safe to share.`,
 	}
 	f := cmd.Flags()
 	f.StringVar(&dir, "store", "", "store directory (default: the owner's directory in the user cache)")
+	f.StringSliceVar(&repos, "repo", nil, "for an owner, report only this repository. Repeat for more")
 	f.StringVar(&since, "since", "13w", "length of the window in whole weeks, such as 13w or 26w")
 	f.StringVar(&until, "until", "", "end of the window: a date, or days or weeks back (default: the last sync)")
 	f.StringVar(&format, "format", "text", "what to print: text, markdown, html, json or none")

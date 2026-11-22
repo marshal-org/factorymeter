@@ -693,14 +693,14 @@ func TestAWaitForARateLimit(t *testing.T) {
 	v.waiting(time.Minute)
 	tick(v)
 	same(t, sc.lines(), []string{
-		"  ! GitHub's rate limit is reached. The sync waits for it and goes on by itself.",
+		"  ! GitHub's rate limit is reached. The sync waits for it and retries by itself.",
 		"  acme/app",
 		"  ‖ pull requests  50 read                                                 10s",
 		"  ○ issues",
 		"  ○ CI runs",
 		"  ○ deploys",
 		"",
-		"  ━━──────────────────────  9% · 10s · GitHub's rate limit: going on in 1m 00s · about 1m 30s left",
+		"  ━━──────────────────────  9% · 10s · GitHub's rate limit: retrying in 1m 00s · about 1m 30s left",
 	})
 
 	// Half a minute into the wait a second read is told to wait too. The two
@@ -712,7 +712,7 @@ func TestAWaitForARateLimit(t *testing.T) {
 	v.waiting(time.Minute)
 	tick(v)
 	got := sc.lines()
-	if len(got) != 8 || !strings.Contains(got[7], "going on in 1m 00s") || !strings.Contains(got[2], "‖ pull requests  50 read") {
+	if len(got) != 8 || !strings.Contains(got[7], "retrying in 1m 00s") || !strings.Contains(got[2], "‖ pull requests  50 read") {
 		t.Errorf("screen during the second wait:\n%s", strings.Join(got, "\n"))
 	}
 

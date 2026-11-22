@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestMain points the user config file at a file that is not there, so a
@@ -16,6 +19,10 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	os.Setenv("FACTORYMETER_CONFIG", filepath.Join(dir, "no-config.yml"))
+	// The wizard never lists repositories on the real GitHub in a test.
+	activeRepos = func(context.Context, string, time.Time) ([]string, error) {
+		return nil, errors.New("no GitHub in tests")
+	}
 	code := m.Run()
 	os.RemoveAll(dir)
 	os.Exit(code)
