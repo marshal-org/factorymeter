@@ -1,6 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"context"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -88,5 +92,40 @@ func TestGitRemotes(t *testing.T) {
 		if got != want {
 			t.Errorf("%s = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// Ctrl-C while the wizard waits for an answer stops it: it does not wait for
+// a line that never comes, and it writes nothing.
+func TestInitWizardStopsOnCtrlC(t *testing.T) {
+	t.Cleanup(func() { config = configState{} })
+	dir := t.TempDir()
+	t.Chdir(dir)
+	keyboard, typing := io.Pipe() // a terminal no one types on
+	t.Cleanup(func() { typing.Close() })
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(200*time.Millisecond, cancel)
+
+	root := newRoot()
+	root.SetIn(keyboard)
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&out)
+	root.SetArgs([]string{"init"})
+	done := make(chan error, 1)
+	go func() { done <- root.ExecuteContext(ctx) }()
+	select {
+	case err := <-done:
+		if !errors.As(err, new(toldErr)) || !errors.Is(err, context.Canceled) {
+			t.Errorf("err = %v, want a told stop", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the wizard did not stop on Ctrl-C")
+	}
+	if !strings.Contains(out.String(), "Stopped. Nothing was written.") {
+		t.Errorf("the wizard did not say it stopped:\n%s", out.String())
+	}
+	if _, err := os.Stat(filepath.Join(dir, "factorymeter.yml")); err == nil {
+		t.Error("a file was written")
 	}
 }

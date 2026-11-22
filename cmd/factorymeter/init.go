@@ -22,18 +22,59 @@ import (
 // asker asks questions on a line each and reads the answers. At the end of
 // the input every question takes its default, so the wizard also runs with
 // no one at the keyboard.
+//
+// The input is read on a goroutine of its own, so a question also ends when
+// ctx does: Ctrl-C during a question stops the wizard. A read from a terminal
+// cannot be broken off, so that goroutine waits on, and the line it gets is
+// never used.
 type asker struct {
-	in  *bufio.Reader
-	out io.Writer
-	eof bool
+	ctx   context.Context
+	in    io.Reader
+	out   io.Writer
+	eof   bool
+	lines chan readLine
 }
 
+type readLine struct {
+	text string
+	err  error
+}
+
+// errAskStopped ends the wizard from inside a question. initCmd recovers it.
+var errAskStopped = errors.New("init was stopped")
+
 func (a *asker) say(format string, args ...any) { fmt.Fprintf(a.out, format+"\n", args...) }
+
+// read is the next line of the input, or errAskStopped once ctx is done.
+func (a *asker) read() (string, error) {
+	if a.lines == nil {
+		a.lines = make(chan readLine)
+		go func() {
+			r := bufio.NewReader(a.in)
+			for {
+				l, err := r.ReadString('\n')
+				a.lines <- readLine{l, err}
+				if err != nil {
+					return
+				}
+			}
+		}()
+	}
+	select {
+	case l := <-a.lines:
+		return l.text, l.err
+	case <-a.ctx.Done():
+		panic(errAskStopped)
+	}
+}
 
 // ask asks a question with a default, and asks again while check refuses the
 // answer.
 func (a *asker) ask(q, def string, check func(string) error) string {
 	for {
+		if a.ctx.Err() != nil {
+			panic(errAskStopped)
+		}
 		if def != "" {
 			fmt.Fprintf(a.out, "  %s [%s] ", q, def)
 		} else {
@@ -41,7 +82,7 @@ func (a *asker) ask(q, def string, check func(string) error) string {
 		}
 		line := ""
 		if !a.eof {
-			l, err := a.in.ReadString('\n')
+			l, err := a.read()
 			if err != nil {
 				a.eof = true
 			}
@@ -246,12 +287,25 @@ site, so you pick from what is there. Keys are never written to the file.
 Press Enter to take the answer in brackets. With no one at the keyboard, every
 question takes its answer in brackets.`,
 		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			ctx := cmd.Context()
 			if ctx == nil {
 				ctx = context.Background()
 			}
-			a := &asker{in: bufio.NewReader(cmd.InOrStdin()), out: cmd.OutOrStdout()}
+			a := &asker{ctx: ctx, in: cmd.InOrStdin(), out: cmd.OutOrStdout()}
+			// Ctrl-C during a question ends the wizard here. The file is
+			// written only after the last question, so nothing was written.
+			defer func() {
+				if r := recover(); r != nil {
+					if r != errAskStopped {
+						panic(r)
+					}
+					fmt.Fprintln(a.out)
+					a.say("")
+					a.say("  Stopped. Nothing was written.")
+					err = toldErr{context.Canceled}
+				}
+			}()
 			const path = "factorymeter.yml"
 			dir, err := os.Getwd()
 			if err != nil {
