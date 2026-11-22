@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0](https://github.com/marshal-org/factorymeter/compare/v0.6.0...v0.7.0) (2026-11-22)
+
+
+### Features
+
+* pick repositories of an owner, serve opens the browser, clearer labels ([d7051c8](https://github.com/marshal-org/factorymeter/commit/d7051c8bf7b3c36d9720b8e486c90315edab8b51))
+
+
+### Bug Fixes
+
+* **collector:** read each commit's author as a field, cutting the cost of a pull-request page from 26 points to 1 ([fa57c82](https://github.com/marshal-org/factorymeter/commit/fa57c825295b15bc372c62b446967e0ba4d9bddb))
+
 ## [0.6.0](https://github.com/marshal-org/factorymeter/compare/v0.5.0...v0.6.0) (2026-11-22)
 
 
