@@ -77,7 +77,7 @@ func node(n int, created, updated time.Time, shas ...string) obj {
 	for _, sha := range shas {
 		commits = append(commits, obj{"commit": obj{"oid": sha, "authoredDate": ts(created), "committedDate": ts(created),
 			"message": "fix: a thing\n\nCo-Authored-By: Claude <noreply@anthropic.com>", "parents": obj{"totalCount": 1},
-			"authors": obj{"nodes": []obj{{"name": "Dev", "email": "dev@example.invalid", "user": obj{"login": "dev"}}}}}})
+			"author": obj{"name": "Dev", "email": "dev@example.invalid", "user": obj{"login": "dev"}}}})
 	}
 	return obj{"number": n, "url": fmt.Sprintf("https://github.com/o/r/pull/%d", n), "state": "OPEN", "createdAt": ts(created), "updatedAt": ts(updated),
 		"headRefName": "fix/x", "author": obj{"__typename": "User", "login": "dev"},

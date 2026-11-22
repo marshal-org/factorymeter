@@ -62,7 +62,7 @@ fragment PRFields on PullRequest {
     nodes { commit {
       oid authoredDate committedDate message
       parents { totalCount }
-      authors(first: 10) { nodes { name email user { login } } }
+      author { name email user { login } }
     } }
   }
   reviews(first: 100) { nodes { state submittedAt author { __typename login } } }
@@ -138,15 +138,17 @@ type gqlPR struct {
 				Parents       struct {
 					TotalCount int `json:"totalCount"`
 				} `json:"parents"`
-				Authors struct {
-					Nodes []struct {
-						Name  string `json:"name"`
-						Email string `json:"email"`
-						User  *struct {
-							Login string `json:"login"`
-						} `json:"user"`
-					} `json:"nodes"`
-				} `json:"authors"`
+				// Author is the one who wrote the commit. It is a field, not
+				// the authors connection: under each of 100 commits that
+				// connection cost 25 times the points of the rest of a page.
+				// Co-authors come from the trailers of the message.
+				Author *struct {
+					Name  string `json:"name"`
+					Email string `json:"email"`
+					User  *struct {
+						Login string `json:"login"`
+					} `json:"user"`
+				} `json:"author"`
 			} `json:"commit"`
 		} `json:"nodes"`
 	} `json:"commits"`
@@ -200,7 +202,7 @@ func (g gqlPR) toModel(repo string) model.PR {
 			SHA: n.Commit.OID, AuthoredAt: n.Commit.AuthoredDate, CommittedAt: n.Commit.CommittedDate,
 			Parents: n.Commit.Parents.TotalCount, Trailers: signature.Trailers(n.Commit.Message),
 		}
-		for _, a := range n.Commit.Authors.Nodes {
+		if a := n.Commit.Author; a != nil {
 			ca := model.CommitAuthor{Name: a.Name, Email: a.Email}
 			if a.User != nil {
 				ca.Login = a.User.Login

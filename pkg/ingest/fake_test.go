@@ -459,7 +459,7 @@ func (h *fakeHub) page(c call, vars map[string]any) any {
 		for _, sha := range p.shas {
 			commits = append(commits, obj{"commit": obj{"oid": sha, "authoredDate": ts(p.created), "committedDate": ts(p.created),
 				"message": "fix: a thing\n\nCo-Authored-By: Claude <noreply@anthropic.com>", "parents": obj{"totalCount": 1},
-				"authors": obj{"nodes": []obj{{"name": "Dev", "email": "dev@example.invalid", "user": obj{"login": "dev"}}}}}})
+				"author": obj{"name": "Dev", "email": "dev@example.invalid", "user": obj{"login": "dev"}}}})
 		}
 		nodes = append(nodes, obj{"number": p.number, "url": fmt.Sprintf("https://github.com/%s/pull/%d", r.name, p.number),
 			"title": p.title, "state": p.state, "createdAt": ts(p.created), "updatedAt": ts(p.updated),

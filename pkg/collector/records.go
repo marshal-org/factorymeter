@@ -315,7 +315,7 @@ func (g gqlPR) toRecord(repo string) record.Change {
 			SHA: n.Commit.OID, AuthoredAt: n.Commit.AuthoredDate.UTC(), CommittedAt: n.Commit.CommittedDate.UTC(),
 			Parents: n.Commit.Parents.TotalCount, Authors: []record.CommitAuthor{}, Trailers: []record.Trailer{},
 		}
-		for _, a := range n.Commit.Authors.Nodes {
+		if a := n.Commit.Author; a != nil {
 			ca := record.CommitAuthor{Name: a.Name, Email: a.Email}
 			if a.User != nil {
 				ca.Login = a.User.Login
