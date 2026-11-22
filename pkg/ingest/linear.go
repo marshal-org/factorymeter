@@ -561,6 +561,8 @@ func linearRecord(n *linearIssue, states map[string]string) (record.Ticket, []re
 	// first. It says when work first started, also on an issue that went
 	// back to the backlog since, and how often a done issue was opened again.
 	started := utc(n.StartedAt)
+	// ready is when it first left triage and the backlog.
+	var ready *time.Time
 	wasDone := false
 	// last is the stretch the issue is in now, as far as the history knows.
 	// Linear keeps the time an issue was first done in completedAt, also after
@@ -582,8 +584,20 @@ func linearRecord(n *linearIssue, states map[string]string) (record.Ticket, []re
 		if at := s.StartedAt.UTC(); typ == "started" && (started == nil || at.Before(*started)) {
 			started = &at
 		}
+		if typ != "triage" && typ != "backlog" && ready == nil {
+			r := s.StartedAt.UTC()
+			ready = &r
+		}
 	}
 	t.StartedAt = started
+	// An issue with no history of states was made in the one it is in.
+	if ready == nil && len(n.StateHistory.Nodes) == 0 && t.State != record.TicketBacklog {
+		ready = &t.CreatedAt
+	}
+	if ready == nil && started != nil {
+		ready = started
+	}
+	t.ReadyAt = ready
 
 	// An issue in the trash is on its way to being deleted. It counts as
 	// cancelled, whatever state it was left in.

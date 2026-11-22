@@ -186,6 +186,7 @@ type Ticket struct {
 	RawState  string     `json:"raw_state" parquet:"raw_state" doc:"The state in the source's own words."`
 	CreatedAt time.Time  `json:"created_at" parquet:"created_at,timestamp(microsecond)" doc:"When the ticket was created."`
 	UpdatedAt time.Time  `json:"updated_at" parquet:"updated_at,timestamp(microsecond)" doc:"When the source last saw the ticket move. The sync resumes from here."`
+	ReadyAt   *time.Time `json:"ready_at" parquet:"ready_at,optional,timestamp(microsecond)" doc:"When the ticket first left the backlog: the first time it was in a state that is not triage or backlog. On GitHub, which has no backlog, when it was created. Null while it has never left the backlog, and in a store read before this field."`
 	StartedAt *time.Time `json:"started_at" parquet:"started_at,optional,timestamp(microsecond)" doc:"When the ticket first moved to a started state. Null when it never did, or when the source keeps no history."`
 	DoneAt    *time.Time `json:"done_at" parquet:"done_at,optional,timestamp(microsecond)" doc:"When the ticket was last finished. Null when it is not done."`
 	ClosedAt  *time.Time `json:"closed_at" parquet:"closed_at,optional,timestamp(microsecond)" doc:"When the ticket closed, done or cancelled. Null while it is open."`

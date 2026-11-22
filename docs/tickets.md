@@ -98,6 +98,13 @@ children are worked on. Subtasks count.
 
 ## The numbers of the spec station
 
+**Ready.** A ticket in triage or the backlog is not waiting for the line: nobody has said it is
+next. It becomes ready the first time it is in any other state, such as Todo, In Progress or
+Done, and the history of the ticket says when. It waits in front of the line from then, and
+"Wait for work to start" is measured from then. A GitHub issue has no backlog, so it is ready
+from when it was created. A ticket stored by a version before 0.10 is read again once on the
+next sync to learn when it was ready; until then it counts from when it was created.
+
 **Start.** A ticket starts when it first moves to a started state, or when the first pull
 request tied to it is opened, whichever is earlier. A ticket written up after the work began is
 taken to start when it was written. A pull request opened after the ticket was closed did not

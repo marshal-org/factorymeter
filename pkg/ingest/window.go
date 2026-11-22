@@ -16,7 +16,14 @@ type ticketWindow struct {
 	// Open is set once the open tickets last updated before the floor are
 	// stored. The queue in front of the spec station needs them.
 	Open bool `json:"open"`
+	// Rev is the version of what a stored ticket holds. A store whose
+	// tickets were read by an older version reads them all again once, so
+	// each gets what was added since.
+	Rev int `json:"rev"`
 }
+
+// ticketRev is the version of a stored ticket. 1 added ReadyAt.
+const ticketRev = 1
 
 // windowRead brings the window of a ticket source up to now. It knows nothing
 // of the source: span does the reading.
@@ -58,6 +65,16 @@ func (x windowRead) updated(ctx context.Context) error {
 			return err
 		}
 		x.w.Floor = target
+		if err := x.save(); err != nil {
+			return err
+		}
+	}
+
+	if x.w.Rev < ticketRev {
+		// Read every ticket again, from the floor and the open ones before
+		// it. The window saves where it has reached, so a stopped sync goes
+		// on from there.
+		x.w.High, x.w.Open, x.w.Rev = x.w.Floor, false, ticketRev
 		if err := x.save(); err != nil {
 			return err
 		}

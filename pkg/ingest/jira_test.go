@@ -544,12 +544,12 @@ func TestJiraFirstSyncStoresTickets(t *testing.T) {
 		t.Fatalf("stored %v", k)
 	}
 
-	d2, d3 := day(2), day(3)
+	d1, d2, d3 := day(1), day(2), day(3)
 	want := record.Ticket{
 		Source: record.Jira, ID: "jira:127.0.0.1/" + one.id, Key: "ENG-1", Aliases: []string{}, Project: "ENG",
 		URL: f.srv.URL + "/browse/ENG-1", Title: "Title of ENG-1", Labels: []string{"bug", "ui"},
 		Author: record.Actor{Login: "Ada", Kind: record.ActorUser}, State: record.TicketDone, RawState: "Done",
-		CreatedAt: day(1), UpdatedAt: day(3), StartedAt: &d2, DoneAt: &d3, ClosedAt: &d3,
+		CreatedAt: day(1), UpdatedAt: day(3), ReadyAt: &d1, StartedAt: &d2, DoneAt: &d3, ClosedAt: &d3,
 	}
 	if g := got["ENG-1"]; !reflect.DeepEqual(g, want) {
 		t.Errorf("ENG-1 = %+v\nwant    %+v", g, want)
@@ -574,7 +574,7 @@ func TestJiraFirstSyncStoresTickets(t *testing.T) {
 	if !st.Floor.Equal(floor) || !st.High.Equal(now) || !st.Open || len(st.Projects) != 0 {
 		t.Errorf("state = %+v", st)
 	}
-	if string(sc.State) != `{"floor":"2026-08-01T00:00:00Z","high":"2026-11-02T12:00:00Z","open":true,"projects":[]}` {
+	if string(sc.State) != `{"floor":"2026-08-01T00:00:00Z","high":"2026-11-02T12:00:00Z","open":true,"rev":1,"projects":[]}` {
 		t.Errorf("saved state = %s", sc.State)
 	}
 

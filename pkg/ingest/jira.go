@@ -70,6 +70,19 @@ type jiraStatus struct {
 	name     string
 }
 
+// jiraBacklog says whether a status is a backlog: work nobody has said is
+// next. A "to do" status named backlog is one, and so is a category this
+// version does not know.
+func jiraBacklog(s jiraStatus) bool {
+	switch s.category {
+	case jiraNew:
+		return strings.Contains(strings.ToLower(s.name), "backlog")
+	case jiraStarted, jiraDone:
+		return false
+	}
+	return true
+}
+
 type jiraSync struct {
 	j        *Jira
 	o        Options
@@ -551,7 +564,10 @@ func jiraRecord(c *jira.Client, n *jiraIssue, history []jiraChange, statuses map
 	// back since, how often a done issue was opened again, when it was done,
 	// and the keys it had before it moved to another project.
 	sort.SliceStable(history, func(i, k int) bool { return history[i].Created.Before(history[k].Created.Time) })
-	var started, done *time.Time
+	var started, done, ready *time.Time
+	// inStatus says whether the history has shown a status yet: the first
+	// change of status names the one the issue was made in.
+	inStatus := false
 	seen := map[string]bool{strings.ToUpper(n.Key): true}
 	for _, h := range history {
 		at := h.Created.UTC()
@@ -570,6 +586,14 @@ func jiraRecord(c *jira.Client, n *jiraIssue, history []jiraChange, statuses map
 				now, known := statuses[it.To]
 				if !known {
 					continue
+				}
+				if !inStatus && wasKnown && !jiraBacklog(was) {
+					ready = &t.CreatedAt
+				}
+				inStatus = true
+				if ready == nil && !jiraBacklog(now) {
+					r := at
+					ready = &r
 				}
 				wasDone := wasKnown && was.category == jiraDone
 				// An issue that leaves a started status it never moved into
@@ -615,6 +639,14 @@ func jiraRecord(c *jira.Client, n *jiraIssue, history []jiraChange, statuses map
 		t.State = record.TicketBacklog
 	}
 	t.StartedAt = started
+	// An issue whose status never changed was made in the one it is in.
+	if ready == nil && !inStatus && t.State != record.TicketBacklog {
+		ready = &t.CreatedAt
+	}
+	if ready == nil && started != nil {
+		ready = started
+	}
+	t.ReadyAt = ready
 
 	if t.State == record.TicketDone || t.State == record.TicketCancelled {
 		closed := &t.UpdatedAt

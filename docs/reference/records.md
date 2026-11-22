@@ -36,6 +36,7 @@ Every time is UTC. A time that has not happened is null, never a zero date. A re
 | `raw_state` | string | The state in the source's own words. |
 | `created_at` | time | When the ticket was created. |
 | `updated_at` | time | When the source last saw the ticket move. The sync resumes from here. |
+| `ready_at` | time or null | When the ticket first left the backlog: the first time it was in a state that is not triage or backlog. On GitHub, which has no backlog, when it was created. Null while it has never left the backlog, and in a store read before this field. |
 | `started_at` | time or null | When the ticket first moved to a started state. Null when it never did, or when the source keeps no history. |
 | `done_at` | time or null | When the ticket was last finished. Null when it is not done. |
 | `closed_at` | time or null | When the ticket closed, done or cancelled. Null while it is open. |
