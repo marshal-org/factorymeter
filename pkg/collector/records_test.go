@@ -20,7 +20,7 @@ func TestAPullRequestBecomesAChange(t *testing.T) {
 	  "author": {"__typename": "Bot", "login": "devin-ai-integration"},
 	  "commits": {"totalCount": 140, "nodes": [{"commit": {"oid": "abc", "authoredDate": "2026-08-03T07:00:00Z", "committedDate": "2026-08-03T07:30:00Z",
 	    "message": "fix: it\n\nSigned-off-by: Dev <dev@example.invalid>\nCo-Authored-By: Claude <noreply@anthropic.com>",
-	    "parents": {"totalCount": 1}, "authors": {"nodes": [{"name": "Dev", "email": "dev@example.invalid", "user": {"login": "dev"}}, {"name": "Claude", "email": "noreply@anthropic.com"}]}}}]},
+	    "parents": {"totalCount": 1}, "author": {"name": "Dev", "email": "dev@example.invalid", "user": {"login": "dev"}}}}]},
 	  "reviews": {"nodes": [
 	    {"state": "APPROVED", "submittedAt": "2026-08-04T08:00:00Z", "author": {"__typename": "User", "login": "lead"}},
 	    {"state": "PENDING", "author": {"__typename": "User", "login": "lead"}},
@@ -55,7 +55,7 @@ func TestAPullRequestBecomesAChange(t *testing.T) {
 		t.Errorf("an open change has the merge commit %q", open.MergeSHA)
 	}
 	k := c.Commits[0]
-	if k.SHA != "abc" || k.Parents != 1 || len(k.Authors) != 2 || k.Authors[0].Login != "dev" || k.Authors[1].Login != "" {
+	if k.SHA != "abc" || k.Parents != 1 || len(k.Authors) != 1 || k.Authors[0].Login != "dev" {
 		t.Errorf("commit: %+v", k)
 	}
 	if len(k.Trailers) != 2 || k.Trailers[1] != (record.Trailer{Key: "Co-Authored-By", Value: "Claude <noreply@anthropic.com>"}) {
