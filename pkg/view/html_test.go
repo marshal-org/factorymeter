@@ -205,14 +205,16 @@ func TestHTMLNav(t *testing.T) {
 		contract.Series{Metric: "line.flow", Slice: contract.Slice{Repo: "acme/app"}, Unit: "per_week", Value: p(3), N: 6},
 		contract.Series{Metric: "line.flow", Slice: contract.Slice{Repo: "acme/lib"}, Unit: "per_week", Value: p(1), N: 2})
 	out := htmlOf(t, r, HTMLOptions{Nav: &Nav{
-		Windows: []Link{{Label: "4 weeks", URL: "/?since=4w"}, {Label: "13 weeks", URL: "/", Current: true}},
-		Repos:   []Link{{Label: "All repositories", URL: "/", Current: true}, {Label: "acme/app", URL: "/?repo=acme%2Fapp"}},
-		JSON:    "/report.json?since=4w",
+		Windows:   []Link{{Label: "4 weeks", URL: "/?since=4w"}, {Label: "13 weeks", URL: "/", Current: true}},
+		Repos:     []Link{{Label: "acme/app", URL: "/?repo=acme%2Fapp", Current: true}},
+		RepoLabel: "All repositories", AllRepos: "/",
+		JSON: "/report.json?since=4w",
 	}})
 	for _, want := range []string{
 		`<div class="seg" role="group" aria-label="Window"><a href="/?since=4w">4 weeks</a><a href="/" class="on" aria-current="true">13 weeks</a></div>`,
 		`<details class="menu"><summary>All repositories</summary>`,
-		`<a href="/?repo=acme%2Fapp">acme/app</a>`,
+		`<label><input type="checkbox" name="repo" value="acme/app" checked>acme/app</label>`,
+		"form-action &#39;self&#39;",
 		"<h3>By repository</h3>",
 		// A repository the page can narrow to is a link in its row. One it
 		// cannot is plain text.

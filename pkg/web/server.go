@@ -34,8 +34,9 @@ type Query struct {
 	Weeks int
 	// Until ends the window. Zero means the last sync.
 	Until time.Time
-	// Repo narrows an owner to one repository. Empty means every one.
-	Repo string
+	// Repos narrows an owner to some of its repositories. Empty means
+	// every one.
+	Repos []string
 }
 
 // Source builds the reports the server shows.
@@ -88,7 +89,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Referrer-Policy", "no-referrer")
 	h.Set("Cache-Control", "no-store")
-	h.Set("Content-Security-Policy", view.CSP()+"; frame-ancestors 'none'")
+	h.Set("Content-Security-Policy", view.ServedCSP()+"; frame-ancestors 'none'")
 	if !s.local(r.Host) {
 		fail(w, http.StatusForbidden, "This server answers only under localhost. To reach it under another name, start it with --allow-host and that name.")
 		return
@@ -175,12 +176,20 @@ func parse(v url.Values, repos []string) (Query, error) {
 		// The window takes in the whole of the day it names.
 		q.Until = t.Add(24 * time.Hour)
 	}
-	if s := v.Get("repo"); s != "" {
+	for _, s := range v["repo"] {
+		if s == "" || slices.Contains(q.Repos, s) {
+			continue
+		}
 		if !slices.Contains(repos, s) {
 			return q, fmt.Errorf("the store holds no repository %q", s)
 		}
-		q.Repo = s
+		q.Repos = append(q.Repos, s)
 	}
+	// Every repository ticked is the whole owner.
+	if len(q.Repos) == len(repos) {
+		q.Repos = nil
+	}
+	slices.Sort(q.Repos)
 	return q, nil
 }
 
@@ -193,8 +202,8 @@ func link(path string, q Query) string {
 	if !q.Until.IsZero() {
 		v.Set("until", q.Until.Add(-24*time.Hour).Format("2006-01-02"))
 	}
-	if q.Repo != "" {
-		v.Set("repo", q.Repo)
+	for _, r := range q.Repos {
+		v.Add("repo", r)
 	}
 	if len(v) == 0 {
 		return path
@@ -216,11 +225,28 @@ func nav(q Query, repos []string) *view.Nav {
 	}
 	if len(repos) > 1 {
 		to := q
-		to.Repo = ""
-		n.Repos = append(n.Repos, view.Link{Label: "All repositories", URL: link("/", to), Current: q.Repo == ""})
+		to.Repos = nil
+		n.AllRepos = link("/", to)
 		for _, r := range repos {
-			to.Repo = r
-			n.Repos = append(n.Repos, view.Link{Label: r, URL: link("/", to), Current: r == q.Repo})
+			// The address is of the repository alone, for the rows of the
+			// page that name it.
+			to.Repos = []string{r}
+			n.Repos = append(n.Repos, view.Link{Label: r, URL: link("/", to), Current: len(q.Repos) == 0 || slices.Contains(q.Repos, r)})
+		}
+		switch len(q.Repos) {
+		case 0:
+			n.RepoLabel = "All repositories"
+		case 1:
+			n.RepoLabel = q.Repos[0]
+		default:
+			n.RepoLabel = fmt.Sprintf("%d of %d repositories", len(q.Repos), len(repos))
+		}
+		// The form sends the window again, so a pick keeps it.
+		if q.Weeks != defaultWeeks {
+			n.Keep = append(n.Keep, view.Field{Name: "since", Value: strconv.Itoa(q.Weeks) + "w"})
+		}
+		if !q.Until.IsZero() {
+			n.Keep = append(n.Keep, view.Field{Name: "until", Value: q.Until.Add(-24 * time.Hour).Format("2006-01-02")})
 		}
 	}
 	return n

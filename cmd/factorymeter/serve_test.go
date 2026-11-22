@@ -46,16 +46,16 @@ func TestLines(t *testing.T) {
 		t.Errorf("report: target %q, constraint %q, until %v", rep.Target, rep.Verdict.Constraint, rep.Window.Until)
 	}
 	// Another window comes from the line that was read, not from the disk.
-	first := src.kept["acme"].line
-	if _, err := src.Report(web.Query{Weeks: 4}); err != nil || src.kept["acme"].line != first {
+	first := src.kept["acme|"].line
+	if _, err := src.Report(web.Query{Weeks: 4}); err != nil || src.kept["acme|"].line != first {
 		t.Errorf("the line was read again with nothing new in the store, err %v", err)
 	}
 	// One repository is its own line.
-	one, err := src.Report(web.Query{Weeks: 2, Repo: "acme/app"})
+	one, err := src.Report(web.Query{Weeks: 2, Repos: []string{"acme/app"}})
 	if err != nil || one.Target != "acme/app" || len(src.kept) != 2 {
 		t.Errorf("one repository: %v, kept %d", err, len(src.kept))
 	}
-	if _, err := src.Report(web.Query{Weeks: 2, Repo: "acme/none"}); !errors.Is(err, web.ErrNoData) {
+	if _, err := src.Report(web.Query{Weeks: 2, Repos: []string{"acme/none"}}); !errors.Is(err, web.ErrNoData) {
 		t.Errorf("a repository the store does not hold: %v", err)
 	}
 
@@ -72,8 +72,8 @@ func TestLines(t *testing.T) {
 		t.Fatal(err)
 	}
 	rep, err = src.Report(web.Query{Weeks: 2})
-	if err != nil || src.kept["acme"].line == first || !rep.Window.Until.Equal(later) {
-		t.Errorf("after a sync: err %v, read again %v, until %v", err, src.kept["acme"].line != first, rep.Window.Until)
+	if err != nil || src.kept["acme|"].line == first || !rep.Window.Until.Equal(later) {
+		t.Errorf("after a sync: err %v, read again %v, until %v", err, src.kept["acme|"].line != first, rep.Window.Until)
 	}
 
 	// A summary carries no name, title or link.

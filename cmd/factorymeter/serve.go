@@ -46,7 +46,7 @@ type keptLine struct {
 // scopes reads the manifest of the store as it is now: a sync that ran since
 // the last request shows up here. It returns the repositories of the target,
 // and the scopes of other sources, which hold tickets for every target.
-func (l *lines) scopes(target string) (repos, others []store.Scope, s *store.Store, err error) {
+func (l *lines) scopes(target string, only []string) (repos, others []store.Scope, s *store.Store, err error) {
 	s, err = store.Open(l.dir)
 	if err != nil {
 		return nil, nil, nil, err
@@ -55,7 +55,7 @@ func (l *lines) scopes(target string) (repos, others []store.Scope, s *store.Sto
 		switch {
 		case sc.Source != record.GitHub:
 			others = append(others, sc)
-		case measure.InTarget(sc.Name, target, l.only):
+		case measure.InTarget(sc.Name, target, only):
 			repos = append(repos, sc)
 		}
 	}
@@ -66,7 +66,7 @@ func (l *lines) Repos() ([]string, error) {
 	if l.summary || strings.Contains(l.target, "/") {
 		return nil, nil
 	}
-	scopes, _, s, err := l.scopes(l.target)
+	scopes, _, s, err := l.scopes(l.target, l.only)
 	if err != nil {
 		return nil, err
 	}
@@ -83,13 +83,21 @@ func (l *lines) Repos() ([]string, error) {
 }
 
 func (l *lines) Report(q web.Query) (*contract.Report, error) {
-	target := l.target
-	if q.Repo != "" {
-		target = q.Repo
+	// One repository ticked is the line of that repository. More are the
+	// owner narrowed to them.
+	target, only := l.target, l.only
+	switch {
+	case strings.Contains(target, "/"):
+		only = nil
+	case len(q.Repos) == 1:
+		target, only = q.Repos[0], nil
+	case len(q.Repos) > 1:
+		only = q.Repos
 	}
+	key := target + "|" + strings.Join(only, ",")
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	scopes, others, s, err := l.scopes(target)
+	scopes, others, s, err := l.scopes(target, only)
 	if err != nil {
 		return nil, err
 	}
@@ -100,12 +108,8 @@ func (l *lines) Report(q web.Query) (*contract.Report, error) {
 	for _, sc := range append(append([]store.Scope{}, scopes...), others...) {
 		fmt.Fprintf(&stamp, "%s %s %d;", store.Key(sc.Source, sc.Name), sc.SyncedAt.UTC().Format(time.RFC3339Nano), len(sc.Notes))
 	}
-	k, ok := l.kept[target]
+	k, ok := l.kept[key]
 	if !ok || k.stamp != stamp.String() {
-		var only []string
-		if !strings.Contains(target, "/") {
-			only = l.only
-		}
 		line, err := measure.LoadOnly(s, l.reg, target, only)
 		if err != nil {
 			if len(scopes) == 0 {
@@ -117,7 +121,7 @@ func (l *lines) Report(q web.Query) (*contract.Report, error) {
 		if l.kept == nil {
 			l.kept = map[string]keptLine{}
 		}
-		l.kept[target] = k
+		l.kept[key] = k
 	}
 	return k.line.Report(measure.Options{Target: target, Weeks: q.Weeks, Until: q.Until, Summary: l.summary,
 		Now: l.now().UTC(), Version: version, Registry: strconv.Itoa(l.reg.Version)})

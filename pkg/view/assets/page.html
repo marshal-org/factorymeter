@@ -27,7 +27,7 @@
 <p class="eyebrow">Delivery line{{if .Target}} of <strong>{{.Target}}</strong>{{end}}{{if .Summary}} <span class="pill">summary, no names</span>{{end}}</p>
 {{with .Nav}}{{if or .Windows .Repos}}<div class="scope">
 {{if .Windows}}<span class="scope-l">Window</span><div class="seg" role="group" aria-label="Window">{{range .Windows}}<a href="{{.URL}}"{{if .Current}} class="on" aria-current="true"{{end}}>{{.Label}}</a>{{end}}</div>{{end}}
-{{if .Repos}}<details class="menu"><summary>{{range .Repos}}{{if .Current}}{{.Label}}{{end}}{{end}}</summary><div class="menu-list">{{range .Repos}}<a href="{{.URL}}"{{if .Current}} class="on" aria-current="true"{{end}}>{{.Label}}</a>{{end}}</div></details>{{end}}
+{{if .Repos}}<details class="menu"><summary>{{.RepoLabel}}</summary><form class="menu-list picks" method="get" action="/">{{range .Keep}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">{{end}}<a class="all" href="{{.AllRepos}}">All repositories</a>{{range .Repos}}<label><input type="checkbox" name="repo" value="{{.Label}}"{{if .Current}} checked{{end}}>{{.Label}}</label>{{end}}<button type="submit">Show these</button></form></details>{{end}}
 </div>{{end}}{{end}}
 <p class="span">{{.Span}}</p>
 </div>

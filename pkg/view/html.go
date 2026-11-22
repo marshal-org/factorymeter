@@ -38,18 +38,35 @@ func CSP() string {
 	return "default-src 'none'; style-src " + pin(pageCSS) + "; script-src " + pin(pageJS) + "; img-src data:; base-uri 'none'; form-action 'none'"
 }
 
+// ServedCSP is the policy of the page serve shows. Its repository menu is a
+// form that asks the same server for the page again, so a form may go there.
+func ServedCSP() string {
+	return strings.Replace(CSP(), "form-action 'none'", "form-action 'self'", 1)
+}
+
 // Link is one choice a served page offers: a window or a repository.
 type Link struct {
 	Label, URL string
 	Current    bool
 }
 
+// Field is a name and value a form sends.
+type Field struct{ Name, Value string }
+
 // Nav holds the links that only a served page has. A page written to a file
 // has none: it shows one window and cannot ask for another.
 type Nav struct {
 	Windows []Link
-	// Repos is every repository of an owner, with the whole owner first.
+	// Repos is every repository of an owner, Current when it is in the line
+	// shown. The menu is a form that asks for the ticked ones.
 	Repos []Link
+	// RepoLabel names what the line is made of: "All repositories", one
+	// name, or "3 of 13 repositories".
+	RepoLabel string
+	// AllRepos is the address of the whole owner.
+	AllRepos string
+	// Keep are the other settings of the page, sent again with the form.
+	Keep []Field
 	// JSON is the link to the same report as factorymeter/v1 JSON.
 	JSON string
 }
@@ -329,13 +346,20 @@ func until(t time.Time) time.Time { return t.Add(-time.Nanosecond) }
 
 func date(t time.Time) string { return t.UTC().Format("Jan 2, 2006") }
 
+func csp(opt HTMLOptions) string {
+	if opt.Nav != nil {
+		return ServedCSP()
+	}
+	return CSP()
+}
+
 func buildHTML(r *contract.Report, opt HTMLOptions) *htmlPage {
 	b := open(r)
 	whole := contract.Slice{}
 	weeks := int(math.Round(r.Window.Until.Sub(r.Window.Since).Hours() / (7 * 24)))
 	p := &htmlPage{
 		Title: "Delivery line", Target: r.Target, Headline: r.Verdict.Headline, Detail: r.Verdict.Detail,
-		CSP: CSP(), CSS: template.CSS(pageCSS), JS: template.JS(pageJS), Nav: opt.Nav, Summary: r.Summary, Limits: r.Limits,
+		CSP: csp(opt), CSS: template.CSS(pageCSS), JS: template.JS(pageJS), Nav: opt.Nav, Summary: r.Summary, Limits: r.Limits,
 		HealthInfo: pop{ID: "health-rule", Lines: []string{HealthRule}},
 		LightsOut:  safeURL(LightsOut(r)),
 	}
