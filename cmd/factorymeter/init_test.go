@@ -24,7 +24,10 @@ func TestInitWizardWritesTheConfig(t *testing.T) {
 	t.Setenv("JIRA_EMAIL", fakeJiraEmail)
 	t.Setenv("JIRA_API_TOKEN", fakeJiraToken)
 	t.Setenv("GITHUB_TOKEN", "a-fake-github-token")
-	t.Chdir(t.TempDir())
+	user := filepath.Join(t.TempDir(), "conf", "factorymeter", "config.yml")
+	t.Setenv("FACTORYMETER_CONFIG", user)
+	dir := t.TempDir()
+	t.Chdir(dir)
 
 	// A bad target is asked again, a team that is not there too.
 	answers := strings.Join([]string{"not a target", "acme/app", "12w", "y", "eng xyz", "eng", "y", jsrv.URL, "ops", "n"}, "\n") + "\n"
@@ -34,12 +37,16 @@ func TestInitWizardWritesTheConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
-	for _, want := range []string{"A GitHub token is set.", "ENG      Engineering", "OPS      Operations", "there is no XYZ here", "Wrote factorymeter.yml"} {
+	for _, want := range []string{"A GitHub token is set.", "ENG      Engineering", "OPS      Operations", "there is no XYZ here", "Wrote " + user} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the wizard did not say %q:\n%s", want, out)
 		}
 	}
-	c, err := readConfig("factorymeter.yml")
+	// By default the answers go to the user config file, not this directory.
+	if _, err := os.Stat(filepath.Join(dir, "factorymeter.yml")); err == nil {
+		t.Error("init wrote a file in this directory")
+	}
+	c, err := readConfig(user)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +54,7 @@ func TestInitWizardWritesTheConfig(t *testing.T) {
 		c.Jira.Site != strings.TrimPrefix(jsrv.URL, "https://") || !reflect.DeepEqual(c.Jira.Projects, []string{"OPS"}) {
 		t.Errorf("config = %+v", c)
 	}
-	raw, _ := os.ReadFile("factorymeter.yml")
+	raw, _ := os.ReadFile(user)
 	if strings.Contains(string(raw), fakeLinearKey) || strings.Contains(string(raw), fakeJiraToken) || strings.Contains(string(raw), fakeJiraEmail) {
 		t.Error("the file holds a key")
 	}
@@ -56,8 +63,54 @@ func TestInitWizardWritesTheConfig(t *testing.T) {
 	root = newRoot()
 	root.SetIn(strings.NewReader("n\n"))
 	out, err = execute(root, "init")
-	if err != nil || !strings.Contains(out, "There is a config file here already: factorymeter.yml.") || !strings.Contains(out, "Nothing was written.") {
+	if err != nil || !strings.Contains(out, "There is a config file already: "+user+".") || !strings.Contains(out, "Nothing was written.") {
 		t.Errorf("second run: %v\n%s", err, out)
+	}
+}
+
+// With --here the wizard writes factorymeter.yml in this directory, and keeps
+// one file there.
+func TestInitWizardHere(t *testing.T) {
+	t.Cleanup(func() { config = configState{} })
+	user := filepath.Join(t.TempDir(), "config.yml")
+	t.Setenv("FACTORYMETER_CONFIG", user)
+	t.Setenv("GITHUB_TOKEN", "a-fake-github-token")
+	dir := t.TempDir()
+	t.Chdir(dir)
+	os.WriteFile(".factorymeter.yml", []byte("target: old/one\n"), 0o644)
+
+	root := newRoot()
+	root.SetIn(strings.NewReader("y\nacme/app\n\nn\nn\nn\n"))
+	out, err := execute(root, "init", "--here")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if !strings.Contains(out, "There is a config file already: .factorymeter.yml.") || !strings.Contains(out, "Wrote factorymeter.yml") {
+		t.Errorf("the wizard said:\n%s", out)
+	}
+	if _, err := os.Stat(".factorymeter.yml"); err == nil {
+		t.Error("the old file is still here, so the directory has two")
+	}
+	if c, err := readConfig("factorymeter.yml"); err != nil || c.Target != "acme/app" {
+		t.Errorf("%+v %v", c, err)
+	}
+	if _, err := os.Stat(user); err == nil {
+		t.Error("init --here wrote the user config file")
+	}
+}
+
+// A file in this directory wins over the user config file, so init says so.
+func TestInitWizardNamesAFileThatWins(t *testing.T) {
+	t.Cleanup(func() { config = configState{} })
+	t.Setenv("FACTORYMETER_CONFIG", filepath.Join(t.TempDir(), "config.yml"))
+	t.Setenv("GITHUB_TOKEN", "a-fake-github-token")
+	t.Chdir(t.TempDir())
+	os.WriteFile("factorymeter.yml", []byte("target: old/one\n"), 0o644)
+	root := newRoot()
+	root.SetIn(strings.NewReader("acme/app\n\nn\nn\nn\n"))
+	out, err := execute(root, "init")
+	if err != nil || !strings.Contains(out, "Note: factorymeter.yml in this directory wins over it here.") {
+		t.Errorf("%v\n%s", err, out)
 	}
 }
 

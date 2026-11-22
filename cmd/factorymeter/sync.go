@@ -84,12 +84,13 @@ instead. When the output is not a terminal, as in CI or in a pipe, the lines
 are plain and the table on standard output stays as it was.
 
 The target and every flag here except the keys can live in a config file
-instead, such as a factorymeter.yml next to your code. Then "factorymeter
-sync" needs no argument. "factorymeter config init" writes one.
+instead: your user config file, ~/.config/factorymeter/config.yml, or a
+factorymeter.yml next to your code. Then "factorymeter sync" needs no
+argument. "factorymeter init" or "factorymeter config init" writes one.
 
 The store is a directory of Parquet files. Nothing leaves this machine.`,
 		Example: `  factorymeter sync marshal-org/runlease
-  factorymeter sync                     # the target and settings of factorymeter.yml
+  factorymeter sync                     # the target and settings of the config file
   factorymeter sync my-org --since 13w --workers 8
   factorymeter sync my-org --store ./factorymeter-store
   LINEAR_API_KEY=... factorymeter sync my-org --linear

@@ -249,8 +249,11 @@ progress out.
 
 ### A config file
 
-Settings you give every time can live in a `factorymeter.yml` next to your code instead.
-`factorymeter config init` writes one with every setting, commented out:
+Settings you give every time can live in a config file instead. `factorymeter init` asks a few
+questions and writes one, and `factorymeter config init` writes one with every setting,
+commented out. Both write your user config file, `~/.config/factorymeter/config.yml`, which is
+read wherever you run factorymeter. With `--here` they write a `factorymeter.yml` in this
+directory, to keep the settings next to your code:
 
 ```yaml
 target: my-org
@@ -264,9 +267,16 @@ jira:
 ```
 
 Then `factorymeter sync`, `factorymeter report` and `factorymeter serve` need no arguments. A
-flag on the command line wins over the file. `factorymeter config` shows what the file sets.
-The file is found as `factorymeter.yml`, `.factorymeter.yml` or `.github/factorymeter.yml` in
-the directory you run in, or named with `--config`. `--no-config` reads none.
+flag on the command line wins over the file. `factorymeter config` shows which file was read and
+what it sets. One file is read, the first of:
+
+1. the file named with `--config`
+2. `factorymeter.yml`, `.factorymeter.yml` or `.github/factorymeter.yml` (or `.yaml`) in the
+   directory you run in
+3. your user config file: `$FACTORYMETER_CONFIG`, else `~/.config/factorymeter/config.yml`
+   (`$XDG_CONFIG_HOME` is followed, and on Windows it is `%AppData%\factorymeter\config.yml`)
+
+`--no-config` reads none. The GitHub Action never reads the user config file of the runner.
 
 The file never holds a key or a token. They stay in the environment, and a file with a key such
 as `token` or `api_key`, or a value that looks like a token, is refused without repeating it.

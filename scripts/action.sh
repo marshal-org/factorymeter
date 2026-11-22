@@ -14,6 +14,10 @@ fm="${FM_BIN:-$RUNNER_TEMP/factorymeter}"
 store="$RUNNER_TEMP/factorymeter-store"
 out="$RUNNER_TEMP/factorymeter-report"
 
+# The user config file of the runner is never read: what a job does comes
+# from its inputs and its checkout, also on a self-hosted runner.
+export FACTORYMETER_CONFIG="$RUNNER_TEMP/factorymeter-no-user-config.yml"
+
 # --config when the workflow names a file. Else the binary reads the
 # factorymeter.yml of the checkout, if the job checked the repository out.
 # The empty-array form keeps bash 3.2 quiet under set -u.
