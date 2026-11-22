@@ -926,3 +926,65 @@ func TestPullRequestOf(t *testing.T) {
 		}
 	}
 }
+
+// A ticket is ready when it first leaves triage and the backlog, whatever
+// state it goes to. One still in the backlog is not ready.
+func TestLinearReadyIsWhenATicketLeavesTheBacklog(t *testing.T) {
+	states := map[string]string{}
+	for _, s := range linearStateTypes {
+		states["s-"+s] = s
+	}
+	issue := func(now string, spans ...any) *linearIssue {
+		n := &linearIssue{ID: "u1", Identifier: "ENG-1", CreatedAt: day(10), UpdatedAt: day(20)}
+		n.State.Type = now
+		for i := 0; i+1 < len(spans); i += 2 {
+			n.StateHistory.Nodes = append(n.StateHistory.Nodes, linearSpan{StateID: "s-" + spans[i].(string), StartedAt: spans[i+1].(time.Time)})
+		}
+		return n
+	}
+	for name, c := range map[string]struct {
+		n    *linearIssue
+		want *time.Time
+	}{
+		"backlog, then todo, then started": {issue("started", "backlog", day(10), "unstarted", day(13), "started", day(15)), ptr(day(13))},
+		"straight from backlog to started": {issue("started", "triage", day(10), "backlog", day(11), "started", day(15)), ptr(day(15))},
+		"made in todo":                     {issue("unstarted", "unstarted", day(10)), ptr(day(10))},
+		"still in the backlog":             {issue("backlog", "triage", day(10), "backlog", day(12)), nil},
+		"no history, in todo":              {issue("unstarted"), ptr(day(10))},
+		"no history, in the backlog":       {issue("backlog"), nil},
+		"back to the backlog after todo":   {issue("backlog", "backlog", day(10), "unstarted", day(12), "backlog", day(14)), ptr(day(12))},
+	} {
+		got, _ := linearRecord(c.n, states)
+		if !eqTime(got.ReadyAt, c.want) {
+			t.Errorf("%s: ReadyAt = %v, want %v", name, got.ReadyAt, c.want)
+		}
+	}
+}
+
+// A store whose tickets were read before ReadyAt reads them all again once.
+func TestTicketsAreReadAgainOnceForANewField(t *testing.T) {
+	w := &ticketWindow{Floor: day(0), High: day(80), Open: true}
+	var spans [][2]time.Time
+	saves := 0
+	x := windowRead{o: Options{Since: day(0), Now: day(90)}, w: w, slice: 30 * 24 * time.Hour,
+		span: func(_ context.Context, from, to time.Time) error {
+			spans = append(spans, [2]time.Time{from, to})
+			return nil
+		},
+		save: func() error { saves++; return nil }}
+	if err := x.updated(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(spans) == 0 || !spans[0][0].Equal(day(0)) || w.Rev != ticketRev || w.Open {
+		t.Fatalf("spans %v, window %+v: want a read from the floor, rev %d, open tickets to read again", spans, w, ticketRev)
+	}
+	// The next sync, ten days on, reads only what changed since.
+	spans, w.Open = nil, true
+	x.o.Now = day(100)
+	if err := x.updated(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(spans) != 1 || !spans[0][0].Equal(day(90)) {
+		t.Errorf("second sync read %v, want only the stretch after the last one", spans)
+	}
+}

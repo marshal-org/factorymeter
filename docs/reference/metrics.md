@@ -85,11 +85,11 @@ The constraint is the station that holds work the longest. For each station that
 | `spec.queue.oldest` | Tickets not started, age of the oldest | `hours` | lower | none | `repo` |
 
 - `spec.flow`: Tickets that work started on in the period. Work starts when the ticket first moves to a started state or its first linked change is opened, whichever comes first. The count is divided by the length of the period in weeks.
-- `spec.wait.p50`: Hours from a ticket being created to work starting on it, over the tickets that work started on in the period. The median.
-- `spec.wait.p90`: Hours from a ticket being created to work starting on it, over the tickets that work started on in the period. The 90th percentile: one item in ten waited longer.
+- `spec.wait.p50`: Hours from a ticket leaving the backlog to work starting on it, over the tickets that work started on in the period. A ticket leaves the backlog the first time it is in a state that is not triage or backlog. A GitHub issue has no backlog, so it waits from when it was created. The median.
+- `spec.wait.p90`: Hours from a ticket leaving the backlog to work starting on it, over the tickets that work started on in the period. A ticket leaves the backlog the first time it is in a state that is not triage or backlog. A GitHub issue has no backlog, so it waits from when it was created. The 90th percentile: one item in ten waited longer.
 - `spec.rework`: Share of the tickets finished in the period that had been finished before and were opened again.
-- `spec.queue`: Tickets that are open and that nobody has started, at the end of the period. Cancelled tickets are left out.
-- `spec.queue.oldest`: Hours since it was created, for the item that has stood longest in this queue at the end of the period. Tickets that are open and that nobody has started, at the end of the period. Cancelled tickets are left out.
+- `spec.queue`: Tickets that are open, out of the backlog and that nobody has started, at the end of the period. Tickets in triage or the backlog are not waiting for the line, and cancelled tickets are left out.
+- `spec.queue.oldest`: Hours since it left the backlog, for the item that has stood longest in this queue at the end of the period. Tickets that are open, out of the backlog and that nobody has started, at the end of the period. Tickets in triage or the backlog are not waiting for the line, and cancelled tickets are left out.
 
 ## Code
 

@@ -221,6 +221,9 @@ func (g gqlIssue) toRecord(repo string) record.Ticket {
 		State: record.TicketUnstarted, RawState: strings.ToLower(g.State),
 		CreatedAt: g.CreatedAt.UTC(), UpdatedAt: g.UpdatedAt.UTC(), Reopened: g.TimelineItems.TotalCount,
 	}
+	// An issue has no backlog: it is ready from the start.
+	ready := t.CreatedAt
+	t.ReadyAt = &ready
 	for _, l := range g.Labels.Nodes {
 		t.Labels = append(t.Labels, l.Name)
 	}

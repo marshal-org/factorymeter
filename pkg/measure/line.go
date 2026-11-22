@@ -967,9 +967,10 @@ func (b *Builder) Ticket(t *record.Ticket) {
 		firstAt = first.at
 	}
 	start := SpecStart(t, firstAt)
+	ready := ReadyOf(t, start)
 	if !start.IsZero() {
 		l.add("spec.flow", start, 1, k, it)
-		l.add("spec.wait", start, hours(start.Sub(t.CreatedAt)), k, it)
+		l.add("spec.wait", start, hours(start.Sub(ready)), k, it)
 	}
 	if done := val(t.DoneAt); !done.IsZero() {
 		l.hit("spec.rework", done, t.Reopened > 0, k, it)
@@ -983,5 +984,31 @@ func (b *Builder) Ticket(t *record.Ticket) {
 		}
 		until = val(t.ClosedAt)
 	}
-	l.stand("spec.queue", t.CreatedAt, until, k, it)
+	// A ticket in the backlog is not waiting for the line: nobody has said
+	// it is next. It joins the queue when it leaves the backlog.
+	if ready.IsZero() {
+		return
+	}
+	l.stand("spec.queue", ready, until, k, it)
+}
+
+// ReadyOf is when a ticket joined the queue of the spec station: when it
+// first left triage and the backlog. A ticket that never left them has a zero
+// time, unless work started on it, which makes it ready then.
+func ReadyOf(t *record.Ticket, start time.Time) time.Time {
+	ready := val(t.ReadyAt)
+	// A sync sets ReadyAt on every ticket that left the backlog, done and
+	// cancelled ones too. So a ticket with none that is not in the backlog
+	// was stored before the field: it counts from its creation, as it did.
+	// An issue on GitHub has no backlog at all.
+	if t.ReadyAt == nil && (t.State != record.TicketBacklog || t.Source == record.GitHub) {
+		ready = t.CreatedAt
+	}
+	if !start.IsZero() && (ready.IsZero() || start.Before(ready)) {
+		ready = start
+	}
+	if !ready.IsZero() && ready.Before(t.CreatedAt) {
+		ready = t.CreatedAt
+	}
+	return ready
 }

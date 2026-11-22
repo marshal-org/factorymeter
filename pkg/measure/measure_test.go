@@ -1071,3 +1071,34 @@ func TestOldCommitsDoNotStartAChange(t *testing.T) {
 		t.Errorf("code.work = %v, want [2]: only the commit written for the change starts it", got)
 	}
 }
+
+// A ticket in the backlog does not wait in front of the line. A ticket waits
+// from when it left the backlog, not from when it was written.
+func TestBacklogIsNotWaiting(t *testing.T) {
+	at := func(days float64) time.Time { return end.Add(time.Duration(days * float64(day))) }
+	ptr := func(v time.Time) *time.Time { return &v }
+	b := NewBuilder(registry(t))
+	rb := b.Repo(RepoScope{Name: repo, From: end.Add(-26 * week), SyncedAt: end})
+	rb.Done()
+	ticket := func(n int, state string, created time.Time, ready, started *time.Time) {
+		key := fmt.Sprintf("ENG-%d", n)
+		b.Ticket(&record.Ticket{Source: record.Linear, ID: record.TicketID(record.Linear, key), Key: key, Project: "ENG",
+			Title: "A ticket", State: state, CreatedAt: created, ReadyAt: ready, StartedAt: started})
+	}
+	ticket(1, record.TicketBacklog, at(-60), nil, nil)                  // someday
+	ticket(2, record.TicketUnstarted, at(-60), ptr(at(-3)), nil)        // in the backlog for 57 days, then next
+	ticket(3, record.TicketStarted, at(-60), ptr(at(-10)), ptr(at(-8))) // waited 2 days once out of the backlog
+	ticket(4, record.TicketStarted, at(-60), ptr(at(-5)), ptr(at(-5)))  // straight from the backlog to work
+	ticket(5, record.TicketUnstarted, at(-4), nil, nil)                 // stored before ReadyAt: counts from creation
+	l := b.Line()
+	if got := vals(l.obs["spec.wait"]); !same(got, []float64{48, 0}) {
+		t.Errorf("spec.wait = %v, want [48 0]", got)
+	}
+	from := map[time.Time]bool{}
+	for _, s := range l.stays["spec.queue"] {
+		from[s.from] = true
+	}
+	if len(l.stays["spec.queue"]) != 3 || !from[at(-3)] || !from[at(-10)] || !from[at(-4)] {
+		t.Errorf("spec.queue = %+v, want ENG-2 from -3, ENG-3 from -10 and ENG-5 from -4; ENG-1 in the backlog never", l.stays["spec.queue"])
+	}
+}
