@@ -61,7 +61,7 @@
 <p class="st-n"><span class="step">{{.Step}}</span>{{.Name}}</p>
 <p class="st-g"><span class="hl {{.Health.Class}}"><span class="hl-i" aria-hidden="true">{{.Health.Icon}}</span>{{.Health.Label}}</span>{{if .Constraint}}<span class="badge">Constraint</span>{{end}}{{if .Next}}<span class="badge next">Next</span>{{end}}</p>
 {{if .Connected}}<dl>
-<div><dt>Out a week</dt><dd>{{template "fig" .Out}}</dd></div>
+<div><dt>{{.OutLabel}}</dt><dd>{{template "fig" .Out}}</dd></div>
 <div><dt>Wait, median</dt><dd>{{template "fig" .Wait}}</dd></div>
 <div><dt>Held</dt><dd>{{if .Held}}<span class="v">{{.Held}}</span>{{else}}<span class="v">-</span>{{end}}</dd></div>
 </dl>

@@ -21,18 +21,47 @@ import (
 // links the source stores and by the ticket keys that the branch, the title
 // and the description of a change name.
 func Load(s *store.Store, reg *signature.Registry, target string) (*Line, error) {
+	return LoadOnly(s, reg, target, nil)
+}
+
+// InTarget says whether a repository of the store belongs to the line of a
+// target: the repository itself, or a repository of the owner that is in
+// only, or any of them when only is empty.
+func InTarget(name, target string, only []string) bool {
+	if strings.Contains(target, "/") {
+		return strings.EqualFold(name, target)
+	}
+	if len(only) == 0 {
+		return true
+	}
+	for _, o := range only {
+		if strings.EqualFold(o, name) {
+			return true
+		}
+	}
+	return false
+}
+
+// LoadOnly is Load for an owner narrowed to some of its repositories, each
+// owner/repo. An empty only reads every repository of the store.
+func LoadOnly(s *store.Store, reg *signature.Registry, target string, only []string) (*Line, error) {
 	b := NewBuilder(reg)
-	one := strings.Contains(target, "/")
+	// A line of part of the owner counts only the tickets tied to its
+	// changes, as a line of one repository does.
+	one := strings.Contains(target, "/") || len(only) > 0
 	var repos, sources []store.Scope
 	for _, sc := range s.Scopes("") {
 		switch {
 		case sc.Source != record.GitHub:
 			sources = append(sources, sc)
-		case !one || strings.EqualFold(sc.Name, target):
+		case InTarget(sc.Name, target, only):
 			repos = append(repos, sc)
 		}
 	}
 	if len(repos) == 0 {
+		if len(only) > 0 && !strings.Contains(target, "/") {
+			return nil, fmt.Errorf("the store holds none of the repositories picked for %s (%s). Run \"factorymeter sync\" first", target, strings.Join(only, ", "))
+		}
 		return nil, fmt.Errorf("the store holds nothing for %s. Run \"factorymeter sync %s\" first", target, target)
 	}
 	keys := ticketKeys{id: map[string]string{}}

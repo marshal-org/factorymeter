@@ -199,12 +199,12 @@ func TestMarkdown(t *testing.T) {
 		"2 weeks, 2026-10-19 to 2026-11-02. Compared with the 2 weeks before. History: 4 weeks.\n",
 		"**Review is the constraint.**\n",
 		"## The line\n",
-		"| Station | Status | Out a week | Wait | Work | Rework | Queue | Held | Out, by week |\n| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |\n",
+		"| Station | Status | Item | Out a week | Wait | Work | Rework | Queue | Held | Out, by week |\n| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |\n",
 		// A station that is not connected has no numbers.
-		"| Spec | not connected |  |  |  |  |  |  |  |\n",
+		"| Spec | not connected |  |  |  |  |  |  |  |  |\n",
 		// Flow up and better. Wait and rework up and worse. The queue and
 		// the held share moved too little to mark. No work series: empty.
-		"| Review (constraint) | measured | 3.0 ▲ | 3.5h ▲! |  | 25% ▲! | 2 | 60% | █▁▄▇ |\n",
+		"| Review (constraint) | measured | PRs | 3.0 ▲ | 3.5h ▲! |  | 25% ▲! | 2 | 60% | █▁▄▇ |\n",
 		"- Spec: No tickets are in the store.\n",
 		"## Agents and people\n",
 		"Agents wrote 33% of the changes merged by agents and people.",

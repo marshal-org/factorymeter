@@ -222,7 +222,7 @@ func TestGetWaitsOutARateLimit(t *testing.T) {
 	if want := []time.Duration{8 * time.Second, 8 * time.Second}; !reflect.DeepEqual(*slept, want) {
 		t.Errorf("slept %v", *slept)
 	}
-	if len(lines) != 2 || lines[0] != "jira rate limit reached, waiting 8s" {
+	if len(lines) != 2 || lines[0] != "jira rate limit reached, retrying in 8s" {
 		t.Errorf("log = %v", lines)
 	}
 }

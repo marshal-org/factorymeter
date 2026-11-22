@@ -276,8 +276,8 @@ func TestSyncSkipsWhatTheConfigTurnsOnWithoutKeys(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	for _, want := range []string{
-		"note: factorymeter.yml turns Linear on, and LINEAR_API_KEY is empty, so Linear is not read.",
-		"note: factorymeter.yml names a Jira site, and JIRA_EMAIL or JIRA_API_TOKEN is empty, so Jira is not read.",
+		"note: factorymeter.yml turns Linear on, and LINEAR_API_KEY is empty, so Linear is not read. Set LINEAR_API_KEY",
+		"note: factorymeter.yml names a Jira site, and JIRA_EMAIL or JIRA_API_TOKEN is empty, so Jira is not read. Set JIRA_EMAIL",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the output lacks %q:\n%s", want, out)

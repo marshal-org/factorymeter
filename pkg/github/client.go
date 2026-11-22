@@ -317,7 +317,7 @@ func (c *Client) pause(what string, wait time.Duration) {
 		c.Waiting(wait)
 		return
 	}
-	c.logf("%s, waiting %s", what, wait.Round(time.Second))
+	c.logf("%s, retrying in %s", what, wait.Round(time.Second))
 }
 
 // limited says whether a GraphQL error tells of a rate limit. GitHub has

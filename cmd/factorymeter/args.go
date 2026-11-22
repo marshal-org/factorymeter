@@ -23,6 +23,46 @@ const targetHint = "Use owner/repo, such as marshal-org/runlease, or an owner, s
 // address of the repository on GitHub as well, and turns away anything else
 // with the form it wants, so a typo fails here and not later with a message
 // about something else.
+// reposOf turns --repo values into owner/repo names of an owner target. A
+// name without an owner takes the owner of the target. When the target is one
+// repository, repositories from a config file are left out, and ones on the
+// command line are an error.
+func reposOf(target string, vals []string) ([]string, error) {
+	if len(vals) == 0 {
+		return nil, nil
+	}
+	if strings.Contains(target, "/") {
+		if config.set["repo"] {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("--repo picks repositories of an owner, and %s is one repository already", target)
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, v := range vals {
+		v = strings.TrimSpace(v)
+		if v != "" && !strings.Contains(v, "/") && !strings.Contains(v, "://") {
+			v = target + "/" + v
+		}
+		t, err := parseTarget(v)
+		if err != nil {
+			return nil, err
+		}
+		owner, _, ok := strings.Cut(t, "/")
+		if !ok {
+			return nil, fmt.Errorf("%q is not a repository, such as %s/app", v, target)
+		}
+		if !strings.EqualFold(owner, target) {
+			return nil, fmt.Errorf("%s is not a repository of %s", t, target)
+		}
+		if k := strings.ToLower(t); !seen[k] {
+			seen[k] = true
+			out = append(out, t)
+		}
+	}
+	return out, nil
+}
+
 func parseTarget(arg string) (string, error) {
 	s := strings.TrimSpace(arg)
 	if s == "" {

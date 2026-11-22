@@ -56,6 +56,9 @@ type Options struct {
 	SkipCI      bool
 	SkipDeploys bool
 	SkipTickets bool
+	// Repos narrows an owner sync to these repositories, each owner/repo.
+	// Empty reads every active repository of the owner.
+	Repos []string
 	// IncludeForks and IncludeArchived widen an owner sync.
 	IncludeForks    bool
 	IncludeArchived bool
@@ -227,7 +230,19 @@ func (g *GitHub) Sync(ctx context.Context, target string) (Result, error) {
 		Since: o.Since, IncludeForks: o.IncludeForks, IncludeArchived: o.IncludeArchived, Logf: o.Logf,
 	}}
 	repos := []string{target}
-	if !strings.Contains(target, "/") {
+	if !strings.Contains(target, "/") && len(o.Repos) > 0 {
+		repos = nil
+		for _, r := range o.Repos {
+			ro, _, err := collector.SplitRepo(r)
+			if err != nil {
+				return Result{}, err
+			}
+			if !strings.EqualFold(ro, target) {
+				return Result{}, fmt.Errorf("%s is not a repository of %s", r, target)
+			}
+			repos = append(repos, r)
+		}
+	} else if !strings.Contains(target, "/") {
 		var err error
 		if repos, err = k.Repos(ctx, target); err != nil {
 			return Result{}, err

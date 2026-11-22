@@ -122,10 +122,12 @@ type stationCard struct {
 	// Next is the station that holds the most after the constraint.
 	Next      bool
 	Out, Wait fig
-	Held      string
-	Meter     template.HTML
-	Spark     template.HTML
-	Health    health
+	// OutLabel names what leaves the station: "PRs out a week".
+	OutLabel string
+	Held     string
+	Meter    template.HTML
+	Spark    template.HTML
+	Health   health
 }
 
 type itemRow struct {
@@ -379,7 +381,8 @@ func buildHTML(r *contract.Report, opt HTMLOptions) *htmlPage {
 	count := map[string]int{}
 	for i, st := range r.Stations {
 		c := stationCard{ID: st.ID, Name: st.Name, Step: i + 1, Status: st.Status, StatusLabel: status[st.Status],
-			Connected: st.Status != contract.StatusNotConnected, Constraint: st.Constraint, Health: grade(st, b, weeks)}
+			Connected: st.Status != contract.StatusNotConnected, Constraint: st.Constraint, Health: grade(st, b, weeks),
+			OutLabel: outLabel(st.ID)}
 		count[c.Health.Class]++
 		if c.Connected {
 			c.Out, c.Wait = figure(b.get(st.ID+".flow", whole)), figure(b.get(st.ID+".wait.p50", whole))

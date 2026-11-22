@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
+	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,9 +28,11 @@ import (
 // each target it has read, and reads it again only after a new sync.
 type lines struct {
 	dir, target string
-	reg         *signature.Registry
-	summary     bool
-	now         func() time.Time
+	// only narrows an owner to some of its repositories, each owner/repo.
+	only    []string
+	reg     *signature.Registry
+	summary bool
+	now     func() time.Time
 
 	mu   sync.Mutex
 	kept map[string]keptLine
@@ -50,7 +55,7 @@ func (l *lines) scopes(target string) (repos, others []store.Scope, s *store.Sto
 		switch {
 		case sc.Source != record.GitHub:
 			others = append(others, sc)
-		case !strings.Contains(target, "/") || strings.EqualFold(sc.Name, target):
+		case measure.InTarget(sc.Name, target, l.only):
 			repos = append(repos, sc)
 		}
 	}
@@ -97,7 +102,11 @@ func (l *lines) Report(q web.Query) (*contract.Report, error) {
 	}
 	k, ok := l.kept[target]
 	if !ok || k.stamp != stamp.String() {
-		line, err := measure.Load(s, l.reg, target)
+		var only []string
+		if !strings.Contains(target, "/") {
+			only = l.only
+		}
+		line, err := measure.LoadOnly(s, l.reg, target, only)
 		if err != nil {
 			if len(scopes) == 0 {
 				return nil, fmt.Errorf("%w: %v", web.ErrNoData, err)
@@ -114,6 +123,40 @@ func (l *lines) Report(q web.Query) (*contract.Report, error) {
 		Now: l.now().UTC(), Version: version, Registry: strconv.Itoa(l.reg.Version)})
 }
 
+// openBrowser opens a page in the browser of this machine. Tests replace it.
+var openBrowser = func(u string) error {
+	var c *exec.Cmd
+	switch {
+	case os.Getenv("BROWSER") != "":
+		c = exec.Command(os.Getenv("BROWSER"), u)
+	case runtime.GOOS == "darwin":
+		c = exec.Command("open", u)
+	case runtime.GOOS == "windows":
+		c = exec.Command("rundll32", "url.dll,FileProtocolHandler", u)
+	default:
+		c = exec.Command("xdg-open", u)
+	}
+	if err := c.Start(); err != nil {
+		return err
+	}
+	// The opener exits once the browser has the page. Wait reaps it.
+	go func() { _ = c.Wait() }()
+	return nil
+}
+
+// browserURL is the address to open for a server listening on shown: an
+// address of every interface is opened on this machine's loopback.
+func browserURL(shown string) string {
+	host, port, err := net.SplitHostPort(shown)
+	if err != nil {
+		return "http://" + shown + "/"
+	}
+	if ip := net.ParseIP(host); ip != nil && ip.IsUnspecified() {
+		host = "127.0.0.1"
+	}
+	return "http://" + net.JoinHostPort(host, port) + "/"
+}
+
 // loopback says whether an address is only reachable from this machine.
 func loopback(host string) bool {
 	if host == "localhost" {
@@ -125,8 +168,8 @@ func loopback(host string) bool {
 
 func serveCmd() *cobra.Command {
 	var dir, addr, registryPath string
-	var hosts []string
-	var summary bool
+	var hosts, repos []string
+	var summary, noOpen bool
 	cmd := &cobra.Command{
 		Use:   "serve [owner/repo | owner]",
 		Short: "Show the line as a local page, with charts, from the local store",
@@ -139,6 +182,9 @@ to one repository.
 It reads no network and sends nothing. The page carries its own style and
 script and loads nothing from any host. A sync that runs while the server is
 up shows on the next reload.
+
+When it runs at a terminal it opens the page in your browser. --no-open
+leaves that out. $BROWSER, when set, names the browser to use.
 
 The server listens on this machine only, and answers only requests made to
 localhost. To reach it from another machine, give --addr an address that
@@ -170,14 +216,24 @@ For a page to keep or to publish from a job, use
 					return err
 				}
 			}
+			only, err := reposOf(target, repos)
+			if err != nil {
+				return err
+			}
 			path, _, err := storeDir(dir, target)
 			if err != nil {
 				return err
 			}
-			src := &lines{dir: path, target: target, reg: reg, summary: summary, now: time.Now}
+			src := &lines{dir: path, target: target, only: only, reg: reg, summary: summary, now: time.Now}
 			// Fail now, with the hint to sync, and not on the first request.
 			if _, err := src.Report(web.Query{Weeks: 13}); err != nil {
 				return err
+			}
+			if s, err := store.Open(path); err == nil {
+				for _, n := range keysMissing(s) {
+					fmt.Fprintln(cmd.ErrOrStderr(), "note: "+n)
+				}
+				s.Close()
 			}
 			// An address of this machine that was asked for by name is one the
 			// page is meant to be reached under.
@@ -198,6 +254,13 @@ For a page to keep or to publish from a job, use
 				shown = net.JoinHostPort(host, port)
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "The line of %s is at http://%s\nPress Ctrl-C to stop.\n", target, shown)
+			// A person at a terminal gets the page in the browser. A job, or
+			// output to a file, does not.
+			if _, term := terminalOf(cmd.OutOrStdout()); term && !noOpen {
+				if err := openBrowser(browserURL(shown)); err != nil {
+					fmt.Fprintf(errw, "Could not open a browser (%v). Open the address above.\n", err)
+				}
+			}
 
 			srv := &http.Server{
 				Handler:           web.Handler(src, web.Options{Hosts: hosts}),
@@ -223,9 +286,11 @@ For a page to keep or to publish from a job, use
 	}
 	f := cmd.Flags()
 	f.StringVar(&dir, "store", "", "store directory (default: the owner's directory in the user cache)")
+	f.StringSliceVar(&repos, "repo", nil, "for an owner, show only this repository. Repeat for more")
 	f.StringVar(&addr, "addr", "127.0.0.1:7377", "address to listen on. Port 0 picks a free port")
 	f.StringSliceVar(&hosts, "allow-host", nil, "also answer requests made to this host name. Repeat for more")
 	f.BoolVar(&summary, "summary", false, "leave out every repository name, title and link")
+	f.BoolVar(&noOpen, "no-open", false, "do not open the page in the browser")
 	f.StringVar(&registryPath, "registry", "", "signature registry file to use instead of the built-in one")
 	return cmd
 }

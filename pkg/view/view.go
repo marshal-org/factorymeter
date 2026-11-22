@@ -239,6 +239,34 @@ func trendWord(s *contract.Series) string {
 
 func day(t interface{ Format(string) string }) string { return t.Format("2006-01-02") }
 
+// items names what leaves a station, as a reader of a GitHub line calls it:
+// a change is a pull request.
+func items(station string) string {
+	st, ok := line.StationByID(station)
+	switch {
+	case !ok:
+		return ""
+	case st.Item == "change":
+		return "PRs"
+	}
+	return st.Item + "s"
+}
+
+// outLabel is the label of what leaves a station each week.
+func outLabel(station string) string {
+	it := items(station)
+	if it == "" {
+		return "Out a week"
+	}
+	if it != "PRs" {
+		it = strings.ToUpper(it[:1]) + it[1:]
+	}
+	if station == line.CI {
+		return it + " a week"
+	}
+	return it + " out a week"
+}
+
 func plural(n int, what string) string {
 	if n == 1 {
 		return "1 " + what
@@ -272,7 +300,7 @@ func build(r *contract.Report) *page {
 			name += " (constraint)"
 		}
 		if st.Status == contract.StatusNotConnected {
-			rows = append(rows, []string{name, "not connected", "", "", "", "", "", "", ""})
+			rows = append(rows, []string{name, "not connected", "", "", "", "", "", "", "", ""})
 			continue
 		}
 		g := func(id string) *contract.Series { return b.get(st.ID+"."+id, contract.Slice{}) }
@@ -280,10 +308,10 @@ func build(r *contract.Report) *page {
 		if st.HeldShare != nil {
 			held = cell(g("held.share"))
 		}
-		rows = append(rows, []string{name, st.Status, cell(g("flow")), cell(g("wait.p50")), cell(g("work.p50")),
+		rows = append(rows, []string{name, st.Status, items(st.ID), cell(g("flow")), cell(g("wait.p50")), cell(g("work.p50")),
 			cell(g("rework")), cell(g("queue")), held, Spark(g("flow"))})
 	}
-	p.table([]string{"Station", "Status", ">Out a week", ">Wait", ">Work", ">Rework", ">Queue", ">Held", "Out, by week"}, rows)
+	p.table([]string{"Station", "Status", "Item", ">Out a week", ">Wait", ">Work", ">Rework", ">Queue", ">Held", "Out, by week"}, rows)
 	p.para("Wait and work are medians. Held is the station's share of the hours changes spend on the line. ▲ and ▼ show a move against the weeks before, ! a move for the worse, ~ a value drawn from fewer than 5 items.")
 	var missing []string
 	for _, st := range r.Stations {

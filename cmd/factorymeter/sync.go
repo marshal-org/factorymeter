@@ -20,6 +20,31 @@ import (
 	"github.com/marshal-org/factorymeter/pkg/store"
 )
 
+// How to get the keys of a ticket system, said where one is missing.
+const (
+	linearKeyHow = "Set LINEAR_API_KEY to a personal API key with the Read permission: Linear, Settings, Security and access, Personal API keys."
+	jiraKeyHow   = "Set JIRA_EMAIL to the email of your account and JIRA_API_TOKEN to an API token without scopes: id.atlassian.com, Security, API tokens."
+)
+
+// keysMissing says, for report and serve, which ticket systems the config
+// file turns on that the store holds nothing of because their keys are not
+// set. Without it the spec station only says it is not connected.
+func keysMissing(s *store.Store) []string {
+	c := config.file
+	if c == nil {
+		return nil
+	}
+	var out []string
+	empty := func(k string) bool { return strings.TrimSpace(os.Getenv(k)) == "" }
+	if c.Linear.On && empty("LINEAR_API_KEY") && len(s.Scopes(record.Linear)) == 0 {
+		out = append(out, c.path+" turns Linear on, and LINEAR_API_KEY is not set, so no Linear ticket was read and the spec station has nothing from Linear. "+linearKeyHow+" Then run \"factorymeter sync\".")
+	}
+	if strings.TrimSpace(c.Jira.Site) != "" && (empty("JIRA_EMAIL") || empty("JIRA_API_TOKEN")) && len(s.Scopes(record.Jira)) == 0 {
+		out = append(out, c.path+" names a Jira site, and JIRA_EMAIL or JIRA_API_TOKEN is not set, so no Jira ticket was read and the spec station has nothing from Jira. "+jiraKeyHow+" Then run \"factorymeter sync\".")
+	}
+	return out
+}
+
 // skippedAny says whether a note on a ticket system the config file turns on
 // and the run could not read names that system.
 func skippedAny(notes []string, system string) bool {
@@ -46,7 +71,7 @@ func syncCmd() *cobra.Command {
 	var dir, since string
 	var opt ingest.Options
 	var quiet, plain, withLinear bool
-	var linearTeams, jiraProjects []string
+	var linearTeams, jiraProjects, repos []string
 	var jiraSite string
 	cmd := &cobra.Command{
 		Use:   "sync [owner/repo | owner]",
@@ -103,6 +128,9 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 			if err != nil {
 				return err
 			}
+			if opt.Repos, err = reposOf(target, repos); err != nil {
+				return err
+			}
 			if linearTeams, err = parseKeys("linear-team", linearTeams); err != nil {
 				return err
 			}
@@ -137,7 +165,7 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 				lc, err = linearClient(quiet)
 				switch {
 				case err != nil && !onCommandLine(cmd, "linear", "linear-team") && strings.TrimSpace(os.Getenv("LINEAR_API_KEY")) == "":
-					skipped = append(skipped, config.file.path+" turns Linear on, and LINEAR_API_KEY is empty, so Linear is not read.")
+					skipped = append(skipped, config.file.path+" turns Linear on, and LINEAR_API_KEY is empty, so Linear is not read. "+linearKeyHow)
 					lc = nil
 				case err != nil:
 					return err
@@ -150,7 +178,7 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 				noAccount := strings.TrimSpace(os.Getenv("JIRA_EMAIL")) == "" || strings.TrimSpace(os.Getenv("JIRA_API_TOKEN")) == ""
 				switch {
 				case err != nil && !onCommandLine(cmd, "jira") && noAccount:
-					skipped = append(skipped, config.file.path+" names a Jira site, and JIRA_EMAIL or JIRA_API_TOKEN is empty, so Jira is not read.")
+					skipped = append(skipped, config.file.path+" names a Jira site, and JIRA_EMAIL or JIRA_API_TOKEN is empty, so Jira is not read. "+jiraKeyHow)
 					jc = nil
 				case err != nil:
 					return err
@@ -192,6 +220,11 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 				}
 				width, _ := v.size()
 				v.say(pl.header(v.st, width)...)
+				// Said before the GitHub read, which can take minutes, and
+				// not only after it.
+				for _, n := range skipped {
+					v.warnf("%s", n)
+				}
 				defer v.end()
 			case !quiet:
 				opt.Logf = progress
@@ -228,8 +261,6 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 			for _, n := range skipped {
 				if table {
 					fmt.Fprintln(w, "note: "+n)
-				} else {
-					v.warnf("%s", n)
 				}
 			}
 			if halted && v != nil && serr != nil {
@@ -278,6 +309,7 @@ The store is a directory of Parquet files. Nothing leaves this machine.`,
 	}
 	f := cmd.Flags()
 	f.StringVar(&dir, "store", "", "store directory (default: the owner's directory in the user cache)")
+	f.StringSliceVar(&repos, "repo", nil, "for an owner, read only this repository. Repeat for more")
 	f.StringVar(&since, "since", "26w", "how far back the first sync reads: 26w, 90d or a date")
 	f.IntVar(&opt.Workers, "workers", 4, "repositories read at the same time")
 	f.IntVar(&opt.MaxRuns, "max-runs", 100000, "workflow runs read per repository in one sync")
