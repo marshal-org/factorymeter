@@ -119,3 +119,95 @@ func TestLoadFromAnEmptySourceSaysSo(t *testing.T) {
 		t.Fatal("an empty source gave a line")
 	}
 }
+
+// reversed returns a copy of m with every list of records in the opposite
+// order, as a database that does not return store order would hand them out.
+func reversed(m *memSource) *memSource {
+	r := &memSource{scopes: append([]Scope(nil), m.scopes...), changes: map[string][]record.Change{}, ci: map[string][]record.CIRun{},
+		deploys: map[string][]record.Deploy{}, tickets: map[string][]record.Ticket{}, links: map[string][]record.Link{}}
+	for k, v := range m.changes {
+		for i := len(v) - 1; i >= 0; i-- {
+			r.changes[k] = append(r.changes[k], v[i])
+		}
+	}
+	for k, v := range m.ci {
+		for i := len(v) - 1; i >= 0; i-- {
+			r.ci[k] = append(r.ci[k], v[i])
+		}
+	}
+	for k, v := range m.deploys {
+		for i := len(v) - 1; i >= 0; i-- {
+			r.deploys[k] = append(r.deploys[k], v[i])
+		}
+	}
+	for k, v := range m.tickets {
+		for i := len(v) - 1; i >= 0; i-- {
+			r.tickets[k] = append(r.tickets[k], v[i])
+		}
+	}
+	for k, v := range m.links {
+		for i := len(v) - 1; i >= 0; i-- {
+			r.links[k] = append(r.links[k], v[i])
+		}
+	}
+	return r
+}
+
+// The Source says records come in any order, so the report and the ticket
+// list must not depend on it.
+func TestTheOrderOfRecordsChangesNothing(t *testing.T) {
+	s := linearStore(t, end)
+	fwd := copyOf(t, StoreSource(s))
+	rev := reversed(fwd)
+	for _, target := range []string{"acme", repo} {
+		var out [2]string
+		for i, src := range []Source{fwd, rev} {
+			l, err := LoadFrom(src, registry(t), target, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			rep, err := l.Report(Options{Target: target, Weeks: 2, History: 4, Now: end})
+			if err != nil {
+				t.Fatal(err)
+			}
+			b, _ := json.Marshal(rep)
+			out[i] = string(b)
+		}
+		if out[0] != out[1] {
+			t.Errorf("%s: the report depends on the order of the records", target)
+		}
+		a, err := TicketsFrom(fwd, target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, err := TicketsFrom(rev, target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ja, _ := json.Marshal(a)
+		jb, _ := json.Marshal(b)
+		if string(ja) != string(jb) {
+			t.Errorf("%s: the ticket list depends on the order of the records", target)
+		}
+	}
+}
+
+// Tickets over a Source lists what Tickets over the store lists.
+func TestTicketsFromASourceMatchesTheStore(t *testing.T) {
+	s := linearStore(t, end)
+	for _, target := range []string{"acme", repo} {
+		want, err := Tickets(s, target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := TicketsFrom(copyOf(t, StoreSource(s)), target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		jw, _ := json.Marshal(want)
+		jg, _ := json.Marshal(got)
+		if string(jw) != string(jg) || len(want) == 0 {
+			t.Errorf("%s: %d rows from the store, %d from the source", target, len(want), len(got))
+		}
+	}
+}

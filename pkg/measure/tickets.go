@@ -51,9 +51,15 @@ type TicketRow struct {
 // owner/repo only that repository's pull requests are looked at, and only
 // tickets of other systems that one of them is tied to are listed.
 func Tickets(s *store.Store, target string) ([]TicketRow, error) {
+	return TicketsFrom(StoreSource(s), target)
+}
+
+// TicketsFrom is Tickets over any Source. It reads every record through the
+// Source and does not depend on the order the Source returns them in.
+func TicketsFrom(src Source, target string) ([]TicketRow, error) {
 	one := strings.Contains(target, "/")
-	var repos, sources []store.Scope
-	for _, sc := range s.Scopes("") {
+	var repos, sources []Scope
+	for _, sc := range src.Scopes() {
 		switch {
 		case sc.Source != record.GitHub:
 			sources = append(sources, sc)
@@ -73,14 +79,14 @@ func Tickets(s *store.Store, target string) ([]TicketRow, error) {
 	}
 	ties := map[string][]tie{} // ticket id -> changes
 	for _, sc := range sources {
-		err := each(store.Tickets, s, sc, func(t *record.Ticket) {
+		err := src.Tickets(sc, Window{}, func(t *record.Ticket) {
 			all = append(all, *t)
 			keys.add(t)
 		})
 		if err != nil {
 			return nil, err
 		}
-		err = each(store.Links, s, sc, func(l *record.Link) {
+		err = src.Links(sc, Window{}, func(l *record.Link) {
 			if l.FromKind == record.KindChange && l.ToKind == record.KindTicket {
 				ties[l.To] = append(ties[l.To], tie{strings.ToLower(l.From), ByAttachment})
 			}
@@ -94,7 +100,7 @@ func Tickets(s *store.Store, target string) ([]TicketRow, error) {
 	opened := map[string]time.Time{} // change id, in lower case -> opened
 	inRepo := map[string]bool{}      // ticket ids of the repositories' own issues
 	for _, sc := range repos {
-		err := each(store.Changes, s, sc, func(c *record.Change) {
+		err := src.Changes(sc, Window{}, func(c *record.Change) {
 			id := strings.ToLower(record.ChangeID(record.GitHub, c.Repo, c.Number))
 			opened[id] = c.CreatedAt
 			for _, tid := range keys.in(c.HeadRef, c.Title, c.Body) {
@@ -104,7 +110,7 @@ func Tickets(s *store.Store, target string) ([]TicketRow, error) {
 		if err != nil {
 			return nil, err
 		}
-		err = each(store.Links, s, sc, func(l *record.Link) {
+		err = src.Links(sc, Window{}, func(l *record.Link) {
 			if l.ToKind == record.KindTicket && l.Kind != record.LinkReverts {
 				ties[l.To] = append(ties[l.To], tie{strings.ToLower(l.From), ByCloses})
 			}
@@ -112,7 +118,7 @@ func Tickets(s *store.Store, target string) ([]TicketRow, error) {
 		if err != nil {
 			return nil, err
 		}
-		err = each(store.Tickets, s, sc, func(t *record.Ticket) {
+		err = src.Tickets(sc, Window{}, func(t *record.Ticket) {
 			all = append(all, *t)
 			inRepo[t.ID] = true
 		})
