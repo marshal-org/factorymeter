@@ -600,7 +600,7 @@
         "change",
         "deploy"
       ],
-      "definition": "Changes whose first deployment to an environment that is not production reported success in the period. The count is divided by the length of the period in weeks.",
+      "definition": "Changes whose first deployment to an environment that is not production to report success did so in the period. A change that failed a round and passed a later one counts once, when it passed. The count is divided by the length of the period in weeks.",
       "since": "v1"
     },
     {

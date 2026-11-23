@@ -72,7 +72,7 @@ var sets = []set{
 	{
 		station: Verify, needs: []string{NeedChange, NeedDeploy}, slices: changeSlices,
 		flowName:   "PRs verified",
-		flow:       "Changes whose first deployment to an environment that is not production reported success in the period.",
+		flow:       "Changes whose first deployment to an environment that is not production to report success did so in the period. A change that failed a round and passed a later one counts once, when it passed.",
 		waitName:   "Wait for an environment",
 		wait:       "Hours from a commit of a change being written to its deployment to an environment that is not production being created, over the deployments created in the period.",
 		workName:   "Time to bring the PR up",
