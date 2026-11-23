@@ -747,8 +747,12 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 	}
 
 	// Verify.
+	// A change is verified once, at its first deployment that passed. A
+	// change that failed a round and was fixed passes on a later one, and
+	// the failed rounds count as rework.
 	sort.SliceStable(c.vdeps, func(i, j int) bool { return c.vdeps[i].created.Before(c.vdeps[j].created) })
-	for i, d := range c.vdeps {
+	var passed time.Time
+	for _, d := range c.vdeps {
 		l.add("verify.wait", d.created, hours(d.created.Sub(d.committed)), k, c.item)
 		if d.finished.IsZero() {
 			continue
@@ -758,12 +762,15 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 			l.add("verify.work", d.finished, hours(d.finished.Sub(d.created)), k, c.item)
 			l.add("verify.held", d.finished, hours(d.finished.Sub(d.committed)), k, c.item)
 			l.hit("verify.rework", d.finished, false, k, c.item)
-			if i == 0 {
-				l.add("verify.flow", d.finished, 1, k, c.item)
+			if passed.IsZero() || d.finished.Before(passed) {
+				passed = d.finished
 			}
 		case record.DeployFailure:
 			l.hit("verify.rework", d.finished, true, k, c.item)
 		}
+	}
+	if !passed.IsZero() {
+		l.add("verify.flow", passed, 1, k, c.item)
 	}
 
 	// Code.

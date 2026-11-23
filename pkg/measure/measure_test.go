@@ -323,6 +323,56 @@ func TestStationsOfOneChange(t *testing.T) {
 	}
 }
 
+// A change that is fixed and deployed again, round after round, such as on a
+// test machine per push. Commit a1 at 0 fails its round. Commit a2 at 5 gets
+// a round that never reports (the machine was replaced), then passes at 6:30,
+// then passes again on a re-run at 7:30. The change merges at 10.
+func TestVerifyRounds(t *testing.T) {
+	t0 := end.Add(-3 * day)
+	at := func(hours float64) time.Time { return t0.Add(time.Duration(hours * float64(h))) }
+
+	b := NewBuilder(registry(t))
+	rb := b.Repo(RepoScope{Name: repo, From: end.Add(-26 * week), SyncedAt: end})
+	c := change(1, at(0), merged(at(10)))
+	c.Commits = []record.Commit{commit("a1", at(0)), commit("a2", at(5))}
+	c.CommitCount = 2
+	rb.Change(&c)
+	abandoned := record.Deploy{Source: record.GitHub, Repo: repo, Via: "deployment", Environment: "spot",
+		Ref: "a2", SHA: "a2", CreatedAt: at(5.5), Outcome: record.DeployUnknown}
+	for _, d := range []record.Deploy{
+		deployment("spot", "a1", "a1", false, at(1), 30*time.Minute, record.DeployFailure),
+		abandoned,
+		deployment("spot", "a2", "a2", false, at(6), 30*time.Minute, record.DeploySuccess),
+		deployment("spot", "a2", "a2", false, at(7), 30*time.Minute, record.DeploySuccess),
+	} {
+		rb.Deploy(&d)
+	}
+	rb.Done()
+	l := b.Line()
+
+	want := map[string][]float64{
+		// The change leaves verify once, at its first pass at 6:30.
+		"verify.flow": {1},
+		// Every round waited from its commit: 1, 0.5, 1 and 2 hours.
+		"verify.wait": {1, 0.5, 1, 2},
+		// The two passes took 30 minutes each, and held the change from a2.
+		"verify.work": {0.5, 0.5}, "verify.held": {1.5, 2.5},
+		// The failure is rework. The round with no result is not counted.
+		"verify.rework": {1, 0, 0},
+	}
+	for stream, w := range want {
+		if got := vals(l.obs[stream]); !same(got, w) {
+			t.Errorf("%s = %v, want %v", stream, got, w)
+		}
+	}
+	if got := l.obs["verify.flow"]; len(got) == 1 && !got[0].at.Equal(at(6.5)) {
+		t.Errorf("verified at %v, want %v", got[0].at, at(6.5))
+	}
+	if r := l.repos[0]; r.verifyJoined != 4 {
+		t.Errorf("deployments joined: %d, want 4", r.verifyJoined)
+	}
+}
+
 // The release station is measured from the first production deploy in the
 // store. Before it, the store cannot tell a line that did not release from
 // one whose releases were not recorded yet.

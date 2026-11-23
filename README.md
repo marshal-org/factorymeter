@@ -440,6 +440,10 @@ The report prints the limits that apply every time. They are not fine print.
 - **A deploy is matched to changes by its commit.** A production deploy of the commit a merge left
   holds what merged into that branch up to that merge. Of any other deploy only the time is known,
   and it is taken to hold what merged before it started.
+- **Verify reads deployments.** A preview environment usually records one per pull request. A
+  test machine you start yourself, such as a VM or a throwaway cluster per pull request, counts
+  once its deploy script records a GitHub deployment per round:
+  [the verify station and test machines](docs/verify.md).
 - **A pull request is agent or human as a whole.** There is no line-level attribution.
 - **Work that skips pull requests is not measured.**
 

@@ -175,7 +175,7 @@ The constraint is the station that holds work the longest. For each station that
 | `verify.held.total` | Hours a week held at verify | `hours` | lower | 5 | `class`, `agent`, `repo` |
 | `verify.held.share` | Share of the line's time held at verify | `share` | lower | 5 | `class`, `agent`, `repo` |
 
-- `verify.flow`: Changes whose first deployment to an environment that is not production reported success in the period. The count is divided by the length of the period in weeks.
+- `verify.flow`: Changes whose first deployment to an environment that is not production to report success did so in the period. A change that failed a round and passed a later one counts once, when it passed. The count is divided by the length of the period in weeks.
 - `verify.wait.p50`: Hours from a commit of a change being written to its deployment to an environment that is not production being created, over the deployments created in the period. The median.
 - `verify.wait.p90`: Hours from a commit of a change being written to its deployment to an environment that is not production being created, over the deployments created in the period. The 90th percentile: one item in ten waited longer.
 - `verify.work.p50`: Hours from such a deployment being created to it reporting success, over the deployments that reported success in the period. The median.
