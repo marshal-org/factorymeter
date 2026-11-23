@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/marshal-org/factorymeter/pkg/record"
 	"github.com/marshal-org/factorymeter/pkg/signature"
@@ -45,12 +44,18 @@ func InTarget(name, target string, only []string) bool {
 // LoadOnly is Load for an owner narrowed to some of its repositories, each
 // owner/repo. An empty only reads every repository of the store.
 func LoadOnly(s *store.Store, reg *signature.Registry, target string, only []string) (*Line, error) {
+	return LoadFrom(StoreSource(s), reg, target, only)
+}
+
+// LoadFrom is LoadOnly for any Source of records, not only the store of the
+// command line.
+func LoadFrom(src Source, reg *signature.Registry, target string, only []string) (*Line, error) {
 	b := NewBuilder(reg)
 	// A line of part of the owner counts only the tickets tied to its
 	// changes, as a line of one repository does.
 	one := strings.Contains(target, "/") || len(only) > 0
-	var repos, sources []store.Scope
-	for _, sc := range s.Scopes("") {
+	var repos, sources []Scope
+	for _, sc := range src.Scopes() {
 		switch {
 		case sc.Source != record.GitHub:
 			sources = append(sources, sc)
@@ -69,7 +74,7 @@ func LoadOnly(s *store.Store, reg *signature.Registry, target string, only []str
 	prefixes := make([][]string, len(sources))
 	for i, sc := range sources {
 		var all []record.Ticket
-		err := each(store.Tickets, s, sc, func(t *record.Ticket) {
+		err := src.Tickets(sc, Window{}, func(t *record.Ticket) {
 			keys.add(t)
 			all = append(all, record.Ticket{Key: t.Key, Aliases: t.Aliases})
 		})
@@ -77,7 +82,7 @@ func LoadOnly(s *store.Store, reg *signature.Registry, target string, only []str
 			return nil, err
 		}
 		prefixes[i] = record.KeyPrefixes(all)
-		err = each(store.Links, s, sc, func(l *record.Link) {
+		err = src.Links(sc, Window{}, func(l *record.Link) {
 			if l.FromKind != record.KindChange || l.ToKind != record.KindTicket {
 				return
 			}
@@ -94,7 +99,7 @@ func LoadOnly(s *store.Store, reg *signature.Registry, target string, only []str
 	for _, sc := range repos {
 		rb := b.Repo(RepoScope{Name: sc.Name, Private: sc.Private, From: sc.From, SyncedAt: sc.SyncedAt, Notes: sc.Notes})
 		var named []pullLink
-		err := each(store.Changes, s, sc, func(c *record.Change) {
+		err := src.Changes(sc, Window{}, func(c *record.Change) {
 			rb.Change(c)
 			for _, id := range keys.in(c.HeadRef, c.Title, c.Body) {
 				named = append(named, pullLink{num: c.Number, ticket: id})
@@ -103,13 +108,13 @@ func LoadOnly(s *store.Store, reg *signature.Registry, target string, only []str
 		if err != nil {
 			return nil, err
 		}
-		if err := each(store.CIRuns, s, sc, rb.CIRun); err != nil {
+		if err := src.CIRuns(sc, Window{}, rb.CIRun); err != nil {
 			return nil, err
 		}
-		if err := each(store.Deploys, s, sc, rb.Deploy); err != nil {
+		if err := src.Deploys(sc, Window{}, rb.Deploy); err != nil {
 			return nil, err
 		}
-		if err := each(store.Links, s, sc, rb.Link); err != nil {
+		if err := src.Links(sc, Window{}, rb.Link); err != nil {
 			return nil, err
 		}
 		for _, l := range stored[strings.ToLower(sc.Name)] {
@@ -123,13 +128,13 @@ func LoadOnly(s *store.Store, reg *signature.Registry, target string, only []str
 	// Tickets come last: a ticket starts when its first linked change opens,
 	// and the links are known only once every repository is read.
 	for _, sc := range repos {
-		if err := each(store.Tickets, s, sc, b.Ticket); err != nil {
+		if err := src.Tickets(sc, Window{}, b.Ticket); err != nil {
 			return nil, err
 		}
 	}
 	for i, sc := range sources {
 		ticket := b.TicketSource(SourceScope{Source: sc.Source, Name: sc.Name, Keys: prefixes[i], SyncedAt: sc.SyncedAt, Notes: sc.Notes, LinkedOnly: one})
-		if err := each(store.Tickets, s, sc, ticket); err != nil {
+		if err := src.Tickets(sc, Window{}, ticket); err != nil {
 			return nil, err
 		}
 	}
@@ -243,11 +248,15 @@ func (k *ticketKeys) in(texts ...string) []string {
 	return out
 }
 
-func each[T any](t store.Table[T], s *store.Store, sc store.Scope, fn func(*T)) error {
-	return t.Each(s, sc.Source, sc.Name, time.Time{}, time.Time{}, func(_ string, rows []T) error {
+func eachIn[T any](t store.Table[T], s *store.Store, sc Scope, w Window, fn func(*T)) error {
+	return t.Each(s, sc.Source, sc.Name, w.From, w.To, func(_ string, rows []T) error {
 		for i := range rows {
 			fn(&rows[i])
 		}
 		return nil
 	})
+}
+
+func each[T any](t store.Table[T], s *store.Store, sc store.Scope, fn func(*T)) error {
+	return eachIn(t, s, Scope{Source: sc.Source, Name: sc.Name}, Window{}, fn)
 }
