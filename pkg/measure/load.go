@@ -256,7 +256,3 @@ func eachIn[T any](t store.Table[T], s *store.Store, sc Scope, w Window, fn func
 		return nil
 	})
 }
-
-func each[T any](t store.Table[T], s *store.Store, sc store.Scope, fn func(*T)) error {
-	return eachIn(t, s, Scope{Source: sc.Source, Name: sc.Name}, Window{}, fn)
-}
