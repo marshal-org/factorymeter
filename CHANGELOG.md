@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/marshal-org/factorymeter/compare/v0.10.0...v0.11.0) (2026-11-23)
+
+
+### Features
+
+* **measure:** read records through a Source interface ([#38](https://github.com/marshal-org/factorymeter/issues/38)) ([8abbd29](https://github.com/marshal-org/factorymeter/commit/8abbd2986d4da9cf3bf7e957f537eca8dd4539c8))
+
 ## [0.10.0](https://github.com/marshal-org/factorymeter/compare/v0.9.0...v0.10.0) (2026-11-22)
 
 
