@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/marshal-org/factorymeter/compare/v0.12.0...v0.12.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* **measure:** count a change verified at its first passing round ([9daf8f6](https://github.com/marshal-org/factorymeter/commit/9daf8f619fed5ea03d5f61362f34d8748b61c9df))
+
 ## [0.12.0](https://github.com/marshal-org/factorymeter/compare/v0.11.0...v0.12.0) (2026-11-23)
 
 
