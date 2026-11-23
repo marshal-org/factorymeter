@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/marshal-org/factorymeter/compare/v0.11.0...v0.12.0) (2026-11-23)
+
+
+### Features
+
+* **measure:** read tickets through a Source ([#40](https://github.com/marshal-org/factorymeter/issues/40)) ([ab2f8d7](https://github.com/marshal-org/factorymeter/commit/ab2f8d77dc88ebee6f53a25eab383cd41ddf1b5a))
+
 ## [0.11.0](https://github.com/marshal-org/factorymeter/compare/v0.10.0...v0.11.0) (2026-11-23)
 
 
