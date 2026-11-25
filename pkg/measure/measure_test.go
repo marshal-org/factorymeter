@@ -172,14 +172,14 @@ func TestTicketsAtTheSpecStation(t *testing.T) {
 		"spec.rework": {0, 0, 1},
 	}
 	for stream, w := range want {
-		if got := vals(l.obs[stream]); !same(got, w) {
+		if got := vals(l.seenObs(stream)); !same(got, w) {
 			t.Errorf("%s = %v, want %v", stream, got, w)
 		}
 	}
 	// 11 and 18 never stood in the queue and 13 stood in it for no time. 12,
 	// 16 and 17 left it when they were closed, never having started.
 	stays := [][2]float64{{-8, -6}, {-4, -3}, {-2, 0}, {-7, -1}, {-5, -3}}
-	got := l.stays["spec.queue"]
+	got := l.seenStays("spec.queue")
 	if len(got) != len(stays) {
 		t.Fatalf("spec.queue = %+v, want %d stays", got, len(stays))
 	}
@@ -288,7 +288,7 @@ func TestStationsOfOneChange(t *testing.T) {
 		"line.flow": {1}, "line.lead": {9}, "line.delivery": {20.5}, "line.size": {15}, "line.agent_share": {0},
 	}
 	for stream, w := range want {
-		if got := vals(l.obs[stream]); !same(got, w) {
+		if got := vals(l.seenObs(stream)); !same(got, w) {
 			t.Errorf("%s = %v, want %v", stream, got, w)
 		}
 	}
@@ -302,7 +302,7 @@ func TestStationsOfOneChange(t *testing.T) {
 		"spec.queue": {-48, 1}, "code.queue": {1, 3}, "review.queue": {3, 4}, "merge.queue": {9, 10}, "release.queue": {10, 20.5},
 	}
 	for queue, w := range stays {
-		got := l.stays[queue]
+		got := l.seenStays(queue)
 		if len(got) != 1 || !got[0].from.Equal(at(w[0])) || !got[0].to.Equal(at(w[1])) {
 			t.Errorf("%s = %+v, want one stay from %v to %v", queue, got, w[0], w[1])
 		}
@@ -323,9 +323,9 @@ func TestStationsOfOneChange(t *testing.T) {
 			t.Errorf("%s: no way to add it up", m.ID)
 			continue
 		}
-		n := len(l.obs[c.stream])
+		n := len(l.seenObs(c.stream))
 		if c.how == howCount || c.how == howOldest {
-			n = len(l.stays[c.stream])
+			n = len(l.seenStays(c.stream))
 		}
 		if n == 0 {
 			t.Errorf("%s reads the stream %s, and nothing writes it", m.ID, c.stream)
@@ -371,11 +371,11 @@ func TestVerifyRounds(t *testing.T) {
 		"verify.rework": {1, 0, 0},
 	}
 	for stream, w := range want {
-		if got := vals(l.obs[stream]); !same(got, w) {
+		if got := vals(l.seenObs(stream)); !same(got, w) {
 			t.Errorf("%s = %v, want %v", stream, got, w)
 		}
 	}
-	if got := l.obs["verify.flow"]; len(got) == 1 && !got[0].at.Equal(at(6.5)) {
+	if got := l.seenObs("verify.flow"); len(got) == 1 && !got[0].at.Equal(at(6.5)) {
 		t.Errorf("verified at %v, want %v", got[0].at, at(6.5))
 	}
 	if r := l.repos[0]; r.verifyJoined != 4 {
@@ -411,11 +411,11 @@ func TestReleaseIsMeasuredFromItsFirstDeploy(t *testing.T) {
 	for stream, want := range map[string][]float64{
 		"release.flow": {1}, "release.wait": {3}, "release.held": {3.5}, "line.delivery": {4.5}, unseenAtRelease: {1}, "release.deploys": {1, 1},
 	} {
-		if got := vals(l.obs[stream]); !same(got, want) {
+		if got := vals(l.seenObs(stream)); !same(got, want) {
 			t.Errorf("%s = %v, want %v", stream, got, want)
 		}
 	}
-	if got := l.stays["release.queue"]; len(got) != 1 || !got[0].from.Equal(t0.Add(12*h)) {
+	if got := l.seenStays("release.queue"); len(got) != 1 || !got[0].from.Equal(t0.Add(12*h)) {
 		t.Errorf("release.queue = %+v, want only change 2", got)
 	}
 	r, err := l.Report(Options{Target: repo, Now: end})
@@ -495,16 +495,16 @@ func TestADeployHoldsWhatMergedUpToItsCommit(t *testing.T) {
 	// The wait of each change, in the order its deploy came. Change 1 merged
 	// before the first deploy in the store and is not counted.
 	//   2: 3 to 6    3: 4 to 6    4: 5 to 10    5: 8 to 10    6: 9 to 10    7: 11 to 12
-	if got, want := vals(l.obs["release.wait"]), []float64{3, 2, 5, 2, 1, 1}; !same(got, want) {
+	if got, want := vals(l.seenObs("release.wait")), []float64{3, 2, 5, 2, 1, 1}; !same(got, want) {
 		t.Errorf("release.wait = %v, want %v", got, want)
 	}
-	if got := vals(l.obs[unseenAtRelease]); len(got) != 1 {
+	if got := vals(l.seenObs(unseenAtRelease)); len(got) != 1 {
 		t.Errorf("unseen at release = %v, want change 1", got)
 	}
 	// Change 8 still stands in the queue. Change 4 stood from 5 to 10: the
 	// two deploys in between did not take it out.
 	var open, four int
-	for _, s := range l.stays["release.queue"] {
+	for _, s := range l.seenStays("release.queue") {
 		if s.to.IsZero() {
 			open++
 		}
@@ -512,8 +512,8 @@ func TestADeployHoldsWhatMergedUpToItsCommit(t *testing.T) {
 			four++
 		}
 	}
-	if len(l.stays["release.queue"]) != 7 || open != 1 || four != 1 {
-		t.Errorf("release.queue = %+v", l.stays["release.queue"])
+	if len(l.seenStays("release.queue")) != 7 || open != 1 || four != 1 {
+		t.Errorf("release.queue = %+v", l.seenStays("release.queue"))
 	}
 
 	r, err := l.Report(Options{Target: repo, Now: end})
@@ -544,7 +544,7 @@ func TestADeployWithNoMergeCommitGoesByItsTime(t *testing.T) {
 	}
 	rb.Done()
 	l := b.Line()
-	if got, want := vals(l.obs["release.wait"]), []float64{3, 1}; !same(got, want) {
+	if got, want := vals(l.seenObs("release.wait")), []float64{3, 1}; !same(got, want) {
 		t.Errorf("release.wait = %v, want %v", got, want)
 	}
 	r, err := l.Report(Options{Target: repo, Now: end})
@@ -588,14 +588,14 @@ func TestMergeQueueRuns(t *testing.T) {
 	rb.Done()
 	l := b.Line()
 	// Three rounds: the pull request's and the two of the queue.
-	if got, want := vals(l.obs["ci.rework"]), []float64{0, 1, 0}; !same(got, want) {
+	if got, want := vals(l.seenObs("ci.rework")), []float64{0, 1, 0}; !same(got, want) {
 		t.Errorf("ci.rework = %v, want %v", got, want)
 	}
-	if got, want := vals(l.obs["ci.held"]), []float64{0.5, 0.5, 0.5}; !same(got, want) {
+	if got, want := vals(l.seenObs("ci.held")), []float64{0.5, 0.5, 0.5}; !same(got, want) {
 		t.Errorf("ci.held = %v, want %v", got, want)
 	}
 	// From the approval to the merge is 2 hours. The queue ran CI for one.
-	if got, want := vals(l.obs["merge.held"]), []float64{1}; !same(got, want) {
+	if got, want := vals(l.seenObs("merge.held")), []float64{1}; !same(got, want) {
 		t.Errorf("merge.held = %v, want %v", got, want)
 	}
 	if got := l.repos[0]; got.ciRuns != 6 || got.ciJoined != 3 {
@@ -635,15 +635,15 @@ func TestRevertAndAbandon(t *testing.T) {
 	rb.Done()
 	l := b.Line()
 	// Change 1 was reverted. Changes 2 and 3 were not.
-	if got := vals(l.obs["merge.rework"]); !same(got, []float64{1, 0, 0}) {
+	if got := vals(l.seenObs("merge.rework")); !same(got, []float64{1, 0, 0}) {
 		t.Errorf("merge.rework = %v", got)
 	}
 	// Three merged, one closed without a merge.
-	if got := vals(l.obs["code.rework"]); !same(got, []float64{0, 0, 0, 1}) {
+	if got := vals(l.seenObs("code.rework")); !same(got, []float64{0, 0, 0, 1}) {
 		t.Errorf("code.rework = %v", got)
 	}
 	// Nobody else reviewed any of the three.
-	if got := vals(l.obs["review.skipped"]); !same(got, []float64{1, 1, 1}) {
+	if got := vals(l.seenObs("review.skipped")); !same(got, []float64{1, 1, 1}) {
 		t.Errorf("review.skipped = %v", got)
 	}
 }
@@ -1132,7 +1132,7 @@ func TestOldCommitsDoNotStartAChange(t *testing.T) {
 	rb.Change(&c)
 	rb.Done()
 	l := b.Line()
-	if got := vals(l.obs["code.work"]); !same(got, []float64{2}) {
+	if got := vals(l.seenObs("code.work")); !same(got, []float64{2}) {
 		t.Errorf("code.work = %v, want [2]: only the commit written for the change starts it", got)
 	}
 }
@@ -1156,15 +1156,15 @@ func TestBacklogIsNotWaiting(t *testing.T) {
 	ticket(4, record.TicketStarted, at(-60), ptr(at(-5)), ptr(at(-5)))  // straight from the backlog to work
 	ticket(5, record.TicketUnstarted, at(-4), nil, nil)                 // stored before ReadyAt: counts from creation
 	l := b.Line()
-	if got := vals(l.obs["spec.wait"]); !same(got, []float64{48, 0}) {
+	if got := vals(l.seenObs("spec.wait")); !same(got, []float64{48, 0}) {
 		t.Errorf("spec.wait = %v, want [48 0]", got)
 	}
 	from := map[time.Time]bool{}
-	for _, s := range l.stays["spec.queue"] {
+	for _, s := range l.seenStays("spec.queue") {
 		from[s.from] = true
 	}
-	if len(l.stays["spec.queue"]) != 3 || !from[at(-3)] || !from[at(-10)] || !from[at(-4)] {
-		t.Errorf("spec.queue = %+v, want ENG-2 from -3, ENG-3 from -10 and ENG-5 from -4; ENG-1 in the backlog never", l.stays["spec.queue"])
+	if len(l.seenStays("spec.queue")) != 3 || !from[at(-3)] || !from[at(-10)] || !from[at(-4)] {
+		t.Errorf("spec.queue = %+v, want ENG-2 from -3, ENG-3 from -10 and ENG-5 from -4; ENG-1 in the backlog never", l.seenStays("spec.queue"))
 	}
 }
 
@@ -1194,7 +1194,7 @@ func oneChange(t *testing.T, human bool, c record.Change) *Line {
 func TestReviewsByPeopleAndAgents(t *testing.T) {
 	t0 := end.Add(-3 * day)
 	at := func(hours float64) time.Time { return t0.Add(time.Duration(hours * float64(h))) }
-	get := func(l *Line, stream string) []float64 { return vals(l.obs[stream]) }
+	get := func(l *Line, stream string) []float64 { return vals(l.seenObs(stream)) }
 	cases := []struct {
 		name  string
 		human bool

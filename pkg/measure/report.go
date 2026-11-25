@@ -42,9 +42,12 @@ type parts[T any] struct {
 	repo map[int32][]T
 }
 
-func split[T any](list []T, keyOf func(*T) key) *parts[T] {
+func split[T any](list []T, keyOf func(*T) key, modeOf func(*T) uint8, humanOnly bool) *parts[T] {
 	p := &parts[T]{agent: map[int16][]T{}, repo: map[int32][]T{}}
 	for i := range list {
+		if !seenIn(modeOf(&list[i]), humanOnly) {
+			continue
+		}
 		k := keyOf(&list[i])
 		if k.class != classAutomation {
 			p.whole = append(p.whole, list[i])
@@ -74,10 +77,33 @@ func (p *parts[T]) pick(s sel) []T {
 	return p.whole
 }
 
+// rawCount counts the observations of a stream that exist in the review mode
+// of the line, whoever they are about.
+func (l *Line) rawCount(stream string) int {
+	n := 0
+	for i := range l.obs[stream] {
+		if seenIn(l.obs[stream][i].mode, l.humanReviewsOnly) {
+			n++
+		}
+	}
+	return n
+}
+
+// WithReviews reads the same line with every review counted at the review
+// station, or with reviews by people only. Agent reviews still feed the shares
+// of who reviewed. It shares the data of the line and rebuilds nothing, so a
+// host picks the mode when it reports.
+func (l *Line) WithReviews(humanOnly bool) *Line {
+	c := *l
+	c.humanReviewsOnly = humanOnly
+	c.obsPart, c.stayPart = map[string]*parts[obs]{}, map[string]*parts[stay]{}
+	return &c
+}
+
 func (l *Line) obsOf(stream string, s sel) []obs {
 	p := l.obsPart[stream]
 	if p == nil {
-		p = split(l.obs[stream], func(o *obs) key { return o.k })
+		p = split(l.obs[stream], func(o *obs) key { return o.k }, func(o *obs) uint8 { return o.mode }, l.humanReviewsOnly)
 		l.obsPart[stream] = p
 	}
 	return p.pick(s)
@@ -86,7 +112,7 @@ func (l *Line) obsOf(stream string, s sel) []obs {
 func (l *Line) staysOf(stream string, s sel) []stay {
 	p := l.stayPart[stream]
 	if p == nil {
-		p = split(l.stays[stream], func(o *stay) key { return o.k })
+		p = split(l.stays[stream], func(o *stay) key { return o.k }, func(o *stay) uint8 { return o.mode }, l.humanReviewsOnly)
 		l.stayPart[stream] = p
 	}
 	return p.pick(s)
@@ -347,7 +373,7 @@ func (l *Line) status(summary bool) map[string]stationState {
 		changes = stationState{contract.StatusNotConnected, "No changes are in the store."}
 	}
 	out[line.Code], out[line.Review], out[line.Merge] = changes, changes, changes
-	if len(with) > 0 && len(l.obs["review.wait"]) == 0 {
+	if len(with) > 0 && l.rawCount("review.wait") == 0 {
 		out[line.Review] = stationState{contract.StatusMeasured, "No review was seen on any change in the store. The time from ready to merge counts here, so a change that waits here may be waiting to merge."}
 	}
 

@@ -466,7 +466,7 @@ func (a *adviser) codeAbandoned(r line.Rule) *contract.Recommendation {
 
 func (a *adviser) reviewQueueGrowing(r line.Rule) *contract.Recommendation {
 	// Where nobody reviews, a change that is ready is waiting to merge.
-	if len(a.l.obs["review.wait"]) == 0 {
+	if a.l.rawCount("review.wait") == 0 {
 		return nil
 	}
 	s, ok := a.whole["review.queue"]

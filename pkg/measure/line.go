@@ -59,8 +59,9 @@ type Line struct {
 	flowRuns []flowRun
 	// tickets holds the ticket systems that are not repositories.
 	tickets []ticketSource
-	// humanReviewsOnly counts only reviews by people at the review station.
-	// Agent reviews still feed the shares of who reviewed.
+	// humanReviewsOnly is the review mode the line is read in: only reviews by
+	// people count at the review station. Agent reviews still feed the shares
+	// of who reviewed. Both modes are in the line, see WithReviews.
 	humanReviewsOnly bool
 
 	obsPart  map[string]*parts[obs]
@@ -822,30 +823,13 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 
 	// Review. A review counts whoever wrote it, a person or an agent
 	// (signature.ClassifyReview). With human reviews only, agent reviews do
-	// not make a change reviewed; they still feed who reviewed it.
-	end := c.closed // zero while the change is open
-	counted := c.reviews
-	if l.humanReviewsOnly {
-		counted = make([]revLite, 0, len(c.reviews))
-		for _, v := range c.reviews {
-			if !v.agent {
-				counted = append(counted, v)
-			}
-		}
-	}
-	reviewed := len(counted) > 0
+	// not make a change reviewed; they still feed who reviewed it. What
+	// depends on which reviews count is written once for each mode when a
+	// change has a review by an agent, and the report reads the mode it asks
+	// for.
 	arrive := c.ready
 	if arrive.IsZero() {
 		arrive = c.created
-	}
-	var first, leave time.Time
-	if reviewed {
-		first = counted[0].at
-		wait := 0.0
-		if !c.ready.IsZero() {
-			wait = hours(first.Sub(c.ready))
-		}
-		l.add("review.wait", first, wait, k, c.item)
 	}
 	// The first review by an agent and by a person, apart, whatever counts.
 	for _, agent := range []bool{true, false} {
@@ -865,78 +849,36 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 			break
 		}
 	}
-	if !c.ready.IsZero() {
-		until := end
-		if reviewed {
-			until = first
-		}
-		l.stand("review.queue", c.ready, until, k, c.item)
+	human, agent := false, false
+	for _, v := range c.reviews {
+		human = human || !v.agent
+		agent = agent || v.agent
 	}
 	if !c.merged.IsZero() {
-		if reviewed {
-			leave = c.merged
-			sentBack := false
-			for _, v := range counted {
-				if v.state == revApproved {
-					leave = v.at
-				}
-				sentBack = sentBack || v.state == revChanges
-			}
-			for _, m := range c.commits {
-				sentBack = sentBack || (!m.merge && m.committed.After(first))
-			}
-			l.add("review.work", leave, hours(leave.Sub(first)), k, c.item)
-			l.hit("review.rework", leave, sentBack, k, c.item)
-			l.add("review.rounds", leave, float64(rounds(counted, c.commits)), k, c.item)
-		} else {
-			// No review seen: review may have happened where the code host
-			// cannot see it. The time from ready to the merge is review time,
-			// and merge gets none of it. review.skipped says how much of the
-			// station this is.
-			leave = c.merged
-		}
-		l.add("review.flow", leave, 1, k, c.item)
-		l.add("review.held", leave, stood(arrive, leave), k, c.item)
-		human, agent := false, false
-		for _, v := range c.reviews {
-			human = human || !v.agent
-			agent = agent || v.agent
-		}
 		l.hit("review.by_human", c.merged, human, k, c.item)
 		l.hit("review.by_agent", c.merged, agent, k, c.item)
 		l.hit("review.by_both", c.merged, human && agent, k, c.item)
-	}
-
-	// Merge. Every approval opens a stay in the queue that lasts until the
-	// next approval, a request for changes or the end of the change.
-	for i, v := range counted {
-		if v.state != revApproved {
-			continue
-		}
-		until := end
-		for _, w := range counted[i+1:] {
-			if w.state != revCommented {
-				until = w.at
-				break
-			}
-		}
-		l.stand("merge.queue", v.at, until, k, c.item)
-	}
-	if !c.merged.IsZero() {
-		at := leave
-		if at.After(c.merged) {
-			at = c.merged
-		}
 		l.add("merge.flow", c.merged, 1, k, c.item)
-		l.add("merge.wait", c.merged, hours(c.merged.Sub(at)), k, c.item)
 		l.hit("merge.rework", c.merged, c.reverted, k, c.item)
-		l.add("merge.held", c.merged, stood(at, c.merged), k, c.item)
-		l.hit("review.skipped", c.merged, !reviewed, k, c.item)
 
 		l.add("line.flow", c.merged, 1, k, c.item)
 		l.add("line.lead", c.merged, hours(c.merged.Sub(c.created)), k, c.item)
 		l.add("line.size", c.merged, float64(c.size), k, c.item)
 		l.hit("line.agent_share", c.merged, k.class == classAgent, k, c.item)
+	}
+	var all, people reviewOut
+	r.reviewStations(c, &all, c.reviews, arrive, stood)
+	if agent {
+		var only []revLite
+		for _, v := range c.reviews {
+			if !v.agent {
+				only = append(only, v)
+			}
+		}
+		r.reviewStations(c, &people, only, arrive, stood)
+		l.flushReviews(&all, &people)
+	} else {
+		l.flushReviews(&all, nil)
 	}
 
 	// Release. A change merged before the store's deploys begin cannot be
@@ -966,6 +908,170 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 	l.add("release.held", reach, hours(reach.Sub(c.merged)), k, c.item)
 	l.add("line.delivery", reach, hours(reach.Sub(c.start)), k, c.item)
 	l.stand("release.queue", c.merged, reach, k, c.item)
+}
+
+// reviewOut holds what the stations that depend on which reviews count wrote
+// for one change.
+type reviewOut struct {
+	obs   []namedObs
+	stays []namedStay
+}
+
+type namedObs struct {
+	stream string
+	o      obs
+}
+
+type namedStay struct {
+	queue string
+	s     stay
+}
+
+func (w *reviewOut) add(stream string, at time.Time, v float64, k key, it int32) {
+	w.obs = append(w.obs, namedObs{stream, obs{at: at, v: v, k: k, item: it}})
+}
+
+func (w *reviewOut) hit(stream string, at time.Time, yes bool, k key, it int32) {
+	v := 0.0
+	if yes {
+		v = 1
+	}
+	w.add(stream, at, v, k, it)
+}
+
+// stand is Line.stand for a reviewOut.
+func (w *reviewOut) stand(queue string, from, to time.Time, k key, it int32) {
+	if from.IsZero() || (!to.IsZero() && !to.After(from)) {
+		return
+	}
+	w.stays = append(w.stays, namedStay{queue, stay{from: from, to: to, k: k, item: it}})
+}
+
+// flushReviews writes what a change did at the review and merge stations. With
+// one mode given the change reads the same either way. With two, what is the
+// same in both is written once, and the rest only for its mode.
+func (l *Line) flushReviews(all, people *reviewOut) {
+	if people == nil {
+		for _, x := range all.obs {
+			l.obs[x.stream] = append(l.obs[x.stream], x.o)
+		}
+		for _, x := range all.stays {
+			l.stays[x.queue] = append(l.stays[x.queue], x.s)
+		}
+		return
+	}
+	taken := make([]bool, len(people.obs))
+	for _, x := range all.obs {
+		x.o.mode = modeAll
+		for j, y := range people.obs {
+			if !taken[j] && x.stream == y.stream && x.o.at.Equal(y.o.at) && x.o.v == y.o.v && x.o.k == y.o.k && x.o.item == y.o.item {
+				taken[j], x.o.mode = true, modeBoth
+				break
+			}
+		}
+		l.obs[x.stream] = append(l.obs[x.stream], x.o)
+	}
+	for j, y := range people.obs {
+		if !taken[j] {
+			y.o.mode = modeHuman
+			l.obs[y.stream] = append(l.obs[y.stream], y.o)
+		}
+	}
+	tookStay := make([]bool, len(people.stays))
+	same := func(a, b stay) bool {
+		return a.from.Equal(b.from) && a.to.Equal(b.to) && a.k == b.k && a.item == b.item
+	}
+	for _, x := range all.stays {
+		x.s.mode = modeAll
+		for j, y := range people.stays {
+			if !tookStay[j] && x.queue == y.queue && same(x.s, y.s) {
+				tookStay[j], x.s.mode = true, modeBoth
+				break
+			}
+		}
+		l.stays[x.queue] = append(l.stays[x.queue], x.s)
+	}
+	for j, y := range people.stays {
+		if !tookStay[j] {
+			y.s.mode = modeHuman
+			l.stays[y.queue] = append(l.stays[y.queue], y.s)
+		}
+	}
+}
+
+// reviewStations writes the stations that depend on which reviews count, for
+// the reviews given, oldest first.
+func (r *RepoBuilder) reviewStations(c *chg, w *reviewOut, counted []revLite, arrive time.Time, stood func(from, to time.Time) float64) {
+	k := c.k
+	end := c.closed // zero while the change is open
+	reviewed := len(counted) > 0
+	var first, leave time.Time
+	if reviewed {
+		first = counted[0].at
+		wait := 0.0
+		if !c.ready.IsZero() {
+			wait = hours(first.Sub(c.ready))
+		}
+		w.add("review.wait", first, wait, k, c.item)
+	}
+	if !c.ready.IsZero() {
+		until := end
+		if reviewed {
+			until = first
+		}
+		w.stand("review.queue", c.ready, until, k, c.item)
+	}
+	if !c.merged.IsZero() {
+		if reviewed {
+			leave = c.merged
+			sentBack := false
+			for _, v := range counted {
+				if v.state == revApproved {
+					leave = v.at
+				}
+				sentBack = sentBack || v.state == revChanges
+			}
+			for _, m := range c.commits {
+				sentBack = sentBack || (!m.merge && m.committed.After(first))
+			}
+			w.add("review.work", leave, hours(leave.Sub(first)), k, c.item)
+			w.hit("review.rework", leave, sentBack, k, c.item)
+			w.add("review.rounds", leave, float64(rounds(counted, c.commits)), k, c.item)
+		} else {
+			// No review seen: review may have happened where the code host
+			// cannot see it. The time from ready to the merge is review time,
+			// and merge gets none of it. review.skipped says how much of the
+			// station this is.
+			leave = c.merged
+		}
+		w.add("review.flow", leave, 1, k, c.item)
+		w.add("review.held", leave, stood(arrive, leave), k, c.item)
+	}
+
+	// Merge. Every approval opens a stay in the queue that lasts until the
+	// next approval, a request for changes or the end of the change.
+	for i, v := range counted {
+		if v.state != revApproved {
+			continue
+		}
+		until := end
+		for _, x := range counted[i+1:] {
+			if x.state != revCommented {
+				until = x.at
+				break
+			}
+		}
+		w.stand("merge.queue", v.at, until, k, c.item)
+	}
+	if !c.merged.IsZero() {
+		at := leave
+		if at.After(c.merged) {
+			at = c.merged
+		}
+		w.add("merge.wait", c.merged, hours(c.merged.Sub(at)), k, c.item)
+		w.add("merge.held", c.merged, stood(at, c.merged), k, c.item)
+		w.hit("review.skipped", c.merged, !reviewed, k, c.item)
+	}
 }
 
 // SourceScope is what the store knows about a ticket system that is not a

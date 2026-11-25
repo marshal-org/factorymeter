@@ -14,10 +14,10 @@
 
 **Purpose**: the line changes that make parity possible. Every existing test stays green after each task.
 
-- [ ] T002 FR-013 G-013: record the current marshalled reports and drills of every existing scenario as a guard test, so any change from the work below is seen and judged (pkg/measure/segment_guard_test.go)
+- [x] T002 FR-013 G-013: record the current marshalled reports and drills of every existing scenario as a guard test, so any change from the work below is seen and judged (pkg/measure/segment_guard_test.go)
 - [ ] T003 FR-006 G-006: give every item the moment and the repository that place it in a week, a change at its creation and a deploy at its finish (pkg/measure/line.go)
-- [ ] T004 FR-004 G-003: add the report-time view for the review mode, route every raw read of a review stream through it (the report, the advice, the limits text), keep the human-only builder switch as a way to pick the view, and keep the parts cache per view. All observations are still "both", so nothing changes yet (pkg/measure/report.go, pkg/measure/advise.go, pkg/measure/line.go, pkg/measure/load.go, pkg/measure/agg.go)
-- [ ] T005 FR-005 G-003: emit the review and merge stations in both modes for a change with an agent review, and tag only what differs (pkg/measure/line.go, pkg/measure/agg.go)
+- [x] T004 FR-004 G-003: add the report-time view for the review mode, route every raw read of a review stream through it (the report, the advice, the limits text), keep the human-only builder switch as a way to pick the view, and keep the parts cache per view. All observations are still "both", so nothing changes yet (pkg/measure/report.go, pkg/measure/advise.go, pkg/measure/line.go, pkg/measure/load.go, pkg/measure/agg.go)
+- [x] T005 FR-005 G-003: emit the review and merge stations in both modes for a change with an agent review, and tag only what differs (pkg/measure/line.go, pkg/measure/agg.go)
 - [ ] T006 FR-007 G-005: sort the builder inputs of a repository into a total order before classifying, and build the first-wins and last-wins maps over that order (pkg/measure/line.go)
 - [ ] T007 FR-007 G-005: write the canonical pass that normalises times to UTC, sorts and renumbers repositories, agents, items and flows, and totally orders every stream, and end the builder in it. List each existing report that changes, and why (pkg/measure/canonical.go, pkg/measure/line.go)
 - [ ] T008 FR-011 G-006: keep coverage and sources by repository, and the repository figures as parts attributed to the week of the thing they count (pkg/measure/line.go, pkg/measure/report.go)
@@ -71,8 +71,8 @@
 
 **Independent Test**: G-010, G-011, G-012, G-002.
 
-- [ ] T023 [P] [US4] G-010: write the generator tests: same seed same records, different seed different records, valid for the source interface, the shape of reviews, commits, runs and deploys (pkg/synth/synth_test.go)
-- [ ] T024 [US4] FR-012 G-010: write the seeded generator as a source of records, sized by repositories, changes per week and weeks (pkg/synth/synth.go)
+- [x] T023 [P] [US4] G-010: write the generator tests: same seed same records, different seed different records, valid for the source interface, the shape of reviews, commits, runs and deploys (pkg/synth/synth_test.go)
+- [x] T024 [US4] FR-012 G-010: write the seeded generator as a source of records, sized by repositories, changes per week and weeks (pkg/synth/synth.go)
 - [ ] T025 [US4] G-002: write TestSegmentParitySynth at a small size on every run, in both modes (pkg/measure/segment_synth_test.go)
 - [ ] T026 [US4] SC-001 SC-002 G-011: write TestMergeScaleGate, which cuts the segments of 300 repositories by 26 weeks, merges them, reads a report, asserts the time and the peak memory, prints the largest segment, then checks parity with the full load (pkg/measure/segment_scale_test.go)
 - [ ] T027 [P] [US4] G-012: write BenchmarkMergeReport (pkg/measure/segment_bench_test.go)

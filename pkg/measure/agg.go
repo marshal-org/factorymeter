@@ -47,6 +47,23 @@ type obs struct {
 	// item is the change, ticket or deploy it is about: an index into
 	// Line.items, or -1.
 	item int32
+	// mode says in which review mode the observation exists.
+	mode uint8
+}
+
+// The review modes an observation can exist in. Most exist in both. A change
+// with a review by an agent reads differently when only reviews by people
+// count, so the stations that depend on it are written once for each mode.
+const (
+	modeBoth  uint8 = iota // in both
+	modeAll                // only when every review counts
+	modeHuman              // only when reviews by people count
+)
+
+// seenIn says whether something of a mode is read when reviews by people only
+// count or when all do.
+func seenIn(mode uint8, humanOnly bool) bool {
+	return mode == modeBoth || (mode == modeHuman) == humanOnly
 }
 
 // stay is one item standing in a queue. A zero to means it still stands.
@@ -54,6 +71,7 @@ type stay struct {
 	from, to time.Time
 	k        key
 	item     int32 // index into Line.items
+	mode     uint8
 }
 
 // How a metric adds its observations up.
