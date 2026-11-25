@@ -671,8 +671,8 @@ func (l *Line) coverage(o Options, w window, status map[string]stationState, lim
 
 	inWindow := func(kind string) int {
 		list := l.seen[kind]
-		lo := sort.Search(len(list), func(i int) bool { return list[i] >= w.since.Unix() })
-		hi := sort.Search(len(list), func(i int) bool { return list[i] >= w.until.Unix() })
+		lo := sort.Search(len(list), func(i int) bool { return list[i].at >= w.since.Unix() })
+		hi := sort.Search(len(list), func(i int) bool { return list[i].at >= w.until.Unix() })
 		return hi - lo
 	}
 	for _, kind := range []string{record.KindTicket, record.KindChange, record.KindCIRun, record.KindDeploy} {

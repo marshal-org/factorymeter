@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -108,6 +109,14 @@ func vals(list []obs) []float64 {
 	return out
 }
 
+// sorted is a sorted copy: what ties at one moment are read in is not part of
+// what a test checks.
+func sorted(a []float64) []float64 {
+	b := append([]float64(nil), a...)
+	sort.Float64s(b)
+	return b
+}
+
 func same(a, b []float64) bool {
 	if len(a) != len(b) {
 		return false
@@ -178,7 +187,7 @@ func TestTicketsAtTheSpecStation(t *testing.T) {
 	}
 	// 11 and 18 never stood in the queue and 13 stood in it for no time. 12,
 	// 16 and 17 left it when they were closed, never having started.
-	stays := [][2]float64{{-8, -6}, {-4, -3}, {-2, 0}, {-7, -1}, {-5, -3}}
+	stays := [][2]float64{{-8, -6}, {-7, -1}, {-5, -3}, {-4, -3}, {-2, 0}} // oldest first
 	got := l.seenStays("spec.queue")
 	if len(got) != len(stays) {
 		t.Fatalf("spec.queue = %+v, want %d stays", got, len(stays))
@@ -492,10 +501,10 @@ func TestADeployHoldsWhatMergedUpToItsCommit(t *testing.T) {
 	rb.Done()
 	l := b.Line()
 
-	// The wait of each change, in the order its deploy came. Change 1 merged
+	// The wait of each change, whatever order they are read in. Change 1 merged
 	// before the first deploy in the store and is not counted.
 	//   2: 3 to 6    3: 4 to 6    4: 5 to 10    5: 8 to 10    6: 9 to 10    7: 11 to 12
-	if got, want := vals(l.seenObs("release.wait")), []float64{3, 2, 5, 2, 1, 1}; !same(got, want) {
+	if got, want := sorted(vals(l.seenObs("release.wait"))), sorted([]float64{3, 2, 5, 2, 1, 1}); !same(got, want) {
 		t.Errorf("release.wait = %v, want %v", got, want)
 	}
 	if got := vals(l.seenObs(unseenAtRelease)); len(got) != 1 {
@@ -544,7 +553,7 @@ func TestADeployWithNoMergeCommitGoesByItsTime(t *testing.T) {
 	}
 	rb.Done()
 	l := b.Line()
-	if got, want := vals(l.seenObs("release.wait")), []float64{3, 1}; !same(got, want) {
+	if got, want := sorted(vals(l.seenObs("release.wait"))), sorted([]float64{3, 1}); !same(got, want) {
 		t.Errorf("release.wait = %v, want %v", got, want)
 	}
 	r, err := l.Report(Options{Target: repo, Now: end})

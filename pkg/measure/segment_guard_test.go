@@ -4,8 +4,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/marshal-org/factorymeter/pkg/line"
@@ -51,7 +54,7 @@ func guardScenarios(t *testing.T) map[string]func() (*Line, string) {
 	return out
 }
 
-func guardOutput(t *testing.T, l *Line, target string) string {
+func guardOutput(t *testing.T, name string, l *Line, target string) string {
 	t.Helper()
 	var all []any
 	for _, o := range []Options{
@@ -83,6 +86,12 @@ func guardOutput(t *testing.T, l *Line, target string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if dir := os.Getenv("FACTORYMETER_GUARD_DUMP"); dir != "" {
+		for i, x := range all {
+			j, _ := json.MarshalIndent(x, "", " ")
+			_ = os.WriteFile(filepath.Join(dir, fmt.Sprintf("%s-%03d.json", strings.ReplaceAll(name, "/", "_"), i)), j, 0o644)
+		}
+	}
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:])
 }
@@ -91,7 +100,7 @@ func TestGuardExistingReportsDoNotChange(t *testing.T) {
 	got := map[string]string{}
 	for name, build := range guardScenarios(t) {
 		l, target := build()
-		got[name] = guardOutput(t, l, target)
+		got[name] = guardOutput(t, name, l, target)
 	}
 	if os.Getenv("FACTORYMETER_GUARD_UPDATE") != "" {
 		b, _ := json.MarshalIndent(got, "", " ")
