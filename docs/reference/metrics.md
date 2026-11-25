@@ -16,7 +16,7 @@ Work passes through seven stations, in this order.
 | [Code](#code) | `code` | change | The change is written. |
 | [CI](#ci) | `ci` | CI round | The checks run on each push to a change. One CI round is every run on one commit of a change. |
 | [Verify](#verify) | `verify` | change | The change is proved on a running environment before it merges. |
-| [Review](#review) | `review` | change | Another person reads the change and approves it or sends it back. |
+| [Review](#review) | `review` | change | A person or an agent reads the change and approves it or sends it back. |
 | [Merge](#merge) | `merge` | change | The approved change lands on the main branch. |
 | [Release](#release) | `release` | change | The merged change reaches production. |
 
@@ -186,11 +186,11 @@ The constraint is the station that holds work the longest. For each station that
 
 ## Review
 
-<a id="review"></a>Another person reads the change and approves it or sends it back.
+<a id="review"></a>A person or an agent reads the change and approves it or sends it back.
 
 - Item: change.
 - Arrives: The change is marked ready for review.
-- Leaves: The last approval before the merge. A change that merges after a review with no approval leaves at the merge. A change nobody else reviewed skips the station.
+- Leaves: The last approval before the merge. A change that merges after a review with no approval, or with no review seen, leaves at the merge.
 - Measured from: `change` records.
 - Constraint: the station can be named the constraint.
 
@@ -243,7 +243,7 @@ The constraint is the station that holds work the longest. For each station that
 <a id="merge"></a>The approved change lands on the main branch.
 
 - Item: change.
-- Arrives: The change leaves review. A change nobody else reviewed arrives when it is marked ready for review.
+- Arrives: The change leaves review: at its last approval, or at the merge when it had none.
 - Leaves: The change merges.
 - Measured from: `change` records.
 - Constraint: the station can be named the constraint.
@@ -261,8 +261,8 @@ The constraint is the station that holds work the longest. For each station that
 | `merge.held.share` | Share of the line's time held at merge | `share` | lower | 5 | `class`, `agent`, `repo` |
 
 - `merge.flow`: Changes merged in the period. The count is divided by the length of the period in weeks.
-- `merge.wait.p50`: Hours from a change arriving at merge to it merging, over the changes merged in the period. A change arrives when it leaves review. A change nobody else reviewed arrives when it is marked ready for review. The median.
-- `merge.wait.p90`: Hours from a change arriving at merge to it merging, over the changes merged in the period. A change arrives when it leaves review. A change nobody else reviewed arrives when it is marked ready for review. The 90th percentile: one item in ten waited longer.
+- `merge.wait.p50`: Hours from a change arriving at merge to it merging, over the changes merged in the period. A change arrives when it leaves review: at its last approval, or at the merge when it had none, so a change with no approval waits here for no time. The median.
+- `merge.wait.p90`: Hours from a change arriving at merge to it merging, over the changes merged in the period. A change arrives when it leaves review: at its last approval, or at the merge when it had none, so a change with no approval waits here for no time. The 90th percentile: one item in ten waited longer.
 - `merge.rework`: Share of the changes merged in the period that a later change reverted. A change reverts another when its description says so in the words the code host writes for a revert.
 - `merge.queue`: Changes that are open and approved at the end of the period, with no request for changes after the last approval.
 - `merge.queue.oldest`: Hours since its last approval, for the item that has stood longest in this queue at the end of the period. Changes that are open and approved at the end of the period, with no request for changes after the last approval.

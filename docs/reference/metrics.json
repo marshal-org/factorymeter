@@ -130,10 +130,10 @@
     {
       "id": "review",
       "name": "Review",
-      "does": "Another person reads the change and approves it or sends it back.",
+      "does": "A person or an agent reads the change and approves it or sends it back.",
       "item": "change",
       "arrives": "The change is marked ready for review.",
-      "leaves": "The last approval before the merge. A change that merges after a review with no approval leaves at the merge. A change nobody else reviewed skips the station.",
+      "leaves": "The last approval before the merge. A change that merges after a review with no approval, or with no review seen, leaves at the merge.",
       "needs": [
         "change"
       ],
@@ -144,7 +144,7 @@
       "name": "Merge",
       "does": "The approved change lands on the main branch.",
       "item": "change",
-      "arrives": "The change leaves review. A change nobody else reviewed arrives when it is marked ready for review.",
+      "arrives": "The change leaves review: at its last approval, or at the merge when it had none.",
       "leaves": "The change merges.",
       "needs": [
         "change"
@@ -1158,7 +1158,7 @@
       "needs": [
         "change"
       ],
-      "definition": "Hours from a change arriving at merge to it merging, over the changes merged in the period. A change arrives when it leaves review. A change nobody else reviewed arrives when it is marked ready for review. The median.",
+      "definition": "Hours from a change arriving at merge to it merging, over the changes merged in the period. A change arrives when it leaves review: at its last approval, or at the merge when it had none, so a change with no approval waits here for no time. The median.",
       "since": "v1"
     },
     {
@@ -1177,7 +1177,7 @@
       "needs": [
         "change"
       ],
-      "definition": "Hours from a change arriving at merge to it merging, over the changes merged in the period. A change arrives when it leaves review. A change nobody else reviewed arrives when it is marked ready for review. The 90th percentile: one item in ten waited longer.",
+      "definition": "Hours from a change arriving at merge to it merging, over the changes merged in the period. A change arrives when it leaves review: at its last approval, or at the merge when it had none, so a change with no approval waits here for no time. The 90th percentile: one item in ten waited longer.",
       "since": "v1"
     },
     {
