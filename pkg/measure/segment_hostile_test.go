@@ -3,7 +3,9 @@ package measure
 import (
 	"bytes"
 	"encoding/binary"
+	"math"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/klauspost/compress/zstd"
@@ -95,5 +97,50 @@ func TestSegmentHostileBytes(t *testing.T) {
 	runtime.ReadMemStats(&after)
 	if grown := after.TotalAlloc - before.TotalAlloc; grown > 512<<20 {
 		t.Errorf("hostile segments allocated %d MiB", grown>>20)
+	}
+}
+
+// A count that the bytes left cannot hold at the least size of one element is
+// refused, so a small body cannot make a large list.
+func TestSegmentCountsUseTheSizeOfAnElement(t *testing.T) {
+	body := append(uv(40), make([]byte, 49)...)
+	if r := (&dec{b: body}); r.count(6) != 0 || r.err == nil {
+		t.Error("40 items of 6 bytes were accepted from 49 bytes")
+	}
+	if r := (&dec{b: body}); r.count(1) != 40 || r.err != nil {
+		t.Error("40 one-byte elements were refused from 49 bytes")
+	}
+}
+
+// The records of one segment are capped by number, whatever the bytes say.
+func TestSegmentRecordCap(t *testing.T) {
+	segs, _ := oneRepoSegments(t)
+	old := segMaxElems
+	defer func() { segMaxElems = old }()
+	segMaxElems = 3
+	for _, s := range segs {
+		if _, err := Merge(s); err != nil && !strings.Contains(err.Error(), "too many records") {
+			t.Fatalf("unexpected error %v", err)
+		}
+	}
+	refused := 0
+	for _, s := range segs {
+		if _, err := Merge(s); err != nil {
+			refused++
+		}
+	}
+	if refused == 0 {
+		t.Error("no segment was refused with a cap of 3 records")
+	}
+}
+
+// A forged value that is not a number is refused.
+func TestSegmentRefusesNaNAndInf(t *testing.T) {
+	for _, v := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
+		var b [8]byte
+		binary.LittleEndian.PutUint64(b[:], math.Float64bits(v))
+		if r := (&dec{b: b[:]}); r.float() != 0 || r.err == nil {
+			t.Errorf("%v was accepted", v)
+		}
 	}
 }

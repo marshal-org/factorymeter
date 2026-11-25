@@ -243,9 +243,10 @@ func (d *segData) encode() ([]byte, error) {
 }
 
 type dec struct {
-	b   []byte
-	err error
-	str []string
+	b     []byte
+	err   error
+	str   []string
+	elems uint64
 }
 
 func (r *dec) fail(msg string) {
@@ -280,13 +281,29 @@ func (r *dec) i() int64 {
 	return v
 }
 
-// count reads a number of elements that each take at least one byte, so a
-// count that is larger than what is left is refused before anything is made.
-func (r *dec) count() int {
+// segMaxElems caps the records of one segment (items, observations, stays,
+// runs and seen records together), so the memory a segment makes is bounded
+// by a fixed number and not only by the size of its bytes.
+var segMaxElems uint64 = 1 << 20
+
+// count reads a number of elements that each take at least min bytes, so a
+// count that the bytes left cannot hold is refused before anything is made.
+// Records are also counted against segMaxElems.
+func (r *dec) count(min int) int {
 	v := r.u()
-	if v > uint64(len(r.b)) {
+	if r.err != nil {
+		return 0
+	}
+	if v > uint64(len(r.b))/uint64(min) {
 		r.fail("a count is larger than the segment")
 		return 0
+	}
+	if min > 1 {
+		r.elems += v
+		if r.elems > segMaxElems {
+			r.fail("the segment holds too many records")
+			return 0
+		}
 	}
 	return int(v)
 }
@@ -340,6 +357,10 @@ func (r *dec) float() float64 {
 	}
 	v := math.Float64frombits(binary.LittleEndian.Uint64(r.b))
 	r.b = r.b[8:]
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		r.fail("a value is not a finite number")
+		return 0
+	}
 	return v
 }
 
@@ -438,7 +459,7 @@ func decodeSegment(b []byte) (*segData, error) {
 		return nil, errors.New("segment body is not the size its header says")
 	}
 	r := &dec{b: body}
-	n := r.count()
+	n := r.count(1)
 	r.str = make([]string, 0, n)
 	for i := 0; i < n && r.err == nil; i++ {
 		l := r.u()
@@ -454,35 +475,35 @@ func decodeSegment(b []byte) (*segData, error) {
 	d.week = r.i()
 	d.facts.private, d.facts.ciWait, d.facts.viaRelease = r.bool(), r.bool(), r.bool()
 	d.facts.from, d.facts.synced = r.time(), r.time()
-	for i, n := 0, r.count(); i < n; i++ {
+	for i, n := 0, r.count(1); i < n; i++ {
 		d.facts.notes = append(d.facts.notes, r.s())
 	}
-	for i, n := 0, r.count(); i < n; i++ {
+	for i, n := 0, r.count(1); i < n; i++ {
 		d.agents = append(d.agents, r.s())
 	}
-	for i, n := 0, r.count(); i < n; i++ {
+	for i, n := 0, r.count(1); i < n; i++ {
 		d.flows = append(d.flows, r.s())
 	}
-	for i, n := 0, r.count(); i < n; i++ {
+	for i, n := 0, r.count(6); i < n; i++ {
 		d.items = append(d.items, segItem{kind: r.s(), key: r.s(), url: r.s(), title: r.s(), class: r.class(), at: r.time()})
 	}
-	for i, n := 0, r.count(); i < n; i++ {
+	for i, n := 0, r.count(1); i < n; i++ {
 		st := segStream[segObs]{name: r.s()}
-		for j, m := 0, r.count(); j < m; j++ {
+		for j, m := 0, r.count(13); j < m; j++ {
 			st.list = append(st.list, segObs{at: r.time(), v: r.float(), class: r.class(),
 				agent: r.index(len(d.agents)), item: r.index(len(d.items)), mode: r.mode()})
 		}
 		d.obs = append(d.obs, st)
 	}
-	for i, n := 0, r.count(); i < n; i++ {
+	for i, n := 0, r.count(1); i < n; i++ {
 		st := segStream[segStay]{name: r.s()}
-		for j, m := 0, r.count(); j < m; j++ {
+		for j, m := 0, r.count(6); j < m; j++ {
 			st.list = append(st.list, segStay{from: r.time(), to: r.time(), class: r.class(),
 				agent: r.index(len(d.agents)), item: r.index(len(d.items)), mode: r.mode()})
 		}
 		d.stays = append(d.stays, st)
 	}
-	for i, n := 0, r.count(); i < n; i++ {
+	for i, n := 0, r.count(3); i < n; i++ {
 		x := segRun{at: r.time()}
 		if f := r.u(); f < uint64(len(d.flows)) {
 			x.flow = int32(f)
@@ -492,7 +513,7 @@ func decodeSegment(b []byte) (*segData, error) {
 		x.failed = r.bool()
 		d.runs = append(d.runs, x)
 	}
-	for i, n := 0, r.count(); i < n; i++ {
+	for i, n := 0, r.count(3); i < n; i++ {
 		d.seen = append(d.seen, segSeen{kind: r.s(), at: r.i(), src: r.s()})
 	}
 	for _, p := range []*int{&d.figs.changes, &d.figs.merged, &d.figs.cut, &d.figs.ciRuns, &d.figs.ciJoined,
@@ -503,7 +524,7 @@ func decodeSegment(b []byte) (*segData, error) {
 		}
 		*p = int(v)
 	}
-	if n := r.count(); n > 0 {
+	if n := r.count(1); n > 0 {
 		d.figs.envs = map[string]bool{}
 		for i := 0; i < n; i++ {
 			d.figs.envs[r.s()] = true

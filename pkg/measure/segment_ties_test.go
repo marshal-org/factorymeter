@@ -2,7 +2,6 @@ package measure
 
 import (
 	"testing"
-	"time"
 
 	"github.com/marshal-org/factorymeter/pkg/record"
 )
@@ -41,7 +40,7 @@ func ptrRun(r record.CIRun) *record.CIRun { return &r }
 // records, loaded or merged.
 func TestTiesAreTotal(t *testing.T) {
 	orders := [][]int{{0, 1, 2, 3, 4}, {4, 3, 2, 1, 0}, {2, 0, 4, 1, 3}, {3, 4, 1, 2, 0}}
-	var want string
+	wants := map[bool]string{}
 	for i, o := range orders {
 		l := tiesLine(t, o)
 		for _, human := range []bool{false, true} {
@@ -53,13 +52,12 @@ func TestTiesAreTotal(t *testing.T) {
 			if m := guardOutput(t, "ties", merged.WithReviews(human), repo); m != got {
 				t.Errorf("order %v, people only %v: merged differs from loaded", o, human)
 			}
-			if i == 0 && !human {
-				want = got
+			if i == 0 {
+				wants[human] = got
 			}
-			if !human && got != want {
-				t.Errorf("order %v: the report depends on the order of the records", o)
+			if got != wants[human] {
+				t.Errorf("order %v, people only %v: the report depends on the order of the records", o, human)
 			}
 		}
 	}
-	_ = time.Second
 }

@@ -3,6 +3,7 @@ package measure
 import (
 	"errors"
 	"fmt"
+	"github.com/marshal-org/factorymeter/pkg/record"
 	"sort"
 	"strings"
 	"sync"
@@ -51,6 +52,10 @@ func (l *Line) cutIndex() *cutCache {
 		for i := range l.items {
 			it := &l.items[i]
 			k := figKey{it.repo, weekOf(it.at)}
+			if it.kind == record.KindTicket {
+				// Tickets are not in segments, and neither is what they carry.
+				k.repo = -1
+			}
 			c.itemCell[i] = k
 			if k.repo >= 0 {
 				c.items[k] = append(c.items[k], int32(i))

@@ -144,3 +144,35 @@ func TestSegmentOfALineWithTickets(t *testing.T) {
 		t.Error("a merged line has tickets")
 	}
 }
+
+// Issues of a repository belong to it in the line, but segments leave tickets
+// out: a merged line has none of them and no spec data.
+func TestSegmentLeavesIssuesOut(t *testing.T) {
+	b := NewBuilder(registry(t))
+	rb := b.Repo(RepoScope{Name: repo, From: end.Add(-8 * week), SyncedAt: end})
+	c := change(1, end.Add(-2*day), merged(end.Add(-day)))
+	rb.Change(&c)
+	rb.Done()
+	key := repo + "#7"
+	done := end.Add(-2 * day)
+	b.Ticket(&record.Ticket{Source: record.GitHub, ID: record.TicketID(record.GitHub, key), Key: key, Project: repo,
+		Title: "An issue", State: record.TicketDone, CreatedAt: end.Add(-3 * day), DoneAt: &done, ClosedAt: &done})
+	l := b.Line()
+	if len(l.seenObs("spec.rework")) == 0 {
+		t.Fatal("the line has no spec data: the test proves nothing")
+	}
+	m, err := Merge(cutAll(t, l)...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, it := range m.items {
+		if it.kind == record.KindTicket {
+			t.Error("a merged line holds an issue")
+		}
+	}
+	for _, s := range []string{"spec.flow", "spec.wait", "spec.rework", "spec.queue"} {
+		if n := len(m.seenObs(s)); n != 0 {
+			t.Errorf("%s: %d observations of an issue in a merged line", s, n)
+		}
+	}
+}
