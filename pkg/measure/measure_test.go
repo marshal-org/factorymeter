@@ -660,9 +660,14 @@ func TestRevertAndAbandon(t *testing.T) {
 // hours later. One by a bot, approved and merged an hour apart.
 // Open at the end: one change ready and unreviewed for 30 hours, and one
 // draft opened 50 hours ago.
-func scenario(t *testing.T) *Line {
+func scenario(t *testing.T) *Line { return scenarioOf(t, false) }
+
+func scenarioOf(t *testing.T, human bool) *Line {
 	t.Helper()
 	b := NewBuilder(registry(t))
+	if human {
+		b.HumanReviewsOnly()
+	}
 	rb := b.Repo(RepoScope{Name: repo, From: end.Add(-4 * week), SyncedAt: end})
 	n := 0
 	add := func(created time.Time, wait, merge time.Duration, opts ...opt) {
