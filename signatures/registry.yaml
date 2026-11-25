@@ -13,7 +13,13 @@
 #   commit_trailer       a trailer line of a commit message, such as Co-authored-by
 #   pr_body              the pull request description
 #   branch_prefix        the head branch name
+#   review_author_login  login of the account that wrote a review or a comment
+#   review_body          the text of a review or a comment
 #
+# The review kinds say who wrote a review, never who wrote the pull request.
+# A review from a bot account counts as an agent review even with no
+# signature; a signature names the agent, and is the only way a comment on
+# the conversation counts as a review. Review signatures are high or medium.
 # Matchers (exactly one per signature)
 #   equals   list of exact values, compared without case
 #   prefix   list of prefixes, compared without case
@@ -64,6 +70,11 @@ agents:
         prefix: ["copilot/"]
         confidence: low
         verified: "2026-11-18"
+      - id: copilot-reviewer
+        kind: review_author_login
+        equals: ["copilot-pull-request-reviewer[bot]"]
+        confidence: high
+        verified: "2026-11-25"
 
   - id: codex
     name: OpenAI Codex
@@ -95,6 +106,11 @@ agents:
         prefix: ["codex/"]
         confidence: low
         verified: "2026-11-18"
+      - id: codex-reviewer
+        kind: review_author_login
+        equals: ["chatgpt-codex-connector[bot]"]
+        confidence: high
+        verified: "2026-11-25"
 
   - id: cursor
     name: Cursor agent
@@ -131,6 +147,11 @@ agents:
         prefix: ["cursor/"]
         confidence: low
         verified: "2026-11-18"
+      - id: cursor-bugbot
+        kind: review_author_login
+        equals: ["cursor[bot]"]
+        confidence: high
+        verified: "2026-11-25"
 
   - id: claude-code
     name: Claude Code
@@ -167,6 +188,16 @@ agents:
         prefix: ["claude/"]
         confidence: low
         verified: "2026-11-18"
+      - id: claude-reviewer
+        kind: review_author_login
+        equals: ["claude[bot]"]
+        confidence: high
+        verified: "2026-11-25"
+      - id: claude-review-footer
+        kind: review_body
+        regex: '(?i)generated (with|by) \[claude code\]\('
+        confidence: medium
+        verified: "2026-11-25"
 
   - id: devin
     name: Devin
@@ -225,6 +256,29 @@ agents:
 # They are reported in their own class and left out of both the agent and the
 # human numbers. Any other pull request author that GitHub marks as a bot, and
 # that no agent signature matches, is also counted as automation.
+
+  - id: gemini-code-assist
+    name: Gemini Code Assist
+    vendor: Google
+    kind: review
+    signatures:
+      - id: gemini-reviewer
+        kind: review_author_login
+        equals: ["gemini-code-assist[bot]"]
+        confidence: high
+        verified: "2026-11-25"
+
+  - id: coderabbit
+    name: CodeRabbit
+    vendor: CodeRabbit
+    kind: review
+    signatures:
+      - id: coderabbit-reviewer
+        kind: review_author_login
+        equals: ["coderabbitai[bot]"]
+        confidence: high
+        verified: "2026-11-25"
+
 automation:
   logins:
     - "dependabot[bot]"

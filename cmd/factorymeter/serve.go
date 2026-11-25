@@ -33,6 +33,7 @@ type lines struct {
 	only    []string
 	reg     *signature.Registry
 	summary bool
+	load    measure.LoadOptions
 	now     func() time.Time
 
 	mu   sync.Mutex
@@ -111,7 +112,7 @@ func (l *lines) line(q web.Query) (*measure.Line, string, error) {
 	}
 	k, ok := l.kept[key]
 	if !ok || k.stamp != stamp.String() {
-		line, err := measure.LoadOnly(s, l.reg, target, only)
+		line, err := measure.LoadOnlyWith(s, l.reg, target, only, l.load)
 		if err != nil {
 			if len(scopes) == 0 {
 				return nil, "", fmt.Errorf("%w: %v", web.ErrNoData, err)
@@ -205,7 +206,7 @@ func loopback(host string) bool {
 }
 
 func serveCmd() *cobra.Command {
-	var dir, addr, registryPath string
+	var dir, addr, registryPath, reviews string
 	var hosts, repos []string
 	var summary, noOpen bool
 	cmd := &cobra.Command{
@@ -262,7 +263,11 @@ For a page to keep or to publish from a job, use
 			if err != nil {
 				return err
 			}
-			src := &lines{dir: path, target: target, only: only, reg: reg, summary: summary, now: time.Now}
+			lo, err := measure.ParseReviews(reviews)
+			if err != nil {
+				return err
+			}
+			src := &lines{dir: path, target: target, only: only, reg: reg, summary: summary, load: lo, now: time.Now}
 			// Fail now, with the hint to sync, and not on the first request.
 			if _, err := src.Report(web.Query{Weeks: 13}); err != nil {
 				return err
@@ -328,6 +333,7 @@ For a page to keep or to publish from a job, use
 	f.StringVar(&addr, "addr", "127.0.0.1:7377", "address to listen on. Port 0 picks a free port")
 	f.StringSliceVar(&hosts, "allow-host", nil, "also answer requests made to this host name. Repeat for more")
 	f.BoolVar(&summary, "summary", false, "leave out every repository name, title and link")
+	f.StringVar(&reviews, "reviews", "all", "which reviews count at the review station: all (people and agents) or human")
 	f.BoolVar(&noOpen, "no-open", false, "do not open the page in the browser")
 	f.StringVar(&registryPath, "registry", "", "signature registry file to use instead of the built-in one")
 	return cmd

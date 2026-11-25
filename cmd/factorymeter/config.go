@@ -41,6 +41,7 @@ type fileConfig struct {
 	Window   string       `yaml:"window" json:"window"`
 	Summary  *bool        `yaml:"summary" json:"summary"`
 	Registry string       `yaml:"registry" json:"registry"`
+	Reviews  string       `yaml:"reviews" json:"reviews"`
 	Sync     syncConfig   `yaml:"sync" json:"sync"`
 	Linear   linearConfig `yaml:"linear" json:"linear"`
 	Jira     jiraConfig   `yaml:"jira" json:"jira"`
@@ -326,6 +327,7 @@ func (c *fileConfig) apply(cmd *cobra.Command) error {
 		{sinceKey, "since", since},
 		{"summary", "summary", boolean(c.Summary)},
 		{"registry", "registry", str(c.Registry)},
+		{"reviews", "reviews", str(c.Reviews)},
 		{"sync.workers", "workers", number(c.Sync.Workers)},
 		{"sync.max_runs", "max-runs", number(c.Sync.MaxRuns)},
 		{"sync.skip_ci", "skip-ci", boolean(c.Sync.SkipCI)},

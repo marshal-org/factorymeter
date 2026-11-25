@@ -28,7 +28,8 @@ var (
 )
 
 const (
-	another    = "A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count."
+	another    = "A review counts whoever wrote it: a person other than the author, or an agent. An agent review is one from a bot account, one a review signature in the registry matches, or one with text written from the author's own account (an agent working through it). A reply by the author to a review thread is not a review, and a comment on the conversation counts only when a review signature matches it. With the option to count human reviews only, agent reviews do not count here."
+	unseen     = "A merged change with no review seen still passes this station: it arrives when marked ready for review (or opened) and leaves at the merge."
 	exclusive  = "Time with a CI run in flight is counted at ci and taken out of the station the change stood at, so no hour is counted twice."
 	deployNote = "A production deploy of the commit a merge left on its branch holds the changes merged into that branch up to that merge. Of any other deploy only the time is known, and it is taken to hold the changes merged before it started."
 )
@@ -83,7 +84,7 @@ var sets = []set{
 	{
 		station: Review, needs: []string{NeedChange}, slices: changeSlices,
 		flowName:   "PRs reviewed",
-		flow:       "Merged changes that left review in the period. A change leaves review at its last approval before the merge, or at the merge when it was reviewed and never approved. " + another,
+		flow:       "Merged changes that left review in the period. A change leaves review at its last approval before the merge, or at the merge when it was never approved. " + unseen + " " + another,
 		waitName:   "Wait for first review",
 		wait:       "Hours from a change being marked ready for review to its first review, over the changes that got their first review in the period. A review that lands while the change is a draft gives a wait of zero. " + another,
 		workName:   "First review to approval",
@@ -124,9 +125,36 @@ var sets = []set{
 
 // extra holds the numbers that do not come from a set.
 var extra = []Metric{
-	{ID: "review.skipped", Station: Review, Kind: Other, Name: "PRs merged with no review", Unit: Share, Good: Down, MinSample: MinSample,
+	{ID: "review.skipped", Station: Review, Kind: Other, Name: "PRs merged with no review seen", Unit: Share, Good: Down, MinSample: MinSample,
 		Slices: changeSlices, Needs: []string{NeedChange},
-		Definition: "Share of the changes merged in the period that no other person reviewed before the merge. " + another},
+		Definition: "Share of the changes merged in the period with no review seen before the merge. Their time from ready to merge counts as review time. " + another},
+	{ID: "review.by_human", Station: Review, Kind: Other, Name: "PRs reviewed by a person", Unit: Share, Good: Neither, MinSample: MinSample,
+		Slices: changeSlices, Needs: []string{NeedChange},
+		Definition: "Share of the changes merged in the period that a person other than the author reviewed before the merge. It counts with either option."},
+	{ID: "review.by_agent", Station: Review, Kind: Other, Name: "PRs reviewed by an agent", Unit: Share, Good: Neither, MinSample: MinSample,
+		Slices: changeSlices, Needs: []string{NeedChange},
+		Definition: "Share of the changes merged in the period that an agent reviewed before the merge. It counts with either option. " + another},
+	{ID: "review.by_both", Station: Review, Kind: Other, Name: "PRs reviewed by a person and an agent", Unit: Share, Good: Neither, MinSample: MinSample,
+		Slices: changeSlices, Needs: []string{NeedChange},
+		Definition: "Share of the changes merged in the period that both a person and an agent reviewed before the merge."},
+	{ID: "review.first_agent.p50", Station: Review, Kind: Other, Name: "Wait for first agent review, median", Unit: Hours, Good: Down, MinSample: MinSample,
+		Slices: changeSlices, Needs: []string{NeedChange},
+		Definition: "Hours from a change being marked ready for review (or opened) to its first review by an agent, over the changes that got one in the period. The median."},
+	{ID: "review.first_agent.p90", Station: Review, Kind: Other, Name: "Wait for first agent review, 90th percentile", Unit: Hours, Good: Down, MinSample: MinSample,
+		Slices: changeSlices, Needs: []string{NeedChange},
+		Definition: "Hours from a change being marked ready for review (or opened) to its first review by an agent, over the changes that got one in the period. The 90th percentile: one change in ten waited longer."},
+	{ID: "review.first_human.p50", Station: Review, Kind: Other, Name: "Wait for first human review, median", Unit: Hours, Good: Down, MinSample: MinSample,
+		Slices: changeSlices, Needs: []string{NeedChange},
+		Definition: "Hours from a change being marked ready for review (or opened) to its first review by a person other than the author, over the changes that got one in the period. The median."},
+	{ID: "review.first_human.p90", Station: Review, Kind: Other, Name: "Wait for first human review, 90th percentile", Unit: Hours, Good: Down, MinSample: MinSample,
+		Slices: changeSlices, Needs: []string{NeedChange},
+		Definition: "Hours from a change being marked ready for review (or opened) to its first review by a person other than the author, over the changes that got one in the period. The 90th percentile: one change in ten waited longer."},
+	{ID: "review.rounds.p50", Station: Review, Kind: Other, Name: "Rounds of review, median", Unit: Count, Good: Down, MinSample: MinSample,
+		Slices: changeSlices, Needs: []string{NeedChange},
+		Definition: "Rounds of review per merged change that was reviewed, over the changes that left review in the period. A round is one or more reviews, closed by a fix: a new commit that is not a merge, pushed before the next review. The median. " + another},
+	{ID: "review.rounds.p90", Station: Review, Kind: Other, Name: "Rounds of review, 90th percentile", Unit: Count, Good: Down, MinSample: MinSample,
+		Slices: changeSlices, Needs: []string{NeedChange},
+		Definition: "Rounds of review per merged change that was reviewed, over the changes that left review in the period. A round is one or more reviews, closed by a fix: a new commit that is not a merge, pushed before the next review. The 90th percentile. " + another},
 	{ID: "release.deploys", Station: Release, Kind: Other, Name: "Production deploys", Unit: PerWeek, Good: Up,
 		Slices: repoOnly, Needs: []string{NeedDeploy},
 		Definition: "Production deploys created in the period, per week. A deploy is a deployment to an environment whose name says production, or a published release when the repository has no such deployment."},

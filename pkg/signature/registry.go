@@ -46,11 +46,19 @@ const (
 	KindCommitTrailer     Kind = "commit_trailer"
 	KindPRBody            Kind = "pr_body"
 	KindBranchPrefix      Kind = "branch_prefix"
+	// The review kinds look at one review or conversation comment, not at the
+	// pull request. They decide who wrote a review, never who wrote the change.
+	KindReviewAuthorLogin Kind = "review_author_login"
+	KindReviewBody        Kind = "review_body"
 )
+
+// IsReview reports whether the kind looks at a review.
+func (k Kind) IsReview() bool { return k == KindReviewAuthorLogin || k == KindReviewBody }
 
 var kinds = map[Kind]bool{
 	KindPRAuthorLogin: true, KindCommitAuthorLogin: true, KindCommitAuthorEmail: true,
 	KindCommitTrailer: true, KindPRBody: true, KindBranchPrefix: true,
+	KindReviewAuthorLogin: true, KindReviewBody: true,
 }
 
 // Signature is one way to detect one agent.
@@ -162,6 +170,11 @@ func (r *Registry) compile() error {
 				if strings.TrimSpace(v) == "" {
 					bad("%s: empty value in a matcher list", where)
 				}
+			}
+			// A review signature names who wrote a review. A low one could
+			// never count, so it would only be noise.
+			if s.Kind.IsReview() && s.Confidence == Low {
+				bad("%s: a review signature must be high or medium confidence", where)
 			}
 			if s.Kind == KindBranchPrefix {
 				if len(s.Prefix) == 0 {

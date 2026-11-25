@@ -35,7 +35,7 @@ func weeksOf(s string) (int, error) {
 }
 
 func reportCmd() *cobra.Command {
-	var dir, since, until, format, jsonPath, htmlPath, registryPath string
+	var dir, since, until, format, jsonPath, htmlPath, registryPath, reviews string
 	var repos []string
 	var summary bool
 	cmd := &cobra.Command{
@@ -96,7 +96,11 @@ station numbers only and is safe to share.`,
 			for _, n := range keysMissing(s) {
 				fmt.Fprintln(cmd.ErrOrStderr(), "note: "+n)
 			}
-			l, err := measure.LoadOnly(s, reg, target, only)
+			lo, err := measure.ParseReviews(reviews)
+			if err != nil {
+				return err
+			}
+			l, err := measure.LoadOnlyWith(s, reg, target, only, lo)
 			if err != nil {
 				return err
 			}
@@ -145,6 +149,7 @@ station numbers only and is safe to share.`,
 	f.StringVar(&htmlPath, "html", "", "also write the report as one HTML page to this file")
 	f.BoolVar(&summary, "summary", false, "leave out every repository name, title and link")
 	f.StringVar(&registryPath, "registry", "", "signature registry file to use instead of the built-in one")
+	f.StringVar(&reviews, "reviews", "all", "which reviews count at the review station: all (people and agents) or human")
 	return cmd
 }
 

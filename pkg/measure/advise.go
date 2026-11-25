@@ -362,7 +362,7 @@ func (a *adviser) verifyMissing(r line.Rule) *contract.Recommendation {
 	}
 	rec := a.start(r)
 	rec.Confidence = grade(s.N)
-	rec.Why = fmt.Sprintf("%s of the changes merged in the window had no review by another person, and the store holds too few deployments before production on the commits of changes to measure a verify station. So nothing in the store shows that a change was proven to work before it merged. Proof that is recorded as a deployment to a test environment on the commit of a change shows up here as the verify station.",
+	rec.Why = fmt.Sprintf("%s of the changes merged in the window had no review seen, and the store holds too few deployments before production on the commits of changes to measure a verify station. So nothing in the store shows that a change was proven to work before it merged. Proof that is recorded as a deployment to a test environment on the commit of a change shows up here as the verify station.",
 		capital(percent(*s.Value)))
 	a.cite(rec, r.Reads...)
 	return rec

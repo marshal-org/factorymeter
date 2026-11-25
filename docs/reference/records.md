@@ -111,8 +111,10 @@ Every time is UTC. A time that has not happened is null, never a zero date. A re
 | Field | Type | Meaning |
 |---|---|---|
 | `author` | Actor | The account that wrote the review. |
-| `state` | string | What the review said. One of `approved`, `changes_requested`, `commented`, `dismissed`. |
+| `state` | string | What the review said. A comment is commented. One of `approved`, `changes_requested`, `commented`, `dismissed`. |
 | `submitted_at` | time | When the review was submitted. |
+| `via` | string | Where it was written: a review, or a comment on the conversation. Empty in a store written before comments were read, which means a review. One of `review`, `comment`, empty. |
+| `body` | string | The text of the review, cut to its start and its end. Agent footers sit at the end. Empty when the review has no text, such as a reply to a review thread. |
 
 ## CIRun
 

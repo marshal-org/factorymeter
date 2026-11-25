@@ -1,0 +1,69 @@
+{
+  "note": "Gemini Code Assist reviewed it from its bot account",
+  "recorded": "2026-11-25",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "claude-code"
+    ],
+    "signatures": [
+      "claude-trailer",
+      "claude-body-footer"
+    ],
+    "reviews": [
+      {
+        "author": "gemini-code-assist[bot]",
+        "class": "agent",
+        "agent": "gemini-code-assist",
+        "why": "signature",
+        "signatures": [
+          "gemini-reviewer"
+        ]
+      }
+    ]
+  },
+  "pr": {
+    "repo": "juusolatva/metrics-proxy",
+    "number": 26,
+    "url": "https://github.com/juusolatva/metrics-proxy/pull/26",
+    "author": {
+      "login": "juusolatva",
+      "type": "User"
+    },
+    "head_ref": "docs/trim-and-testing",
+    "body": "## Summary\n\nMakes the documentation shorter and easier to read by keeping only what is needed to use and maintain the proxy (about 11,700 → 4,900 words).\n\n- **AGENTS.md**: rewritten and restructured into overview, commands, testing, CI and tooling, architecture (startup, request routing, forwarding, metering, parsing, recording, shutdown, debug logging) and rules for changes. Change history (dates, \"until …\", old behavior) is removed; the reasons behind non-obvious checks and orderings are kept. Adds a rule to write durable facts, not change history.\n- **README.md**: same sections, tightened. Drops migration notes (old 8080 port, `lm_studio` → `server`, removed `metrics.*` keys), condenses the output, CSV, config-error and limitations sections, and moves CI/Dependabot/Sonar details to AGENTS.md.\n- **TESTING.md** (new): manual testing - how to capture real server responses (with the approval step), the provenance of the current captures, and the Windows 11 checklist from `docs/windows-testing.md`, which is removed.\n- **config.yaml**: two history notes dropped from comments.\n- **SECURITY.md**: unchanged; AGENTS.md now points to its invariants instead of repeating them.\n\nDocs only; no code changes.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+    "state": "MERGED",
+    "created_at": "2026-11-25T00:00:00Z",
+    "updated_at": "2026-11-25T00:00:00Z",
+    "commit_count": 1,
+    "commits": [
+      {
+        "sha": "9a03d16cb4761cf0ff6e6e2336acad70573394d7",
+        "authored_at": "2026-11-25T00:00:00Z",
+        "committed_at": "2026-11-25T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "juusolatva",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+        ]
+      }
+    ],
+    "reviews": [
+      {
+        "author": {
+          "login": "gemini-code-assist[bot]",
+          "type": "Bot"
+        },
+        "state": "COMMENTED",
+        "submitted_at": "2026-11-25T00:00:00Z",
+        "via": "review",
+        "body": "[review text left out]"
+      }
+    ]
+  }
+}

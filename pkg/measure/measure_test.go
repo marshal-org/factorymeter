@@ -61,6 +61,13 @@ func review(state string, at time.Time) opt {
 	}
 }
 
+// agentReview is a review from a review bot the registry knows.
+func agentReview(state string, at time.Time) opt {
+	return func(c *record.Change) {
+		c.Reviews = append(c.Reviews, record.Review{Author: record.Actor{Login: "gemini-code-assist[bot]", Kind: record.ActorBot}, State: state, SubmittedAt: at, Via: record.ReviewViaReview})
+	}
+}
+
 func merged(at time.Time) opt {
 	return func(c *record.Change) { c.State, c.MergedAt, c.ClosedAt = record.ChangeMerged, &at, &at }
 }
@@ -217,7 +224,7 @@ func TestStationsOfOneChange(t *testing.T) {
 
 	b := NewBuilder(registry(t))
 	rb := b.Repo(RepoScope{Name: repo, From: end.Add(-26 * week), SyncedAt: end})
-	c := change(1, at(1), draft, review(record.ReviewCommented, at(5)), review(record.ReviewApproved, at(9)), merged(at(10)))
+	c := change(1, at(1), draft, agentReview(record.ReviewCommented, at(4)), review(record.ReviewCommented, at(5)), review(record.ReviewApproved, at(9)), merged(at(10)))
 	ready := at(3)
 	c.ReadyAt = &ready
 	c.Commits = []record.Commit{commit("a1", at(0)), commit("a2", at(6))}
@@ -263,10 +270,13 @@ func TestStationsOfOneChange(t *testing.T) {
 		// Verify: the preview came 2 hours after the commit and took 15
 		// minutes. The other three deployments are not proofs.
 		"verify.flow": {1}, "verify.wait": {2}, "verify.work": {0.25}, "verify.held": {2.25}, "verify.rework": {0},
-		// Review: ready at 3, first review at 5, approved at 9. Commit a2
-		// came after the first review, so it was sent back. Held is 3 to 9
-		// less the hour CI was busy with a2.
-		"review.wait": {2}, "review.flow": {1}, "review.work": {4}, "review.rework": {1}, "review.held": {5}, "review.skipped": {0},
+		// Review: ready at 3, an agent reviews at 4, a person at 5, approved
+		// at 9. Commit a2 came after the first review, so it was sent back,
+		// and it sits between the reviews at 5 and 9: two rounds. Held is 3
+		// to 9 less the hour CI was busy with a2.
+		"review.wait": {1}, "review.flow": {1}, "review.work": {5}, "review.rework": {1}, "review.held": {5}, "review.skipped": {0},
+		"review.rounds": {2}, "review.first_agent": {1}, "review.first_human": {2},
+		"review.by_human": {1}, "review.by_agent": {1}, "review.by_both": {1},
 		// Merge: approved at 9, merged at 10.
 		"merge.flow": {1}, "merge.wait": {1}, "merge.rework": {0}, "merge.held": {1},
 		// Release: merged at 10, the deploy starts at 20 and is done at 20:30.
@@ -289,7 +299,7 @@ func TestStationsOfOneChange(t *testing.T) {
 	}
 
 	stays := map[string][2]float64{
-		"spec.queue": {-48, 1}, "code.queue": {1, 3}, "review.queue": {3, 5}, "merge.queue": {9, 10}, "release.queue": {10, 20.5},
+		"spec.queue": {-48, 1}, "code.queue": {1, 3}, "review.queue": {3, 4}, "merge.queue": {9, 10}, "release.queue": {10, 20.5},
 	}
 	for queue, w := range stays {
 		got := l.stays[queue]
@@ -1058,7 +1068,7 @@ func TestStatus(t *testing.T) {
 		line.Code:    {"measured", ""},
 		line.CI:      {"partial", "No CI run joined a change in acme/lib."},
 		line.Verify:  {"not_connected", "Fewer than 5 deployments to an environment that is not production were found on a commit of a change before it merged."},
-		line.Review:  {"measured", "No change in the store was reviewed by another person. A change that waits here may be waiting to merge."},
+		line.Review:  {"measured", "No review was seen on any change in the store. The time from ready to merge counts here, so a change that waits here may be waiting to merge."},
 		line.Merge:   {"measured", ""},
 		line.Release: {"partial", "No production deploy is in the store for acme/lib. Published releases stand in for production deploys in acme/app."},
 	}
@@ -1150,5 +1160,153 @@ func TestBacklogIsNotWaiting(t *testing.T) {
 	}
 	if len(l.stays["spec.queue"]) != 3 || !from[at(-3)] || !from[at(-10)] || !from[at(-4)] {
 		t.Errorf("spec.queue = %+v, want ENG-2 from -3, ENG-3 from -10 and ENG-5 from -4; ENG-1 in the backlog never", l.stays["spec.queue"])
+	}
+}
+
+// reviewBy adds a review or a comment from any account.
+func reviewBy(login, kind, via, body, state string, at time.Time) opt {
+	return func(c *record.Change) {
+		c.Reviews = append(c.Reviews, record.Review{Author: record.Actor{Login: login, Kind: kind}, State: state, SubmittedAt: at, Via: via, Body: body})
+	}
+}
+
+// oneChange builds a line of one change with the given builder options and
+// returns its streams.
+func oneChange(t *testing.T, human bool, c record.Change) *Line {
+	t.Helper()
+	b := NewBuilder(registry(t))
+	if human {
+		b.HumanReviewsOnly()
+	}
+	rb := b.Repo(RepoScope{Name: repo, From: end.Add(-26 * week), SyncedAt: end})
+	rb.Change(&c)
+	rb.Done()
+	return b.Line()
+}
+
+// Issue #45: every review counts, agents and people apart, and a change with
+// no review seen spends ready to merge at review.
+func TestReviewsByPeopleAndAgents(t *testing.T) {
+	t0 := end.Add(-3 * day)
+	at := func(hours float64) time.Time { return t0.Add(time.Duration(hours * float64(h))) }
+	get := func(l *Line, stream string) []float64 { return vals(l.obs[stream]) }
+	cases := []struct {
+		name  string
+		human bool
+		opts  []opt
+		want  map[string][]float64
+	}{
+		{
+			name: "no review seen: ready to merge is review time, merge waits for none of it",
+			opts: []opt{merged(at(4))},
+			want: map[string][]float64{"review.flow": {1}, "review.held": {4}, "review.skipped": {1}, "merge.wait": {0}, "merge.held": {0},
+				"review.wait": nil, "review.rounds": nil, "review.by_human": {0}, "review.by_agent": {0}},
+		},
+		{
+			name: "a review bot counts as a review by an agent",
+			opts: []opt{reviewBy("gemini-code-assist[bot]", record.ActorBot, "review", "", record.ReviewCommented, at(1)), merged(at(4))},
+			want: map[string][]float64{"review.wait": {1}, "review.skipped": {0}, "review.by_agent": {1}, "review.by_human": {0},
+				"review.first_agent": {1}, "review.first_human": nil, "merge.wait": {0}},
+		},
+		{
+			name: "an unknown bot account counts as an agent too",
+			opts: []opt{reviewBy("acme-review[bot]", record.ActorBot, "review", "", record.ReviewCommented, at(2)), merged(at(4))},
+			want: map[string][]float64{"review.skipped": {0}, "review.by_agent": {1}},
+		},
+		{
+			name: "the author's review with text is an agent working through the account",
+			opts: []opt{reviewBy("dev", record.ActorUser, "review", "## Review\nOne finding.", record.ReviewCommented, at(2)), merged(at(4))},
+			want: map[string][]float64{"review.skipped": {0}, "review.by_agent": {1}, "review.by_human": {0}},
+		},
+		{
+			name: "the author's reply to a thread is not a review",
+			opts: []opt{reviewBy("dev", record.ActorUser, "review", "", record.ReviewCommented, at(2)), merged(at(4))},
+			want: map[string][]float64{"review.skipped": {1}, "review.by_agent": {0}, "review.by_human": {0}},
+		},
+		{
+			name: "a comment counts only when a review signature matches it",
+			opts: []opt{
+				reviewBy("release-please[bot]", record.ActorBot, "comment", "Release 1.2.0", record.ReviewCommented, at(1)),
+				reviewBy("ana", record.ActorUser, "comment", "Looks good to me", record.ReviewCommented, at(1.5)),
+				reviewBy("claude[bot]", record.ActorBot, "comment", "## Code review\nNo issues.", record.ReviewCommented, at(3)),
+				merged(at(4)),
+			},
+			want: map[string][]float64{"review.wait": {3}, "review.by_agent": {1}, "review.by_human": {0}},
+		},
+		{
+			name:  "human reviews only: a change only agents reviewed has no review seen",
+			human: true,
+			opts:  []opt{reviewBy("gemini-code-assist[bot]", record.ActorBot, "review", "", record.ReviewCommented, at(1)), merged(at(4))},
+			want: map[string][]float64{"review.skipped": {1}, "review.wait": nil, "review.held": {4}, "merge.wait": {0},
+				"review.by_agent": {1}, "review.first_agent": {1}},
+		},
+		{
+			name:  "human reviews only: a person's review still counts",
+			human: true,
+			opts: []opt{reviewBy("gemini-code-assist[bot]", record.ActorBot, "review", "", record.ReviewCommented, at(1)),
+				review(record.ReviewApproved, at(2)), merged(at(4))},
+			want: map[string][]float64{"review.skipped": {0}, "review.wait": {2}, "review.by_both": {1}, "merge.wait": {2}},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := change(1, at(0), tc.opts...)
+			l := oneChange(t, tc.human, c)
+			for stream, w := range tc.want {
+				if got := get(l, stream); !same(got, w) {
+					t.Errorf("%s = %v, want %v", stream, got, w)
+				}
+			}
+		})
+	}
+}
+
+func TestReviewRounds(t *testing.T) {
+	t0 := end.Add(-3 * day)
+	at := func(hours float64) time.Time { return t0.Add(time.Duration(hours * float64(h))) }
+	rv := func(hs ...float64) []revLite {
+		var out []revLite
+		for _, x := range hs {
+			out = append(out, revLite{at: at(x)})
+		}
+		return out
+	}
+	cm := func(merge bool, hs ...float64) []commitLite {
+		var out []commitLite
+		for _, x := range hs {
+			out = append(out, commitLite{committed: at(x), merge: merge})
+		}
+		return out
+	}
+	cases := []struct {
+		name    string
+		reviews []revLite
+		commits []commitLite
+		want    int
+	}{
+		{"no review", nil, cm(false, 1), 0},
+		{"one review", rv(2), cm(false, 1), 1},
+		{"two reviews, no push between", rv(2, 3), cm(false, 1), 1},
+		{"review, fix, review", rv(2, 4), cm(false, 1, 3), 2},
+		{"review, fix, review, fix, review", rv(2, 4, 6), cm(false, 3, 5), 3},
+		{"a merge of the base is not a fix", rv(2, 4), cm(true, 3), 1},
+		{"a fix after the last review starts no round", rv(2), cm(false, 3), 1},
+	}
+	for _, tc := range cases {
+		if got := rounds(tc.reviews, tc.commits); got != tc.want {
+			t.Errorf("%s: rounds = %d, want %d", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestParseReviews(t *testing.T) {
+	for in, want := range map[string]bool{"": false, "all": false, "ALL": false, "human": true, " Human ": true} {
+		o, err := ParseReviews(in)
+		if err != nil || o.HumanReviewsOnly != want {
+			t.Errorf("%q: %+v, %v", in, o, err)
+		}
+	}
+	if _, err := ParseReviews("agents"); err == nil {
+		t.Error("agents was accepted")
 	}
 }

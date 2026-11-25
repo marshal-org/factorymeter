@@ -335,7 +335,12 @@ func (g gqlPR) toRecord(repo string) record.Change {
 		if r.SubmittedAt == nil || r.State == "PENDING" {
 			continue
 		}
-		c.Reviews = append(c.Reviews, record.Review{Author: recordActor(r.Author), State: strings.ToLower(r.State), SubmittedAt: r.SubmittedAt.UTC()})
+		c.Reviews = append(c.Reviews, record.Review{Author: recordActor(r.Author), State: strings.ToLower(r.State), SubmittedAt: r.SubmittedAt.UTC(),
+			Via: record.ReviewViaReview, Body: record.ReviewText(r.Body)})
+	}
+	for _, n := range g.Comments.Nodes {
+		c.Reviews = append(c.Reviews, record.Review{Author: recordActor(n.Author), State: record.ReviewCommented, SubmittedAt: n.CreatedAt.UTC(),
+			Via: record.ReviewViaComment, Body: record.ReviewText(n.Body)})
 	}
 	sort.SliceStable(c.Reviews, func(i, j int) bool { return c.Reviews[i].SubmittedAt.Before(c.Reviews[j].SubmittedAt) })
 	return c

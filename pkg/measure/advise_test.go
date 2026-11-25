@@ -541,17 +541,17 @@ func TestRulesAboutALineWithNoGate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// With no review a change waits at merge from the moment it is ready,
-	// always an hour. Merge is the constraint and never did better.
-	if got := fired(r); got != "merge.slow verify.missing merge.reverted code.abandoned" {
+	// With no review seen, a change spends its hour from ready to merge at
+	// review. Review is the constraint and never did better.
+	if got := fired(r); got != "review.slow verify.missing merge.reverted code.abandoned" {
 		t.Fatalf("fired: %s", got)
 	}
 	keeps(t, r)
 	if m := r.Recommendations[0]; num(m.HoursFreed) != "0" || !strings.Contains(m.Why, "A change is held 1.0 hours here on average, and no four weeks of the window did better.") {
-		t.Errorf("merge.slow: freed %s: %s", num(m.HoursFreed), m.Why)
+		t.Errorf("review.slow: freed %s: %s", num(m.HoursFreed), m.Why)
 	}
 	v := advice(t, r, "verify.missing")
-	if !strings.HasPrefix(v.Why, "100 percent of the changes merged in the window had no review by another person, and the store holds too few deployments") ||
+	if !strings.HasPrefix(v.Why, "100 percent of the changes merged in the window had no review seen, and the store holds too few deployments") ||
 		reads(v) != "review.skipped" || v.Confidence != contract.ConfidenceMedium || v.HoursFreed != nil {
 		t.Errorf("verify.missing: %s, %s: %s", v.Confidence, reads(v), v.Why)
 	}

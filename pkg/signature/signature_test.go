@@ -59,7 +59,7 @@ func TestFixturesClassifyAsRecorded(t *testing.T) {
 			if f.PR.URL == "" || !strings.HasPrefix(f.PR.URL, "https://github.com/") {
 				t.Errorf("the fixture does not name a real pull request: %q", f.PR.URL)
 			}
-			got := ExpectOf(reg.Classify(f.PR))
+			got := reg.ExpectFor(f.PR)
 			if !reflect.DeepEqual(got, f.Expect) {
 				t.Errorf("classification changed\n got: %+v\nwant: %+v", got, f.Expect)
 			}
@@ -75,6 +75,11 @@ func TestEverySignatureHasARealPullRequest(t *testing.T) {
 	for name, f := range loadFixtures(t) {
 		for _, m := range reg.Classify(f.PR).Matches {
 			hit[m.Signature] = append(hit[m.Signature], name)
+		}
+		for _, rv := range f.PR.Reviews {
+			for _, m := range reg.ClassifyReview(rv, f.PR.Author.Login).Matches {
+				hit[m.Signature] = append(hit[m.Signature], name)
+			}
 		}
 	}
 	for _, id := range reg.SignatureIDs() {
@@ -93,7 +98,17 @@ func TestFixtureSpread(t *testing.T) {
 	for _, f := range loadFixtures(t) {
 		res := reg.Classify(f.PR)
 		perClass[res.Class]++
+		seen := map[string]bool{}
 		for _, a := range res.Agents {
+			seen[a] = true
+		}
+		// A review agent never opens pull requests: the reviews it wrote count.
+		for _, rv := range f.PR.Reviews {
+			if a := reg.ClassifyReview(rv, f.PR.Author.Login).Agent; a != "" {
+				seen[a] = true
+			}
+		}
+		for a := range seen {
 			perAgent[a]++
 		}
 		if res.Class == ClassHuman && len(res.PossibleAgents) > 0 {
@@ -117,6 +132,7 @@ func TestFixtureSpread(t *testing.T) {
 
 // Fixtures live in a public repository. They must not carry personal emails.
 func TestFixturesCarryNoPersonalEmail(t *testing.T) {
+	reg := mustDefault(t)
 	for name, f := range loadFixtures(t) {
 		check := func(where, s string) {
 			for _, m := range bareEmailRe.FindAllString(s, -1) {
@@ -138,9 +154,68 @@ func TestFixturesCarryNoPersonalEmail(t *testing.T) {
 				check("a trailer", tr)
 			}
 		}
-		if f.PR.Title != "" || len(f.PR.Reviews) != 0 || len(f.PR.CIRuns) != 0 {
-			t.Errorf("%s: title, reviews or CI runs were kept", name)
+		if f.PR.Title != "" || len(f.PR.CIRuns) != 0 {
+			t.Errorf("%s: a title or CI runs were kept", name)
 		}
+		// A review keeps its text only when a review_body signature reads it;
+		// any other text is a placeholder that keeps it non-empty.
+		for _, rv := range f.PR.Reviews {
+			check("a review", rv.Body)
+			if rv.Body == "" || rv.Body == "[review text left out]" {
+				continue
+			}
+			body := false
+			for _, m := range reg.ClassifyReview(rv, f.PR.Author.Login).Matches {
+				body = body || m.Kind == KindReviewBody
+			}
+			if !body {
+				t.Errorf("%s: the text of a review by %s was kept, and no review_body signature reads it", name, rv.Author.Login)
+			}
+		}
+	}
+}
+
+// The review rules, one case each, independent of the recorded fixtures.
+func TestClassifyReviewRules(t *testing.T) {
+	reg := mustDefault(t)
+	user := func(l string) model.Actor { return model.Actor{Login: l, Type: "User"} }
+	bot := func(l string) model.Actor { return model.Actor{Login: l, Type: "Bot"} }
+	cases := []struct {
+		name  string
+		rv    model.Review
+		class ReviewClass
+		agent string
+		why   string
+	}{
+		{"another person", model.Review{Author: user("ana"), Via: "review"}, ReviewHuman, "", "person"},
+		{"another person, no text", model.Review{Author: user("ana")}, ReviewHuman, "", "person"},
+		{"a known review bot", model.Review{Author: bot("gemini-code-assist[bot]"), Via: "review"}, ReviewAgent, "gemini-code-assist", "signature"},
+		{"an unknown bot", model.Review{Author: bot("acme-reviewer[bot]"), Via: "review"}, ReviewAgent, "", "bot"},
+		{"the author, with text", model.Review{Author: user("dev"), Via: "review", Body: "## Review\nTwo findings."}, ReviewAgent, "", "self"},
+		{"the author, a thread reply", model.Review{Author: user("dev"), Via: "review"}, ReviewNone, "", "self"},
+		{"the author, with a Claude Code footer", model.Review{Author: user("dev"), Body: "Looks fine.\n\nGenerated with [Claude Code](https://claude.com/claude-code)"}, ReviewAgent, "claude-code", "signature"},
+		{"a person's comment with a Claude Code footer", model.Review{Author: user("ana"), Via: "comment", Body: "x\nGenerated with [Claude Code](https://claude.com/claude-code)"}, ReviewAgent, "claude-code", "signature"},
+		{"a comment by a release bot", model.Review{Author: bot("release-please[bot]"), Via: "comment", Body: "Release 1.2.0"}, ReviewNone, "", "comment"},
+		{"a comment by a person", model.Review{Author: user("ana"), Via: "comment", Body: "LGTM"}, ReviewNone, "", "comment"},
+		{"a deleted account", model.Review{Author: user("ghost")}, ReviewNone, "", "no account"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := reg.ClassifyReview(c.rv, "dev")
+			if got.Class != c.class || got.Agent != c.agent || got.Why != c.why {
+				t.Errorf("got %s/%s/%s, want %s/%s/%s", got.Class, got.Agent, got.Why, c.class, c.agent, c.why)
+			}
+		})
+	}
+}
+
+// A review signature never changes who wrote the pull request.
+func TestReviewSignaturesLeaveThePullRequestClassAlone(t *testing.T) {
+	reg := mustDefault(t)
+	pr := model.PR{Author: model.Actor{Login: "dev", Type: "User"}, Body: "fix",
+		Reviews: []model.Review{{Author: model.Actor{Login: "claude[bot]", Type: "Bot"}, Body: "Generated with [Claude Code](https://claude.com/claude-code)"}}}
+	if got := reg.Classify(pr).Class; got != ClassHuman {
+		t.Fatalf("class = %s, want human", got)
 	}
 }
 

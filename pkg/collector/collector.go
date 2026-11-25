@@ -15,6 +15,7 @@ import (
 
 	"github.com/marshal-org/factorymeter/pkg/github"
 	"github.com/marshal-org/factorymeter/pkg/model"
+	"github.com/marshal-org/factorymeter/pkg/record"
 	"github.com/marshal-org/factorymeter/pkg/signature"
 )
 
@@ -65,7 +66,8 @@ fragment PRFields on PullRequest {
       author { name email user { login } }
     } }
   }
-  reviews(first: 100) { nodes { state submittedAt author { __typename login } } }
+  reviews(first: 100) { nodes { state submittedAt body author { __typename login } } }
+  comments(first: 30) { nodes { createdAt body author { __typename login } } }
   timelineItems(first: 30, itemTypes: [READY_FOR_REVIEW_EVENT, CONVERT_TO_DRAFT_EVENT]) {
     nodes {
       __typename
@@ -156,9 +158,19 @@ type gqlPR struct {
 		Nodes []struct {
 			State       string     `json:"state"`
 			SubmittedAt *time.Time `json:"submittedAt"`
+			Body        string     `json:"body"`
 			Author      *gqlActor  `json:"author"`
 		} `json:"nodes"`
 	} `json:"reviews"`
+	// Comments are the first comments on the conversation. Some review tools
+	// write their review as a comment; the registry decides which ones count.
+	Comments struct {
+		Nodes []struct {
+			CreatedAt time.Time `json:"createdAt"`
+			Body      string    `json:"body"`
+			Author    *gqlActor `json:"author"`
+		} `json:"nodes"`
+	} `json:"comments"`
 	TimelineItems struct {
 		Nodes []struct {
 			Typename  string    `json:"__typename"`
@@ -215,7 +227,12 @@ func (g gqlPR) toModel(repo string) model.PR {
 		if r.SubmittedAt == nil || r.State == "PENDING" {
 			continue
 		}
-		pr.Reviews = append(pr.Reviews, model.Review{Author: actor(r.Author), State: r.State, SubmittedAt: *r.SubmittedAt})
+		pr.Reviews = append(pr.Reviews, model.Review{Author: actor(r.Author), State: r.State, SubmittedAt: *r.SubmittedAt,
+			Via: record.ReviewViaReview, Body: record.ReviewText(r.Body)})
+	}
+	for _, n := range g.Comments.Nodes {
+		pr.Reviews = append(pr.Reviews, model.Review{Author: actor(n.Author), State: "COMMENTED", SubmittedAt: n.CreatedAt,
+			Via: record.ReviewViaComment, Body: record.ReviewText(n.Body)})
 	}
 	sort.SliceStable(pr.Reviews, func(i, j int) bool { return pr.Reviews[i].SubmittedAt.Before(pr.Reviews[j].SubmittedAt) })
 	pr.ReadyAt = readyAt(g)

@@ -1,0 +1,84 @@
+{
+  "note": "The Claude Code GitHub Action reviewed it from claude[bot]",
+  "recorded": "2026-11-25",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "claude-code"
+    ],
+    "signatures": [
+      "claude-trailer",
+      "claude-body-footer"
+    ],
+    "reviews": [
+      {
+        "author": "claude[bot]",
+        "class": "agent",
+        "agent": "claude-code",
+        "why": "signature",
+        "signatures": [
+          "claude-reviewer"
+        ]
+      }
+    ]
+  },
+  "pr": {
+    "repo": "JinHongDu-Lab/crispyx",
+    "number": 74,
+    "url": "https://github.com/JinHongDu-Lab/crispyx/pull/74",
+    "author": {
+      "login": "jaydu1",
+      "type": "User"
+    },
+    "head_ref": "basic-tutorials",
+    "body": "[...] quickstart.rst`, `llms.txt` and `README.md`. Its docs URL stops resolving.\n\n## Coverage test\n\n`tests/test_tutorial_coverage.py` computes the names from the package (every `cx.pp`/`pb`/`tl`/`pl` method, plus every top-level name the namespaces do not wrap) and fails, naming the function, when one appears in no `basics_*.ipynb`. `plot_benchmark_comparison` is the one exclusion; a second test fails on an exclusion that is no longer needed.\n\n## Library fixes found while writing the notebooks\n\n- **`cx.detect_gene_symbol_column`** (and so `cx.infer_columns` and the hint in `cx.pp.check_data`) took any `var` column that did not look like Ensembl IDs for the gene symbols: `feature_types` on a file from `read_10x_mtx`, and a count or a flag as well. Only a text column whose values are mostly distinct is a candidate now.\n- **`cx.write_obs` / `cx.write_var`** failed with HDF5's \"already open for read-only\" when a `cx.AnnData` in the same process had the file open. Open wrappers are tracked in a weak set and the in-place table writer closes the ones on its file first; each reopens on its next access. This replaces `_close_backed`. A handle crispyx does not own (h5py, a backed anndata object) gives an error that says so.\n- **Progress bars of `highly_variable_genes` and `pca`** ignored `TQDM_DISABLE`, which silences every other crispyx bar: they are drawn through the shared helper now. They are plain tqdm bars where they were notebook widgets.\n\n## Other docs\n\n- `quality_control.rst` documents `cx.pp.subsample`, which was on no guide page.\n- The README no longer says crispyx starts from an `.h5ad` file only.\n\n## Verification\n\n- The three notebooks were executed from empty output folders: no error, no warning banner, no machine path in any output. They render in a Sphinx build with all figures and no broken local link.\n- Full suite: 1,198 passed on the default environment and on Python 3.12 pinned to CI's versions.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+    "state": "MERGED",
+    "created_at": "2026-11-25T00:00:00Z",
+    "updated_at": "2026-11-25T00:00:00Z",
+    "commit_count": 2,
+    "commits": [
+      {
+        "sha": "db5aaa495dbcfb80d2c69c7f6b71264e4691bcb2",
+        "authored_at": "2026-11-25T00:00:00Z",
+        "committed_at": "2026-11-25T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "jaydu1",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>"
+        ]
+      },
+      {
+        "sha": "bcf52dffec872e1bea6a5bff3045fcf3de0cbfbc",
+        "authored_at": "2026-11-25T00:00:00Z",
+        "committed_at": "2026-11-25T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "jaydu1",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>"
+        ]
+      }
+    ],
+    "reviews": [
+      {
+        "author": {
+          "login": "claude[bot]",
+          "type": "Bot"
+        },
+        "state": "COMMENTED",
+        "submitted_at": "2026-11-25T00:00:00Z",
+        "via": "review",
+        "body": "[review text left out]"
+      }
+    ]
+  }
+}

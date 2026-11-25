@@ -41,16 +41,47 @@ func InTarget(name, target string, only []string) bool {
 	return false
 }
 
+// LoadOptions tune how records become a line.
+type LoadOptions struct {
+	// HumanReviewsOnly counts only reviews by people at the review station.
+	// Agent reviews still show in who reviewed a change.
+	HumanReviewsOnly bool
+}
+
+// ParseReviews reads the reviews option: "all" (the default) or "human".
+func ParseReviews(v string) (LoadOptions, error) {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "", "all":
+		return LoadOptions{}, nil
+	case "human":
+		return LoadOptions{HumanReviewsOnly: true}, nil
+	}
+	return LoadOptions{}, fmt.Errorf("reviews must be all or human, got %q", v)
+}
+
 // LoadOnly is Load for an owner narrowed to some of its repositories, each
 // owner/repo. An empty only reads every repository of the store.
 func LoadOnly(s *store.Store, reg *signature.Registry, target string, only []string) (*Line, error) {
 	return LoadFrom(StoreSource(s), reg, target, only)
 }
 
+// LoadOnlyWith is LoadOnly with options.
+func LoadOnlyWith(s *store.Store, reg *signature.Registry, target string, only []string, o LoadOptions) (*Line, error) {
+	return LoadFromWith(StoreSource(s), reg, target, only, o)
+}
+
 // LoadFrom is LoadOnly for any Source of records, not only the store of the
 // command line.
 func LoadFrom(src Source, reg *signature.Registry, target string, only []string) (*Line, error) {
+	return LoadFromWith(src, reg, target, only, LoadOptions{})
+}
+
+// LoadFromWith is LoadFrom with options.
+func LoadFromWith(src Source, reg *signature.Registry, target string, only []string, o LoadOptions) (*Line, error) {
 	b := NewBuilder(reg)
+	if o.HumanReviewsOnly {
+		b.HumanReviewsOnly()
+	}
 	// A line of part of the owner counts only the tickets tied to its
 	// changes, as a line of one repository does.
 	one := strings.Contains(target, "/") || len(only) > 0

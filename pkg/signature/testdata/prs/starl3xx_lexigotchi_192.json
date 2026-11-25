@@ -1,0 +1,103 @@
+{
+  "note": "Cursor Bugbot reviewed it",
+  "recorded": "2026-11-25",
+  "expect": {
+    "class": "agent",
+    "agents": [
+      "claude-code"
+    ],
+    "signatures": [
+      "claude-trailer",
+      "claude-body-footer"
+    ],
+    "reviews": [
+      {
+        "author": "cursor[bot]",
+        "class": "agent",
+        "agent": "cursor",
+        "why": "signature",
+        "signatures": [
+          "cursor-bugbot"
+        ]
+      },
+      {
+        "author": "cursor[bot]",
+        "class": "agent",
+        "agent": "cursor",
+        "why": "signature",
+        "signatures": [
+          "cursor-bugbot"
+        ]
+      }
+    ]
+  },
+  "pr": {
+    "repo": "starl3xx/lexigotchi",
+    "number": 192,
+    "url": "https://github.com/starl3xx/lexigotchi/pull/192",
+    "author": {
+      "login": "starl3xx",
+      "type": "User"
+    },
+    "head_ref": "feat/bag-for-sale-sort",
+    "body": "[...] listed words go last,\n │                              mood \"forSale\": \"STORE is for sale in the Market.\" + [See it in the Market]\n └─ WordCard                    \"for sale · 2.50M\" in place of \"unstaked\"\nBag (bagView.ts, pure)\n ├─ words   chips: All · Staked · Not staked · Earning · Needs food · For sale   (with counts; empty ones hidden)\n │          sort:  Best first · Hungriest first · Rarest first · A to Z\n └─ letters sort:  A to Z · Most first\n            remembered per browser (useStoredChoice; storage errors just don't remember)\n```\n\nThe run-lexigotchi driver's `--goto` now clicks the first visible tab. It used to find none and silently screenshot Today.\n\n## Evidence\n\n- **Before (starl3xx's screenshots):** \"STORE isn't staked. Stake it…\" in Next steps while STORE was for sale. The Bag showed STORE as \"unstaked\", and the Bag had no sort or filter.\n- **After,** on Sepolia with one word listed (ALIVE) and one not (CHILE), 0 console errors:\n  - Today: CHILE takes the stage (\"Stake CHILE\"), and ALIVE sits in the lineup marked \"for sale\".\n  - Bag: chips \"All 2 · Not staked 1 · For sale 1\" and Sort. ALIVE shows \"for sale · 2.50M\". The For sale chip shows only ALIVE.\n  - The test words were cancelled and dissolved afterwards, so testers can claim them.\n- `npm test`: 81 files, 850 tests pass. New tests: `tests/bag-view.test.ts` (every filter, sort, and stored-choice rule), Next steps for a listed word, and the stage's for-sale ordering and line. tsc and lint are clean.\n\n## Merge Danger\n\n**Door:** two-way\n\n**Blast Radius:** Today, Bag\n\n## Tester note (qol)\n\n**Your bag sorts and filters, and words for sale say so.** Filter your words (staked, not staked, earning, needs food, for sale) and sort them (best, hungriest, rarest, A to Z), and sort your letters A to Z or most first. A word you're selling now shows \"for sale\" and its price, and Today no longer asks you to stake it.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+    "state": "MERGED",
+    "created_at": "2026-11-25T00:00:00Z",
+    "updated_at": "2026-11-25T00:00:00Z",
+    "commit_count": 2,
+    "commits": [
+      {
+        "sha": "711c3d5887dd5890595448ab05b66d832a401cab",
+        "authored_at": "2026-11-25T00:00:00Z",
+        "committed_at": "2026-11-25T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "starl3xx",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+        ]
+      },
+      {
+        "sha": "a668e79c62659366aa8df11f61e05483e4ad4717",
+        "authored_at": "2026-11-25T00:00:00Z",
+        "committed_at": "2026-11-25T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "starl3xx",
+            "email": "redacted@example.invalid"
+          }
+        ],
+        "trailers": [
+          "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+        ]
+      }
+    ],
+    "reviews": [
+      {
+        "author": {
+          "login": "cursor[bot]",
+          "type": "Bot"
+        },
+        "state": "COMMENTED",
+        "submitted_at": "2026-11-25T00:00:00Z",
+        "via": "comment",
+        "body": "[review text left out]"
+      },
+      {
+        "author": {
+          "login": "cursor[bot]",
+          "type": "Bot"
+        },
+        "state": "COMMENTED",
+        "submitted_at": "2026-11-25T00:00:00Z",
+        "via": "review",
+        "body": "[review text left out]"
+      }
+    ]
+  }
+}
