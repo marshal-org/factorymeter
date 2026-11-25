@@ -48,7 +48,7 @@
 **Independent Test**: G-003, G-002.
 
 - [x] T017 [US2] G-003: write TestSegmentReviewModes with a change reviewed only by an agent, in both modes, from one merged line (pkg/measure/segment_modes_test.go)
-- [ ] T018 [US2] FR-004 FR-005 G-003: make the parity tests run in both modes, and make the merged line expose the view (pkg/measure/merge.go, pkg/measure/segment_parity_test.go)
+- [x] T018 [US2] FR-004 FR-005 G-003: make the parity tests run in both modes, and make the merged line expose the view (pkg/measure/merge.go, pkg/measure/segment_parity_test.go)
 
 **Checkpoint**: US1 and US2 pass their rows.
 
@@ -61,7 +61,7 @@
 - [x] T019 [P] [US3] G-007: write TestSegmentVersionsAndRefusals for mixed format, engine and digest, an empty list, a repeated repository and week in any case, and disagreeing repository facts (pkg/measure/segment_refuse_test.go)
 - [x] T020 [P] [US3] G-008: write TestSegmentHostileBytes with truncations, flipped bytes, huge counts, out of range indexes and a compression bomb, asserting an error, no panic and bounded allocation (pkg/measure/segment_hostile_test.go)
 - [x] T021 [P] [US3] G-009: write TestSegmentBytesAreStable, cutting twice (pkg/measure/segment_codec_test.go)
-- [ ] T022 [US3] FR-009 FR-010 G-007 G-008: add the version checks, the count and index checks and the decompressed size caps (pkg/measure/segment_codec.go, pkg/measure/merge.go)
+- [x] T022 [US3] FR-009 FR-010 G-007 G-008: add the version checks, the count and index checks and the decompressed size caps (pkg/measure/segment_codec.go, pkg/measure/merge.go)
 
 **Checkpoint**: US1 to US3 pass their rows.
 
