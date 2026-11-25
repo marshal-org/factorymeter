@@ -114,6 +114,9 @@ type Line struct {
 	// people when the line was built, and engine the version of the engine.
 	digest string
 	engine int
+
+	// cuts says which parts belong to which repository and week, see Segment.
+	cuts *cutCache
 }
 
 // ticketSource is what the report says about a ticket system that is not a

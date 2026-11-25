@@ -215,6 +215,7 @@ func canonicalize(l *Line) {
 		l.tickets[i].synced = l.tickets[i].synced.UTC()
 	}
 	l.obsPart, l.stayPart = map[string]*parts[obs]{}, map[string]*parts[stay]{}
+	l.cuts = &cutCache{}
 }
 
 func itemCmp(a, b *item) int {

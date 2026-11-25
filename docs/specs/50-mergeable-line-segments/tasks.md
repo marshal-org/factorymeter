@@ -8,7 +8,7 @@
 
 **Purpose**: the dependency every story needs
 
-- [ ] T001 FR-008 G-015: make the zstd package a direct dependency and keep the module files tidy (go.mod, go.sum)
+- [x] T001 FR-008 G-015: make the zstd package a direct dependency and keep the module files tidy (go.mod, go.sum)
 
 ## Phase 2: Foundational
 
@@ -31,13 +31,13 @@
 
 **Independent Test**: G-001, G-004, G-005, G-006.
 
-- [ ] T010 [P] [US1] G-001: write TestSegmentParityScenarios, which cuts every segment of each existing scenario without its tickets, merges them and compares the marshalled report and drills with the full load of the same records (pkg/measure/segment_parity_test.go)
+- [x] T010 [P] [US1] G-001: write TestSegmentParityScenarios, which cuts every segment of each existing scenario without its tickets, merges them and compares the marshalled report and drills with the full load of the same records (pkg/measure/segment_parity_test.go)
 - [ ] T011 [P] [US1] G-004: write TestMergeOrderChangesNothing, with shuffled segment orders (pkg/measure/segment_order_test.go)
 - [ ] T012 [P] [US1] G-005: write TestTiesAreTotal, with equal timestamps built by hand in reviews, runs, deploys, items and changes, loaded and merged in different orders (pkg/measure/segment_ties_test.go)
 - [ ] T013 [P] [US1] G-006: write TestSegmentWeeksAndFigures: creation week, deploy week, a change that spans weeks, any instant in a week, empty weeks, a repository with no data, a repeated week refused, per-repository coverage on a subset merge, a line with tickets cut without them (pkg/measure/segment_weeks_test.go)
-- [ ] T014 [US1] G-001: write the segment encoding and decoding, with the header, the string table, exact nanosecond times, a fixed zstd level and local indexes (pkg/measure/segment_codec.go)
-- [ ] T015 [US1] FR-001 FR-006 G-006: add Weeks, which lists the weeks a repository has data in, and Segment, which cuts one repository and one week and partitions the line without overlap or loss (pkg/measure/segment.go)
-- [ ] T016 [US1] FR-002 FR-003 G-001: add Merge, which unions the tables, remaps indexes, adds the figures, checks the repository facts and ends in the canonical pass (pkg/measure/merge.go)
+- [x] T014 [US1] G-001: write the segment encoding and decoding, with the header, the string table, exact nanosecond times, a fixed zstd level and local indexes (pkg/measure/segment_codec.go)
+- [x] T015 [US1] FR-001 FR-006 G-006: add Weeks, which lists the weeks a repository has data in, and Segment, which cuts one repository and one week and partitions the line without overlap or loss (pkg/measure/segment.go)
+- [x] T016 [US1] FR-002 FR-003 G-001: add Merge, which unions the tables, remaps indexes, adds the figures, checks the repository facts and ends in the canonical pass (pkg/measure/merge.go)
 
 **Checkpoint**: US1 works alone and passes G-001, G-004, G-005 and G-006.
 
