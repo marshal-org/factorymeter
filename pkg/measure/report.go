@@ -348,7 +348,7 @@ func (l *Line) status(summary bool) map[string]stationState {
 	}
 	out[line.Code], out[line.Review], out[line.Merge] = changes, changes, changes
 	if len(with) > 0 && len(l.obs["review.wait"]) == 0 {
-		out[line.Review] = stationState{contract.StatusMeasured, "No change in the store was reviewed by another person. A change that waits here may be waiting to merge."}
+		out[line.Review] = stationState{contract.StatusMeasured, "No review was seen on any change in the store. The time from ready to merge counts here, so a change that waits here may be waiting to merge."}
 	}
 
 	out[line.Spec] = stationState{status: contract.StatusMeasured}
@@ -575,6 +575,9 @@ func (l *Line) Report(o Options) (*contract.Report, error) {
 	rep.Recommendations = l.advise(o, w, status, whole, rep.Verdict.Constraint)
 
 	rep.Coverage, limits = l.coverage(o, w, status, limits)
+	if l.humanReviewsOnly {
+		limits = append(limits, "Only reviews by people count at the review station. Agent reviews show only in who reviewed a change, and a change only agents reviewed counts as one with no review seen.")
+	}
 	rep.Limits = limits
 	return rep, nil
 }

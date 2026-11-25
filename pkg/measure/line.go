@@ -59,6 +59,9 @@ type Line struct {
 	flowRuns []flowRun
 	// tickets holds the ticket systems that are not repositories.
 	tickets []ticketSource
+	// humanReviewsOnly counts only reviews by people at the review station.
+	// Agent reviews still feed the shares of who reviewed.
+	humanReviewsOnly bool
 
 	obsPart  map[string]*parts[obs]
 	stayPart map[string]*parts[stay]
@@ -169,6 +172,10 @@ type Builder struct {
 	flowIdx map[flow]int32
 }
 
+// HumanReviewsOnly makes the review station count only reviews by people. A
+// change that only agents reviewed then reads as one with no review seen.
+func (b *Builder) HumanReviewsOnly() { b.l.humanReviewsOnly = true }
+
 // NewBuilder starts an empty line. reg tells agents from people.
 func NewBuilder(reg *signature.Registry) *Builder {
 	return &Builder{
@@ -251,6 +258,7 @@ const (
 type revLite struct {
 	at    time.Time
 	state int8
+	agent bool
 }
 
 type runLite struct {
@@ -285,7 +293,7 @@ type chg struct {
 	size     int
 	base     string
 	commits  []commitLite
-	reviews  []revLite // by another person, oldest first
+	reviews  []revLite // every review, by a person or an agent, oldest first
 	reverted bool
 	rounds   map[string]*round
 	vdeps    []vdep
@@ -369,11 +377,34 @@ func Classify(reg *signature.Registry, c *record.Change) (class string, agent st
 // another: "Reverts owner/repo#12".
 var reverts = regexp.MustCompile(`(?mi)^\s*Reverts\s+(?:([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+))?#(\d+)\b`)
 
-// another reports whether a review was written by a person other than the
-// author.
-func another(r *record.Review, author string) bool {
-	login := strings.ToLower(r.Author.Login)
-	return r.Author.Kind != record.ActorBot && login != "" && login != "ghost" && login != strings.ToLower(author)
+// reviewer says who wrote one review of a change whose author is author: a
+// person, an agent, or nobody (it is not a review). See
+// signature.ClassifyReview for the rules.
+func (b *Builder) reviewer(r *record.Review, author string) signature.ReviewClass {
+	rv := model.Review{Author: model.Actor{Login: r.Author.Login, Type: "User"}, State: r.State, Via: r.Via, Body: r.Body}
+	if r.Author.Kind == record.ActorBot {
+		rv.Author.Type = "Bot"
+	}
+	return b.reg.ClassifyReview(rv, author).Class
+}
+
+// rounds counts the rounds of review of a change: runs of reviews, each
+// closed by a fix, a new commit that is not a merge, pushed before the next
+// review. One review, or reviews with no push between them, is one round.
+func rounds(reviews []revLite, commits []commitLite) int {
+	if len(reviews) == 0 {
+		return 0
+	}
+	n := 1
+	for i := 1; i < len(reviews); i++ {
+		for _, m := range commits {
+			if !m.merge && m.committed.After(reviews[i-1].at) && !m.committed.After(reviews[i].at) {
+				n++
+				break
+			}
+		}
+	}
+	return n
 }
 
 func val(t *time.Time) time.Time {
@@ -425,11 +456,12 @@ func (r *RepoBuilder) Change(c *record.Change) {
 	}
 	for i := range c.Reviews {
 		v := &c.Reviews[i]
-		if !another(v, c.Author.Login) {
-			continue
-		}
 		// A review after the merge or the close says nothing about the line.
 		if end := val(c.ClosedAt); !end.IsZero() && v.SubmittedAt.After(end) {
+			continue
+		}
+		who := b.reviewer(v, c.Author.Login)
+		if who == signature.ReviewNone {
 			continue
 		}
 		st := revCommented
@@ -439,7 +471,7 @@ func (r *RepoBuilder) Change(c *record.Change) {
 		case record.ReviewChangesRequested:
 			st = revChanges
 		}
-		x.reviews = append(x.reviews, revLite{at: v.SubmittedAt, state: st})
+		x.reviews = append(x.reviews, revLite{at: v.SubmittedAt, state: st, agent: who == signature.ReviewAgent})
 	}
 	sort.SliceStable(x.reviews, func(i, j int) bool { return x.reviews[i].at.Before(x.reviews[j].at) })
 	if !x.merged.IsZero() {
@@ -788,17 +820,50 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 	}
 	l.stand("code.queue", c.created, draftEnd, k, c.item)
 
-	// Review.
+	// Review. A review counts whoever wrote it, a person or an agent
+	// (signature.ClassifyReview). With human reviews only, agent reviews do
+	// not make a change reviewed; they still feed who reviewed it.
 	end := c.closed // zero while the change is open
-	reviewed := len(c.reviews) > 0
+	counted := c.reviews
+	if l.humanReviewsOnly {
+		counted = make([]revLite, 0, len(c.reviews))
+		for _, v := range c.reviews {
+			if !v.agent {
+				counted = append(counted, v)
+			}
+		}
+	}
+	reviewed := len(counted) > 0
+	arrive := c.ready
+	if arrive.IsZero() {
+		arrive = c.created
+	}
 	var first, leave time.Time
 	if reviewed {
-		first = c.reviews[0].at
+		first = counted[0].at
 		wait := 0.0
 		if !c.ready.IsZero() {
 			wait = hours(first.Sub(c.ready))
 		}
 		l.add("review.wait", first, wait, k, c.item)
+	}
+	// The first review by an agent and by a person, apart, whatever counts.
+	for _, agent := range []bool{true, false} {
+		for _, v := range c.reviews {
+			if v.agent != agent {
+				continue
+			}
+			wait := 0.0
+			if v.at.After(arrive) {
+				wait = hours(v.at.Sub(arrive))
+			}
+			stream := "review.first_human"
+			if agent {
+				stream = "review.first_agent"
+			}
+			l.add(stream, v.at, wait, k, c.item)
+			break
+		}
 	}
 	if !c.ready.IsZero() {
 		until := end
@@ -807,36 +872,49 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 		}
 		l.stand("review.queue", c.ready, until, k, c.item)
 	}
-	arrive := c.ready
-	if arrive.IsZero() {
-		arrive = c.created
-	}
-	if !c.merged.IsZero() && reviewed {
-		leave = c.merged
-		sentBack := false
-		for _, v := range c.reviews {
-			if v.state == revApproved {
-				leave = v.at
+	if !c.merged.IsZero() {
+		if reviewed {
+			leave = c.merged
+			sentBack := false
+			for _, v := range counted {
+				if v.state == revApproved {
+					leave = v.at
+				}
+				sentBack = sentBack || v.state == revChanges
 			}
-			sentBack = sentBack || v.state == revChanges
-		}
-		for _, m := range c.commits {
-			sentBack = sentBack || (!m.merge && m.committed.After(first))
+			for _, m := range c.commits {
+				sentBack = sentBack || (!m.merge && m.committed.After(first))
+			}
+			l.add("review.work", leave, hours(leave.Sub(first)), k, c.item)
+			l.hit("review.rework", leave, sentBack, k, c.item)
+			l.add("review.rounds", leave, float64(rounds(counted, c.commits)), k, c.item)
+		} else {
+			// No review seen: review may have happened where the code host
+			// cannot see it. The time from ready to the merge is review time,
+			// and merge gets none of it. review.skipped says how much of the
+			// station this is.
+			leave = c.merged
 		}
 		l.add("review.flow", leave, 1, k, c.item)
-		l.add("review.work", leave, hours(leave.Sub(first)), k, c.item)
-		l.hit("review.rework", leave, sentBack, k, c.item)
 		l.add("review.held", leave, stood(arrive, leave), k, c.item)
+		human, agent := false, false
+		for _, v := range c.reviews {
+			human = human || !v.agent
+			agent = agent || v.agent
+		}
+		l.hit("review.by_human", c.merged, human, k, c.item)
+		l.hit("review.by_agent", c.merged, agent, k, c.item)
+		l.hit("review.by_both", c.merged, human && agent, k, c.item)
 	}
 
 	// Merge. Every approval opens a stay in the queue that lasts until the
 	// next approval, a request for changes or the end of the change.
-	for i, v := range c.reviews {
+	for i, v := range counted {
 		if v.state != revApproved {
 			continue
 		}
 		until := end
-		for _, w := range c.reviews[i+1:] {
+		for _, w := range counted[i+1:] {
 			if w.state != revCommented {
 				until = w.at
 				break
@@ -845,10 +923,7 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 		l.stand("merge.queue", v.at, until, k, c.item)
 	}
 	if !c.merged.IsZero() {
-		at := arrive
-		if reviewed {
-			at = leave
-		}
+		at := leave
 		if at.After(c.merged) {
 			at = c.merged
 		}

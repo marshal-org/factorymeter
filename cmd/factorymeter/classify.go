@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/marshal-org/factorymeter/pkg/collector"
+	"github.com/marshal-org/factorymeter/pkg/model"
 	"github.com/marshal-org/factorymeter/pkg/signature"
 )
 
@@ -59,9 +60,9 @@ the fixture states what the right answer is.`,
 					printResult(pr.URL, pr.Author.Login, pr.HeadRef, res)
 				}
 				if record != "" {
-					red := signature.Redact(pr)
-					fx := signature.Fixture{Note: note, Recorded: time.Now().UTC().Format("2006-01-02"), Expect: signature.ExpectOf(reg.Classify(red)), PR: red}
-					if got, want := fmt.Sprint(fx.Expect), fmt.Sprint(signature.ExpectOf(res)); got != want {
+					red := reg.RedactWith(pr)
+					fx := signature.Fixture{Note: note, Recorded: time.Now().UTC().Format("2006-01-02"), Expect: reg.ExpectFor(red), PR: red}
+					if got, want := fmt.Sprint(fx.Expect.Class, fx.Expect.Agents, fx.Expect.Signatures, fx.Expect.Reviews), fmt.Sprint(reg.ExpectFor(pr).Class, reg.ExpectFor(pr).Agents, reg.ExpectFor(pr).Signatures, keptReviews(reg, pr)); got != want {
 						return fmt.Errorf("%s: redaction changed the result (%s, was %s). The fixture would not prove the signature", pr.URL, got, want)
 					}
 					name := strings.NewReplacer("/", "_", ".", "-").Replace(repo) + fmt.Sprintf("_%d.json", number)
@@ -160,4 +161,17 @@ func signaturesCmd() *cobra.Command {
 		},
 	})
 	return cmd
+}
+
+// keptReviews is the review expectation of the reviews a fixture keeps, read
+// from the pull request before redaction: redaction must not change it.
+func keptReviews(reg *signature.Registry, pr model.PR) []signature.ReviewExpect {
+	var out []signature.ReviewExpect
+	for _, x := range reg.ExpectFor(pr).Reviews {
+		if x.Class == signature.ReviewNone && len(x.Signatures) == 0 {
+			continue
+		}
+		out = append(out, x)
+	}
+	return out
 }

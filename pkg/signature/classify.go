@@ -180,3 +180,93 @@ func isTrailer(line string) bool {
 	}
 	return true
 }
+
+// ReviewClass is who wrote one review.
+type ReviewClass string
+
+const (
+	// ReviewAgent is a review an agent wrote.
+	ReviewAgent ReviewClass = "agent"
+	// ReviewHuman is a review a person other than the author wrote.
+	ReviewHuman ReviewClass = "human"
+	// ReviewNone is not a review: an empty reply by the author to a review
+	// thread, a comment no review signature matches, or a deleted account.
+	ReviewNone ReviewClass = "none"
+)
+
+// ReviewResult is the classification of one review.
+type ReviewResult struct {
+	Class ReviewClass `json:"class"`
+	// Agent is the registry agent that wrote it, when a signature names one.
+	// A bot account with no signature is an agent review with no agent.
+	Agent string `json:"agent,omitempty"`
+	// Why says which rule decided: bot, signature, self or person.
+	Why     string  `json:"why"`
+	Matches []Match `json:"matches,omitempty"`
+}
+
+// ClassifyReview decides who wrote one review of a pull request whose author
+// is prAuthor. The rules, in order:
+//
+//  1. A review signature (review_author_login, review_body) at medium or
+//     high: an agent review by that agent. This is the only way a comment on
+//     the conversation counts.
+//  2. A comment no signature matches: not a review.
+//  3. A bot account: an agent review.
+//  4. The pull request's own author: an agent review when it has text (an
+//     agent working through the author's account writes findings), else not
+//     a review (a reply to a review thread has no text of its own).
+//  5. Anyone else: a human review.
+func (r *Registry) ClassifyReview(rv model.Review, prAuthor string) ReviewResult {
+	login := strings.ToLower(rv.Author.Login)
+	if login == "" || login == "ghost" {
+		return ReviewResult{Class: ReviewNone, Why: "no account"}
+	}
+	var res ReviewResult
+	for ai := range r.Agents {
+		a := &r.Agents[ai]
+		for si := range a.Signatures {
+			s := &a.Signatures[si]
+			var v string
+			switch s.Kind {
+			case KindReviewAuthorLogin:
+				v = rv.Author.Login
+			case KindReviewBody:
+				v = rv.Body
+			default:
+				continue
+			}
+			m, ok := "", false
+			if s.re != nil {
+				m = s.re.FindString(v)
+				ok = m != ""
+			} else if s.matches(v) {
+				m, ok = v, true
+			}
+			if !ok {
+				continue
+			}
+			res.Matches = append(res.Matches, Match{Agent: a.ID, Signature: s.ID, Kind: s.Kind, Confidence: s.Confidence, Value: clip(m, 120)})
+			if res.Agent == "" && s.Confidence.Rank() >= Medium.Rank() {
+				res.Agent = a.ID
+			}
+		}
+	}
+	switch {
+	case res.Agent != "":
+		res.Class, res.Why = ReviewAgent, "signature"
+	case rv.Via == "comment":
+		res.Class, res.Why = ReviewNone, "comment"
+	case rv.Author.IsBot():
+		res.Class, res.Why = ReviewAgent, "bot"
+	case strings.EqualFold(rv.Author.Login, prAuthor):
+		if strings.TrimSpace(rv.Body) != "" {
+			res.Class, res.Why = ReviewAgent, "self"
+		} else {
+			res.Class, res.Why = ReviewNone, "self"
+		}
+	default:
+		res.Class, res.Why = ReviewHuman, "person"
+	}
+	return res
+}

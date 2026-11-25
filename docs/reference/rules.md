@@ -99,7 +99,7 @@ A report says where to invest. Every recommendation in it comes from one of the 
 
 <a id="rule-verify-missing"></a>Rule `verify.missing`. Station: Verify.
 
-- Fires when: The verify station is not connected, and at least 50 percent of the changes merged in the window had no review by another person.
+- Fires when: The verify station is not connected, and at least 50 percent of the changes merged in the window had no review seen.
 - Reads: `review.skipped`.
 - Hours freed: not sized.
 - Practice: [agents prove their work](https://thesoftwarefactory.site/playbook/agents-prove-their-work/)
@@ -143,7 +143,7 @@ A report says where to invest. Every recommendation in it comes from one of the 
 
 <a id="rule-review-queue-growing"></a>Rule `review.queue-growing`. Station: Review.
 
-- Fires when: At least 5 changes wait for a first review at the end of the window, and the trend of the queue is worse: it is longer than at the end of the window before by more than the report calls flat. The rule is silent when no change in the store was ever reviewed by another person.
+- Fires when: At least 5 changes wait for a first review at the end of the window, and the trend of the queue is worse: it is longer than at the end of the window before by more than the report calls flat. The rule is silent when no change in the store was ever reviewed.
 - Reads: `review.queue`, `review.queue.oldest`, `review.wait.p50`.
 - Hours freed: not sized.
 - Practice: [trust is earned with evidence](https://thesoftwarefactory.site/playbook/trust-is-earned-with-evidence/)

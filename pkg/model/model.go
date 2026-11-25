@@ -43,6 +43,11 @@ type Review struct {
 	Author      Actor     `json:"author"`
 	State       string    `json:"state"` // APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED
 	SubmittedAt time.Time `json:"submitted_at"`
+	// Via is "review" for a submitted review and "comment" for a comment on
+	// the conversation. Empty means a review.
+	Via string `json:"via,omitempty"`
+	// Body is the text, cut to its start and its end (record.ReviewText).
+	Body string `json:"body,omitempty"`
 }
 
 // CIRun is one GitHub Actions workflow run that ran on a commit of the pull

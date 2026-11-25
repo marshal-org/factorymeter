@@ -25,13 +25,40 @@ type Expect struct {
 	PossibleAgents []string `json:"possible_agents,omitempty"`
 	// Signatures lists every signature id that must fire, in registry order.
 	Signatures []string `json:"signatures,omitempty"`
+	// Reviews is the class of every review the fixture keeps, in order.
+	Reviews []ReviewExpect `json:"reviews,omitempty"`
 }
 
-// ExpectOf turns a result into the expectation stored in a fixture.
+// ReviewExpect is the classification one review of a fixture must keep.
+type ReviewExpect struct {
+	Author     string      `json:"author"`
+	Class      ReviewClass `json:"class"`
+	Agent      string      `json:"agent,omitempty"`
+	Why        string      `json:"why"`
+	Signatures []string    `json:"signatures,omitempty"`
+}
+
+// ExpectOf turns a result into the expectation stored in a fixture. It does
+// not cover reviews; ExpectFor does.
 func ExpectOf(r Result) Expect {
 	e := Expect{Class: r.Class, Agents: r.Agents, PossibleAgents: r.PossibleAgents}
 	for _, m := range r.Matches {
 		e.Signatures = append(e.Signatures, m.Signature)
+	}
+	return e
+}
+
+// ExpectFor is the whole expectation of a pull request: its class and the
+// class of each of its reviews.
+func (r *Registry) ExpectFor(pr model.PR) Expect {
+	e := ExpectOf(r.Classify(pr))
+	for _, rv := range pr.Reviews {
+		res := r.ClassifyReview(rv, pr.Author.Login)
+		x := ReviewExpect{Author: rv.Author.Login, Class: res.Class, Agent: res.Agent, Why: res.Why}
+		for _, m := range res.Matches {
+			x.Signatures = append(x.Signatures, m.Signature)
+		}
+		e.Reviews = append(e.Reviews, x)
 	}
 	return e
 }
@@ -85,9 +112,31 @@ func keepEmail(local, domain string) bool {
 }
 
 // Redact strips a pull request down to what classification needs before it is
-// stored in the repository. It drops the title, reviews, CI runs, commit author
-// names and personal emails, and keeps only the end of the description.
+// stored in the repository. It drops the title, CI runs, commit author names
+// and personal emails, and keeps only the end of the description. Of the
+// reviews it keeps the ones that count (agent or human) and the ones a review
+// signature matches; the text of a review stays only when a review_body
+// signature reads it, else it becomes a placeholder that keeps it non-empty.
 func Redact(pr model.PR) model.PR {
+	return redact(pr, nil)
+}
+
+// RedactWith is Redact with the registry, so it can keep the reviews that
+// prove a review signature.
+func (r *Registry) RedactWith(pr model.PR) model.PR {
+	return redact(pr, r)
+}
+
+func cleanText(body string) string {
+	return bareEmailRe.ReplaceAllStringFunc(dashes.Replace(strings.ToValidUTF8(body, "")), func(m string) string {
+		if local, domain, ok := strings.Cut(m, "@"); ok && keepEmail(local, domain) {
+			return m
+		}
+		return redactedEmail
+	})
+}
+
+func redact(pr model.PR, reg *Registry) model.PR {
 	out := model.PR{
 		Repo: pr.Repo, Number: pr.Number, URL: pr.URL, Author: pr.Author, HeadRef: pr.HeadRef,
 		State: pr.State, CreatedAt: pr.CreatedAt.UTC().Truncate(24 * time.Hour), UpdatedAt: pr.CreatedAt.UTC().Truncate(24 * time.Hour),
@@ -121,6 +170,30 @@ func Redact(pr model.PR) model.PR {
 			rc.Trailers = append(rc.Trailers, redactTrailer(t))
 		}
 		out.Commits = append(out.Commits, rc)
+	}
+	if reg != nil {
+		for _, rv := range pr.Reviews {
+			res := reg.ClassifyReview(rv, pr.Author.Login)
+			if res.Class == ReviewNone && len(res.Matches) == 0 {
+				continue
+			}
+			keep := model.Review{Author: rv.Author, State: rv.State, Via: rv.Via, SubmittedAt: rv.SubmittedAt.UTC().Truncate(24 * time.Hour)}
+			bodySig := false
+			for _, m := range res.Matches {
+				bodySig = bodySig || m.Kind == KindReviewBody
+			}
+			switch {
+			case bodySig:
+				body := rv.Body
+				if len(body) > bodyTail {
+					body = "[...] " + body[len(body)-bodyTail:]
+				}
+				keep.Body = cleanText(body)
+			case strings.TrimSpace(rv.Body) != "":
+				keep.Body = "[review text left out]"
+			}
+			out.Reviews = append(out.Reviews, keep)
+		}
 	}
 	return out
 }

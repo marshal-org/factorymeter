@@ -1,0 +1,340 @@
+{
+  "note": "A Claude Code review posted as a conversation comment carries its footer",
+  "recorded": "2026-11-25",
+  "expect": {
+    "class": "automation",
+    "reviews": [
+      {
+        "author": "claude[bot]",
+        "class": "agent",
+        "agent": "claude-code",
+        "why": "signature",
+        "signatures": [
+          "claude-reviewer",
+          "claude-review-footer"
+        ]
+      },
+      {
+        "author": "claude[bot]",
+        "class": "agent",
+        "agent": "claude-code",
+        "why": "signature",
+        "signatures": [
+          "claude-reviewer",
+          "claude-review-footer"
+        ]
+      },
+      {
+        "author": "claude[bot]",
+        "class": "agent",
+        "agent": "claude-code",
+        "why": "signature",
+        "signatures": [
+          "claude-reviewer",
+          "claude-review-footer"
+        ]
+      },
+      {
+        "author": "claude[bot]",
+        "class": "agent",
+        "agent": "claude-code",
+        "why": "signature",
+        "signatures": [
+          "claude-reviewer",
+          "claude-review-footer"
+        ]
+      },
+      {
+        "author": "claude[bot]",
+        "class": "agent",
+        "agent": "claude-code",
+        "why": "signature",
+        "signatures": [
+          "claude-reviewer",
+          "claude-review-footer"
+        ]
+      },
+      {
+        "author": "claude[bot]",
+        "class": "agent",
+        "agent": "claude-code",
+        "why": "signature",
+        "signatures": [
+          "claude-reviewer",
+          "claude-review-footer"
+        ]
+      },
+      {
+        "author": "claude[bot]",
+        "class": "agent",
+        "agent": "claude-code",
+        "why": "signature",
+        "signatures": [
+          "claude-reviewer",
+          "claude-review-footer"
+        ]
+      },
+      {
+        "author": "claude[bot]",
+        "class": "agent",
+        "agent": "claude-code",
+        "why": "signature",
+        "signatures": [
+          "claude-reviewer",
+          "claude-review-footer"
+        ]
+      },
+      {
+        "author": "claude[bot]",
+        "class": "agent",
+        "agent": "claude-code",
+        "why": "signature",
+        "signatures": [
+          "claude-reviewer",
+          "claude-review-footer"
+        ]
+      },
+      {
+        "author": "claude[bot]",
+        "class": "agent",
+        "agent": "claude-code",
+        "why": "signature",
+        "signatures": [
+          "claude-reviewer",
+          "claude-review-footer"
+        ]
+      },
+      {
+        "author": "claude[bot]",
+        "class": "agent",
+        "agent": "claude-code",
+        "why": "signature",
+        "signatures": [
+          "claude-reviewer",
+          "claude-review-footer"
+        ]
+      },
+      {
+        "author": "claude[bot]",
+        "class": "agent",
+        "agent": "claude-code",
+        "why": "signature",
+        "signatures": [
+          "claude-reviewer",
+          "claude-review-footer"
+        ]
+      },
+      {
+        "author": "claude[bot]",
+        "class": "agent",
+        "agent": "claude-code",
+        "why": "signature",
+        "signatures": [
+          "claude-reviewer",
+          "claude-review-footer"
+        ]
+      },
+      {
+        "author": "claude[bot]",
+        "class": "agent",
+        "agent": "claude-code",
+        "why": "signature",
+        "signatures": [
+          "claude-reviewer",
+          "claude-review-footer"
+        ]
+      },
+      {
+        "author": "claude[bot]",
+        "class": "agent",
+        "agent": "claude-code",
+        "why": "signature",
+        "signatures": [
+          "claude-reviewer",
+          "claude-review-footer"
+        ]
+      }
+    ]
+  },
+  "pr": {
+    "repo": "liverty-music/backend",
+    "number": 881,
+    "url": "https://github.com/liverty-music/backend/pull/881",
+    "author": {
+      "login": "renovate[bot]",
+      "type": "Bot"
+    },
+    "head_ref": "renovate/github.com-posthog-posthog-go-2.x",
+    "body": "[...] ietly became the default. Only zero selects the default.\n- [`fc05013`](https://redirect.github.com/posthog/posthog-go/commit/fc05013): Send `PostHog-Request-Timestamp` and `created_at` with sub-second precision. Whole seconds made PostHog's clock-skew correction move events up to a second later. The batch debug log no longer prints each message.\n- [`fc05013`](https://redirect.github.com/posthog/posthog-go/commit/fc05013): Default capture retry waits now vary randomly by up to 25% either way, so clients that fail together do not all retry at the same moment.\n- [`fc05013`](https://redirect.github.com/posthog/posthog-go/commit/fc05013): Fix a data race between `Enqueue` and `Close`, and report capture failures that previously reached no `Callback` as one aggregate log line per batch.\n- [`fc05013`](https://redirect.github.com/posthog/posthog-go/commit/fc05013): Event `timestamp`, batch `created_at` and the `PostHog-Request-Timestamp` header always carry 3, 6 or 9 fractional-second digits in UTC, for example `2025-01-02T03:04:05.000Z`. Before, Go trimmed trailing zeros, so a whole second had no fraction. Finer precision from your timestamp or the clock is kept.\n\n</details>\n\n---\n\n### Configuration\n\n📅 **Schedule**: (in timezone Asia/Tokyo)\n\n- Branch creation\n  - \"every weekend\"\n- Automerge\n  - At any time (no schedule defined)\n\n🚦 **Automerge**: Disabled by config. Please merge this manually once you are satisfied.\n\n♻ **Rebasing**: Whenever PR is behind base branch, or you tick the rebase/retry checkbox.\n\n🔕 **Ignore**: Close this PR and you won't be reminded about this update again.\n\n---\n\n - [ ] <!-- rebase-check -->If you want to rebase/retry this PR, check this box\n\n---\n\nThis PR was generated by [Mend Renovate](https://mend.io/renovate/). View the [repository job log](https://developer.mend.io/github/liverty-music/backend).\n<!--renovate-debug:eyJjcmVhdGVkSW5WZXIiOiI0NC4yNTcuMyIsInVwZGF0ZWRJblZlciI6IjQ0LjI1Ny4zIiwidGFyZ2V0QnJhbmNoIjoibWFpbiIsImxhYmVscyI6W119-->\n",
+    "state": "MERGED",
+    "created_at": "2026-11-21T00:00:00Z",
+    "updated_at": "2026-11-21T00:00:00Z",
+    "commit_count": 1,
+    "commits": [
+      {
+        "sha": "31be89d8522f5b168efdff270e308fcb984dcab7",
+        "authored_at": "2026-11-25T00:00:00Z",
+        "committed_at": "2026-11-25T00:00:00Z",
+        "parents": 1,
+        "authors": [
+          {
+            "login": "renovate[bot]",
+            "email": "29139614+renovate[bot]@users.noreply.github.com"
+          }
+        ]
+      }
+    ],
+    "reviews": [
+      {
+        "author": {
+          "login": "claude[bot]",
+          "type": "Bot"
+        },
+        "state": "COMMENTED",
+        "submitted_at": "2026-11-21T00:00:00Z",
+        "via": "comment",
+        "body": "## Code review\n\nNo issues found. Checked for bugs and CLAUDE.md compliance.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+      },
+      {
+        "author": {
+          "login": "claude[bot]",
+          "type": "Bot"
+        },
+        "state": "COMMENTED",
+        "submitted_at": "2026-11-21T00:00:00Z",
+        "via": "comment",
+        "body": "## Code review\n\nNo issues found. Checked for bugs and CLAUDE.md compliance.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+      },
+      {
+        "author": {
+          "login": "claude[bot]",
+          "type": "Bot"
+        },
+        "state": "COMMENTED",
+        "submitted_at": "2026-11-21T00:00:00Z",
+        "via": "comment",
+        "body": "## Code review\n\nNo issues found. Checked for bugs and CLAUDE.md compliance.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+      },
+      {
+        "author": {
+          "login": "claude[bot]",
+          "type": "Bot"
+        },
+        "state": "COMMENTED",
+        "submitted_at": "2026-11-21T00:00:00Z",
+        "via": "comment",
+        "body": "## Code review\n\nNo issues found. Checked for bugs and CLAUDE.md compliance.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+      },
+      {
+        "author": {
+          "login": "claude[bot]",
+          "type": "Bot"
+        },
+        "state": "COMMENTED",
+        "submitted_at": "2026-11-21T00:00:00Z",
+        "via": "comment",
+        "body": "## Code review\n\nNo issues found. Checked for bugs and CLAUDE.md compliance.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+      },
+      {
+        "author": {
+          "login": "claude[bot]",
+          "type": "Bot"
+        },
+        "state": "COMMENTED",
+        "submitted_at": "2026-11-21T00:00:00Z",
+        "via": "comment",
+        "body": "## Code review\n\nNo issues found. Checked for bugs and CLAUDE.md compliance.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+      },
+      {
+        "author": {
+          "login": "claude[bot]",
+          "type": "Bot"
+        },
+        "state": "COMMENTED",
+        "submitted_at": "2026-11-21T00:00:00Z",
+        "via": "comment",
+        "body": "## Code review\n\nNo issues found. Checked for bugs and CLAUDE.md compliance.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+      },
+      {
+        "author": {
+          "login": "claude[bot]",
+          "type": "Bot"
+        },
+        "state": "COMMENTED",
+        "submitted_at": "2026-11-22T00:00:00Z",
+        "via": "comment",
+        "body": "## Code review\n\nNo issues found. Checked for bugs and CLAUDE.md compliance.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+      },
+      {
+        "author": {
+          "login": "claude[bot]",
+          "type": "Bot"
+        },
+        "state": "COMMENTED",
+        "submitted_at": "2026-11-22T00:00:00Z",
+        "via": "comment",
+        "body": "## Code review\n\nNo issues found. Checked for bugs and CLAUDE.md compliance.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+      },
+      {
+        "author": {
+          "login": "claude[bot]",
+          "type": "Bot"
+        },
+        "state": "COMMENTED",
+        "submitted_at": "2026-11-22T00:00:00Z",
+        "via": "comment",
+        "body": "## Code review\n\nNo issues found. Checked for bugs and CLAUDE.md compliance.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+      },
+      {
+        "author": {
+          "login": "claude[bot]",
+          "type": "Bot"
+        },
+        "state": "COMMENTED",
+        "submitted_at": "2026-11-24T00:00:00Z",
+        "via": "comment",
+        "body": "## Code review\n\nNo issues found. Checked for bugs and CLAUDE.md compliance.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+      },
+      {
+        "author": {
+          "login": "claude[bot]",
+          "type": "Bot"
+        },
+        "state": "COMMENTED",
+        "submitted_at": "2026-11-24T00:00:00Z",
+        "via": "comment",
+        "body": "## Code review\n\nNo issues found. Checked for bugs and CLAUDE.md compliance.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+      },
+      {
+        "author": {
+          "login": "claude[bot]",
+          "type": "Bot"
+        },
+        "state": "COMMENTED",
+        "submitted_at": "2026-11-24T00:00:00Z",
+        "via": "comment",
+        "body": "## Code review\n\nNo issues found. Checked for bugs and CLAUDE.md compliance.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+      },
+      {
+        "author": {
+          "login": "claude[bot]",
+          "type": "Bot"
+        },
+        "state": "COMMENTED",
+        "submitted_at": "2026-11-25T00:00:00Z",
+        "via": "comment",
+        "body": "## Code review\n\nNo issues found. Checked for bugs and CLAUDE.md compliance.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+      },
+      {
+        "author": {
+          "login": "claude[bot]",
+          "type": "Bot"
+        },
+        "state": "COMMENTED",
+        "submitted_at": "2026-11-25T00:00:00Z",
+        "via": "comment",
+        "body": "## Code review\n\nNo issues found. Checked for bugs and CLAUDE.md compliance.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+      }
+    ]
+  }
+}

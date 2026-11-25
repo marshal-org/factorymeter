@@ -114,11 +114,39 @@ const (
 	ReviewDismissed        = "dismissed"
 )
 
-// Review is one submitted review of a change.
+// Where a review was written.
+const (
+	ReviewViaReview  = "review"
+	ReviewViaComment = "comment"
+)
+
+// Review is one submitted review of a change, or a comment on its
+// conversation. A comment counts as a review only when a review signature in
+// the registry matches it.
 type Review struct {
 	Author      Actor     `json:"author" parquet:"author" doc:"The account that wrote the review."`
-	State       string    `json:"state" parquet:"state" doc:"What the review said." enum:"approved,changes_requested,commented,dismissed"`
+	State       string    `json:"state" parquet:"state" doc:"What the review said. A comment is commented." enum:"approved,changes_requested,commented,dismissed"`
 	SubmittedAt time.Time `json:"submitted_at" parquet:"submitted_at,timestamp(microsecond)" doc:"When the review was submitted."`
+	Via         string    `json:"via" parquet:"via" doc:"Where it was written: a review, or a comment on the conversation. Empty in a store written before comments were read, which means a review." enum:"review,comment,"`
+	Body        string    `json:"body" parquet:"body" doc:"The text of the review, cut to its start and its end. Agent footers sit at the end. Empty when the review has no text, such as a reply to a review thread."`
+}
+
+// reviewHead and reviewTail are how much of a review's text a record keeps.
+// The start carries a tool's heading and the end its footer; the middle is
+// the findings, which no signature reads.
+const (
+	reviewHead = 600
+	reviewTail = 1400
+)
+
+// ReviewText cuts a review's text to what a record keeps.
+func ReviewText(body string) string {
+	body = strings.TrimSpace(strings.ToValidUTF8(body, ""))
+	if len(body) <= reviewHead+reviewTail {
+		return body
+	}
+	head, tail := body[:reviewHead], body[len(body)-reviewTail:]
+	return strings.ToValidUTF8(head, "") + "\n[...]\n" + strings.ToValidUTF8(tail, "")
 }
 
 // CIRun is one run of a CI workflow on one commit.

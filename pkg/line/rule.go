@@ -143,7 +143,7 @@ var Rules = stamp([]Rule{
 	{
 		ID: "verify.missing", Station: Verify, Title: "Prove changes on a running environment before they merge", Play: "agents-prove-their-work",
 		Reads: []string{"review.skipped"},
-		Fires: fmt.Sprintf("The verify station is not connected, and at least %s of the changes merged in the window had no review by another person.", pct(Ungated)),
+		Fires: fmt.Sprintf("The verify station is not connected, and at least %s of the changes merged in the window had no review seen.", pct(Ungated)),
 	},
 	{
 		ID: "ci.failing", Station: CI, Title: "Cut the share of CI rounds that fail",
@@ -169,7 +169,7 @@ var Rules = stamp([]Rule{
 	{
 		ID: "review.queue-growing", Station: Review, Title: "Clear the review queue", Play: "trust-is-earned-with-evidence",
 		Reads: []string{"review.queue", "review.queue.oldest", "review.wait.p50"},
-		Fires: fmt.Sprintf("At least %d changes wait for a first review at the end of the window, and the trend of the queue is worse: it is longer than at the end of the window before by more than the report calls flat. The rule is silent when no change in the store was ever reviewed by another person.", ReviewQueueMin),
+		Fires: fmt.Sprintf("At least %d changes wait for a first review at the end of the window, and the trend of the queue is worse: it is longer than at the end of the window before by more than the report calls flat. The rule is silent when no change in the store was ever reviewed.", ReviewQueueMin),
 	},
 	{
 		ID: "merge.approved-waiting", Station: Merge, Title: "Merge the changes that are already approved", Play: "out-of-the-synchronous-loop",

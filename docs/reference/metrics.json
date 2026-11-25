@@ -759,7 +759,7 @@
       "needs": [
         "change"
       ],
-      "definition": "Merged changes that left review in the period. A change leaves review at its last approval before the merge, or at the merge when it was reviewed and never approved. A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count. The count is divided by the length of the period in weeks.",
+      "definition": "Merged changes that left review in the period. A change leaves review at its last approval before the merge, or at the merge when it was never approved. A merged change with no review seen still passes this station: it arrives when marked ready for review (or opened) and leaves at the merge. A review counts whoever wrote it: a person other than the author, or an agent. An agent review is one from a bot account, one a review signature in the registry matches, or one with text written from the author's own account (an agent working through it). A reply by the author to a review thread is not a review, and a comment on the conversation counts only when a review signature matches it. With the option to count human reviews only, agent reviews do not count here. The count is divided by the length of the period in weeks.",
       "since": "v1"
     },
     {
@@ -778,7 +778,7 @@
       "needs": [
         "change"
       ],
-      "definition": "Hours from a change being marked ready for review to its first review, over the changes that got their first review in the period. A review that lands while the change is a draft gives a wait of zero. A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count. The median.",
+      "definition": "Hours from a change being marked ready for review to its first review, over the changes that got their first review in the period. A review that lands while the change is a draft gives a wait of zero. A review counts whoever wrote it: a person other than the author, or an agent. An agent review is one from a bot account, one a review signature in the registry matches, or one with text written from the author's own account (an agent working through it). A reply by the author to a review thread is not a review, and a comment on the conversation counts only when a review signature matches it. With the option to count human reviews only, agent reviews do not count here. The median.",
       "since": "v1"
     },
     {
@@ -797,7 +797,7 @@
       "needs": [
         "change"
       ],
-      "definition": "Hours from a change being marked ready for review to its first review, over the changes that got their first review in the period. A review that lands while the change is a draft gives a wait of zero. A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count. The 90th percentile: one item in ten waited longer.",
+      "definition": "Hours from a change being marked ready for review to its first review, over the changes that got their first review in the period. A review that lands while the change is a draft gives a wait of zero. A review counts whoever wrote it: a person other than the author, or an agent. An agent review is one from a bot account, one a review signature in the registry matches, or one with text written from the author's own account (an agent working through it). A reply by the author to a review thread is not a review, and a comment on the conversation counts only when a review signature matches it. With the option to count human reviews only, agent reviews do not count here. The 90th percentile: one item in ten waited longer.",
       "since": "v1"
     },
     {
@@ -816,7 +816,7 @@
       "needs": [
         "change"
       ],
-      "definition": "Hours from the first review of a change to it leaving review, over the merged changes that left review in the period. A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count. The median.",
+      "definition": "Hours from the first review of a change to it leaving review, over the merged changes that left review in the period. A review counts whoever wrote it: a person other than the author, or an agent. An agent review is one from a bot account, one a review signature in the registry matches, or one with text written from the author's own account (an agent working through it). A reply by the author to a review thread is not a review, and a comment on the conversation counts only when a review signature matches it. With the option to count human reviews only, agent reviews do not count here. The median.",
       "since": "v1"
     },
     {
@@ -835,7 +835,7 @@
       "needs": [
         "change"
       ],
-      "definition": "Hours from the first review of a change to it leaving review, over the merged changes that left review in the period. A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count. The 90th percentile: one item in ten took longer.",
+      "definition": "Hours from the first review of a change to it leaving review, over the merged changes that left review in the period. A review counts whoever wrote it: a person other than the author, or an agent. An agent review is one from a bot account, one a review signature in the registry matches, or one with text written from the author's own account (an agent working through it). A reply by the author to a review thread is not a review, and a comment on the conversation counts only when a review signature matches it. With the option to count human reviews only, agent reviews do not count here. The 90th percentile: one item in ten took longer.",
       "since": "v1"
     },
     {
@@ -873,7 +873,7 @@
       "needs": [
         "change"
       ],
-      "definition": "Changes that are open, ready for review and without a review at the end of the period. A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count.",
+      "definition": "Changes that are open, ready for review and without a review at the end of the period. A review counts whoever wrote it: a person other than the author, or an agent. An agent review is one from a bot account, one a review signature in the registry matches, or one with text written from the author's own account (an agent working through it). A reply by the author to a review thread is not a review, and a comment on the conversation counts only when a review signature matches it. With the option to count human reviews only, agent reviews do not count here.",
       "since": "v1"
     },
     {
@@ -892,7 +892,7 @@
       "needs": [
         "change"
       ],
-      "definition": "Hours since it was marked ready for review, for the item that has stood longest in this queue at the end of the period. Changes that are open, ready for review and without a review at the end of the period. A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count.",
+      "definition": "Hours since it was marked ready for review, for the item that has stood longest in this queue at the end of the period. Changes that are open, ready for review and without a review at the end of the period. A review counts whoever wrote it: a person other than the author, or an agent. An agent review is one from a bot account, one a review signature in the registry matches, or one with text written from the author's own account (an agent working through it). A reply by the author to a review thread is not a review, and a comment on the conversation counts only when a review signature matches it. With the option to count human reviews only, agent reviews do not count here.",
       "since": "v1"
     },
     {
@@ -937,7 +937,7 @@
       "id": "review.skipped",
       "station": "review",
       "kind": "other",
-      "name": "PRs merged with no review",
+      "name": "PRs merged with no review seen",
       "unit": "share",
       "good": "down",
       "min_sample": 5,
@@ -949,7 +949,178 @@
       "needs": [
         "change"
       ],
-      "definition": "Share of the changes merged in the period that no other person reviewed before the merge. A review counts when a person other than the author wrote it. Reviews by bots and by the author do not count.",
+      "definition": "Share of the changes merged in the period with no review seen before the merge. Their time from ready to merge counts as review time. A review counts whoever wrote it: a person other than the author, or an agent. An agent review is one from a bot account, one a review signature in the registry matches, or one with text written from the author's own account (an agent working through it). A reply by the author to a review thread is not a review, and a comment on the conversation counts only when a review signature matches it. With the option to count human reviews only, agent reviews do not count here.",
+      "since": "v1"
+    },
+    {
+      "id": "review.by_human",
+      "station": "review",
+      "kind": "other",
+      "name": "PRs reviewed by a person",
+      "unit": "share",
+      "good": "neither",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Share of the changes merged in the period that a person other than the author reviewed before the merge. It counts with either option.",
+      "since": "v1"
+    },
+    {
+      "id": "review.by_agent",
+      "station": "review",
+      "kind": "other",
+      "name": "PRs reviewed by an agent",
+      "unit": "share",
+      "good": "neither",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Share of the changes merged in the period that an agent reviewed before the merge. It counts with either option. A review counts whoever wrote it: a person other than the author, or an agent. An agent review is one from a bot account, one a review signature in the registry matches, or one with text written from the author's own account (an agent working through it). A reply by the author to a review thread is not a review, and a comment on the conversation counts only when a review signature matches it. With the option to count human reviews only, agent reviews do not count here.",
+      "since": "v1"
+    },
+    {
+      "id": "review.by_both",
+      "station": "review",
+      "kind": "other",
+      "name": "PRs reviewed by a person and an agent",
+      "unit": "share",
+      "good": "neither",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Share of the changes merged in the period that both a person and an agent reviewed before the merge.",
+      "since": "v1"
+    },
+    {
+      "id": "review.first_agent.p50",
+      "station": "review",
+      "kind": "other",
+      "name": "Wait for first agent review, median",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours from a change being marked ready for review (or opened) to its first review by an agent, over the changes that got one in the period. The median.",
+      "since": "v1"
+    },
+    {
+      "id": "review.first_agent.p90",
+      "station": "review",
+      "kind": "other",
+      "name": "Wait for first agent review, 90th percentile",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours from a change being marked ready for review (or opened) to its first review by an agent, over the changes that got one in the period. The 90th percentile: one change in ten waited longer.",
+      "since": "v1"
+    },
+    {
+      "id": "review.first_human.p50",
+      "station": "review",
+      "kind": "other",
+      "name": "Wait for first human review, median",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours from a change being marked ready for review (or opened) to its first review by a person other than the author, over the changes that got one in the period. The median.",
+      "since": "v1"
+    },
+    {
+      "id": "review.first_human.p90",
+      "station": "review",
+      "kind": "other",
+      "name": "Wait for first human review, 90th percentile",
+      "unit": "hours",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Hours from a change being marked ready for review (or opened) to its first review by a person other than the author, over the changes that got one in the period. The 90th percentile: one change in ten waited longer.",
+      "since": "v1"
+    },
+    {
+      "id": "review.rounds.p50",
+      "station": "review",
+      "kind": "other",
+      "name": "Rounds of review, median",
+      "unit": "count",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Rounds of review per merged change that was reviewed, over the changes that left review in the period. A round is one or more reviews, closed by a fix: a new commit that is not a merge, pushed before the next review. The median. A review counts whoever wrote it: a person other than the author, or an agent. An agent review is one from a bot account, one a review signature in the registry matches, or one with text written from the author's own account (an agent working through it). A reply by the author to a review thread is not a review, and a comment on the conversation counts only when a review signature matches it. With the option to count human reviews only, agent reviews do not count here.",
+      "since": "v1"
+    },
+    {
+      "id": "review.rounds.p90",
+      "station": "review",
+      "kind": "other",
+      "name": "Rounds of review, 90th percentile",
+      "unit": "count",
+      "good": "down",
+      "min_sample": 5,
+      "slices": [
+        "class",
+        "agent",
+        "repo"
+      ],
+      "needs": [
+        "change"
+      ],
+      "definition": "Rounds of review per merged change that was reviewed, over the changes that left review in the period. A round is one or more reviews, closed by a fix: a new commit that is not a merge, pushed before the next review. The 90th percentile. A review counts whoever wrote it: a person other than the author, or an agent. An agent review is one from a bot account, one a review signature in the registry matches, or one with text written from the author's own account (an agent working through it). A reply by the author to a review thread is not a review, and a comment on the conversation counts only when a review signature matches it. With the option to count human reviews only, agent reviews do not count here.",
       "since": "v1"
     },
     {
@@ -1531,7 +1702,7 @@
       "id": "verify.missing",
       "station": "verify",
       "title": "Prove changes on a running environment before they merge",
-      "fires": "The verify station is not connected, and at least 50 percent of the changes merged in the window had no review by another person.",
+      "fires": "The verify station is not connected, and at least 50 percent of the changes merged in the window had no review seen.",
       "reads": [
         "review.skipped"
       ],
@@ -1593,7 +1764,7 @@
       "id": "review.queue-growing",
       "station": "review",
       "title": "Clear the review queue",
-      "fires": "At least 5 changes wait for a first review at the end of the window, and the trend of the queue is worse: it is longer than at the end of the window before by more than the report calls flat. The rule is silent when no change in the store was ever reviewed by another person.",
+      "fires": "At least 5 changes wait for a first review at the end of the window, and the trend of the queue is worse: it is longer than at the end of the window before by more than the report calls flat. The rule is silent when no change in the store was ever reviewed.",
       "reads": [
         "review.queue",
         "review.queue.oldest",
