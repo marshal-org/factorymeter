@@ -21,7 +21,7 @@ func weeksLine(t *testing.T) *Line {
 	rb.Change(&c1)
 	rb.Change(&c2)
 	// A deploy belongs to the week it finished in, not the week of the change.
-	d := deployment("production", "v1", c1.Commits[0].SHA, true, end.Add(10*day), h, "success")
+	d := deployment("production", "v1", c1.Commits[0].SHA, true, end.Add(13*day+23*h+30*time.Minute), h, "success")
 	rb.Deploy(&d)
 	rb.Done()
 	b.Repo(RepoScope{Name: "acme/empty", From: end.Add(-8 * week), SyncedAt: end}).Done()
@@ -51,8 +51,13 @@ func TestSegmentWeeksAndFigures(t *testing.T) {
 	if !has(weeks, creation) {
 		t.Errorf("the week of the creation of a change that spans weeks is missing: %v", weeks)
 	}
-	if !has(weeks, weekOf(end.Add(10*day+h))) {
+	if !has(weeks, weekOf(end.Add(14*day+30*time.Minute))) {
 		t.Errorf("the week of the deploy is missing: %v", weeks)
+	}
+	for _, it := range l.items {
+		if it.kind == record.KindDeploy && weekOf(it.at) != weekOf(end.Add(14*day+30*time.Minute)) {
+			t.Errorf("a deploy is placed in the week %v, not the week it finished in", time.Unix(weekOf(it.at), 0).UTC())
+		}
 	}
 	if got := l.Weeks("acme/empty"); len(got) != 0 {
 		t.Errorf("a repository with no data has weeks %v", got)

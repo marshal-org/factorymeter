@@ -292,6 +292,10 @@ Run both once a week and the report follows the line week after week. A sync tha
 goes on where it left off. The store is a directory of Parquet files:
 [docs/store.md](docs/store.md) has the details.
 
+A host that reports on many repositories can cut a built line into one segment for each
+repository and week, store them, and merge only the ones it needs:
+[docs/segments.md](docs/segments.md).
+
 | Output | How | For |
 |---|---|---|
 | Terminal | the default | reading it now |

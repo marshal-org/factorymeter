@@ -83,10 +83,10 @@
 
 **Purpose**: docs, hygiene and the follow-up
 
-- [ ] T028 [P] FR-014 G-014: write the host guide, with how to cut, store and merge, the cut contract, how often to cut a week again, what parity covers and the privacy of segment bytes (docs/segments.md, README.md)
-- [ ] T029 [P] FR-014 G-014: write the doc comments of the new API (pkg/measure/segment.go, pkg/measure/merge.go)
-- [ ] T030 G-015 G-013: run gofmt, vet, the tidy check and the dash check, and put the mutation checks of the guards and the list of changed existing orders in the pull request body
-- [ ] T031 FR-014: open the follow-up issue for ticket segments and link it from the pull request
+- [x] T028 [P] FR-014 G-014: write the host guide, with how to cut, store and merge, the cut contract, how often to cut a week again, what parity covers and the privacy of segment bytes (docs/segments.md, README.md)
+- [x] T029 [P] FR-014 G-014: write the doc comments of the new API (pkg/measure/segment.go, pkg/measure/merge.go)
+- [x] T030 G-015 G-013: run gofmt, vet, the tidy check and the dash check, and put the mutation checks of the guards and the list of changed existing orders in the pull request body
+- [x] T031 FR-014: open the follow-up issue for ticket segments and link it from the pull request
 
 ## Dependencies
 
