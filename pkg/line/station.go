@@ -92,14 +92,14 @@ var Stations = []Station{
 	},
 	{
 		ID: Review, Name: "Review", Item: "change", Needs: []string{NeedChange}, InConstraint: true,
-		Does:    "Another person reads the change and approves it or sends it back.",
+		Does:    "A person or an agent reads the change and approves it or sends it back.",
 		Arrives: "The change is marked ready for review.",
-		Leaves:  "The last approval before the merge. A change that merges after a review with no approval leaves at the merge. A change nobody else reviewed skips the station.",
+		Leaves:  "The last approval before the merge. A change that merges after a review with no approval, or with no review seen, leaves at the merge.",
 	},
 	{
 		ID: Merge, Name: "Merge", Item: "change", Needs: []string{NeedChange}, InConstraint: true,
 		Does:    "The approved change lands on the main branch.",
-		Arrives: "The change leaves review. A change nobody else reviewed arrives when it is marked ready for review.",
+		Arrives: "The change leaves review: at its last approval, or at the merge when it had none.",
 		Leaves:  "The change merges.",
 		NotObservable: map[Kind]string{
 			Work: "A merge is one click. It has no start time apart from its end.",

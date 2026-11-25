@@ -100,7 +100,7 @@ var sets = []set{
 		flowName:   "PRs merged",
 		flow:       "Changes merged in the period.",
 		waitName:   "Wait to merge",
-		wait:       "Hours from a change arriving at merge to it merging, over the changes merged in the period. A change arrives when it leaves review. A change nobody else reviewed arrives when it is marked ready for review.",
+		wait:       "Hours from a change arriving at merge to it merging, over the changes merged in the period. A change arrives when it leaves review: at its last approval, or at the merge when it had none, so a change with no approval waits here for no time.",
 		reworkName: "Merges reverted",
 		rework:     "Share of the changes merged in the period that a later change reverted. A change reverts another when its description says so in the words the code host writes for a revert.",
 		queueName:  "PRs approved and not merged",
