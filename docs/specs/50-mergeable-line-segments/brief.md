@@ -52,3 +52,21 @@ Source: [issue #50](https://github.com/marshal-org/factorymeter/issues/50). The 
 - A. Importable package `pkg/synth`
 - B. Files in `testdata`
 - **Recommended: A.** Hosts can import it. A `testdata` directory cannot be imported.
+
+### Answers
+`Q1:A  Q2:A  Q3:A  Q4:A  Q5:A  Q6:A` (the operator chose "Approve, all recommended")
+
+### Deltas
+- None. Every answer matches the recommendation.
+
+### Decisions
+- Review observations are tagged at build with the mode they count in. The mode is a report-time switch on the Line. `Builder.HumanReviewsOnly()` stays as a shortcut.
+- A change belongs to the UTC Monday week of its creation time. `Segment` takes any instant in the week.
+- Tickets are out of scope. A merged line has no ticket sources. A follow-up issue covers ticket segments.
+- Tie-breaks are total in LoadFrom and Merge alike, so parity holds for any input.
+- A segment is a custom binary encoding compressed with zstd. The compress module becomes a direct dependency.
+- The generator is an importable package, `pkg/synth`, that implements `measure.Source`.
+- Merge refuses segments of different engine or registry versions.
+
+## Alignment
+Questions accepted as recommended: 6 of 6 (100%). Changed: 0. Risky questions changed: none.
