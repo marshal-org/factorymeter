@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/marshal-org/factorymeter/compare/v0.12.1...v0.13.0) (2026-11-25)
+
+
+### Features
+
+* **review:** count agent reviews, apart from human reviews ([44a1e70](https://github.com/marshal-org/factorymeter/commit/44a1e702993e2d1d97066245ae520c3eeba876ef)), closes [#45](https://github.com/marshal-org/factorymeter/issues/45)
+
 ## [0.12.1](https://github.com/marshal-org/factorymeter/compare/v0.12.0...v0.12.1) (2026-11-23)
 
 
