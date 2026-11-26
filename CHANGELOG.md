@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/marshal-org/factorymeter/compare/v0.13.0...v0.14.0) (2026-11-26)
+
+
+### Features
+
+* **measure:** build a line from per-repo, per-week segments ([#51](https://github.com/marshal-org/factorymeter/issues/51)) ([dea1578](https://github.com/marshal-org/factorymeter/commit/dea157842b9ec5e77e51e68c5cd0fab983e49786))
+
 ## [0.13.0](https://github.com/marshal-org/factorymeter/compare/v0.12.1...v0.13.0) (2026-11-25)
 
 
