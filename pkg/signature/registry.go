@@ -4,6 +4,9 @@ package signature
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -252,4 +255,21 @@ func (s *Signature) matches(v string) bool {
 		}
 	}
 	return false
+}
+
+// Digest is a fingerprint of everything in the registry that decides what a
+// record is classified as. Two registries with the same digest classify every
+// record the same way. The Version field is not enough: it names the format of
+// the file, not its content.
+func (r *Registry) Digest() string {
+	b, err := json.Marshal(struct {
+		Agents     []Agent
+		Automation Automation
+	}{r.Agents, r.Automation})
+	if err != nil {
+		// The registry is plain data, so this cannot happen.
+		panic("signature: digest: " + err.Error())
+	}
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:])
 }

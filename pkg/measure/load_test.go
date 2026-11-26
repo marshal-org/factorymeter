@@ -127,7 +127,7 @@ func TestLoadTiesLinearTicketsToPullRequests(t *testing.T) {
 	}
 	// Six tickets and the issue stood in the queue. ENG-5 and the issue still do.
 	var open, none int
-	for _, st := range l.stays["spec.queue"] {
+	for _, st := range l.seenStays("spec.queue") {
 		if st.to.IsZero() {
 			open++
 		}
@@ -135,7 +135,7 @@ func TestLoadTiesLinearTicketsToPullRequests(t *testing.T) {
 			none++
 		}
 	}
-	if n := len(l.stays["spec.queue"]); n != 7 || open != 2 || none != 2 {
+	if n := len(l.seenStays("spec.queue")); n != 7 || open != 2 || none != 2 {
 		t.Errorf("spec.queue: %d stays, %d open, %d of no repository; want 7, 2 (ENG-5 and the issue), 2 (ENG-5 and ENG-6)", n, open, none)
 	}
 

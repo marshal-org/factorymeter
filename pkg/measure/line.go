@@ -18,6 +18,48 @@ import (
 type item struct {
 	kind, key, url, title string
 	class                 int8
+	// at and repo place the item in a week of a repository: a change at its
+	// creation, a deploy at its finish (its creation when it has none), a
+	// ticket at its creation. repo is -1 for an item of no repository.
+	at   time.Time
+	repo int32
+}
+
+// seenRec is one record counted for the coverage of a report.
+type seenRec struct {
+	at   int64 // unix seconds
+	repo int32 // -1 for a ticket
+	src  string
+}
+
+// figKey is a repository and the UTC Monday week a figure belongs to.
+type figKey struct {
+	repo int32
+	week int64
+}
+
+// figs are the figures of one repository and week. The repository figures of
+// a report are their sum.
+type figs struct {
+	changes, merged, cut, ciRuns, ciJoined   int
+	prodDeploys, ships, shipsByCommit, verif int
+	envs                                     map[string]bool
+}
+
+// weekOf is the UTC Monday midnight, in unix seconds, of the week of t.
+func weekOf(t time.Time) int64 {
+	t = t.UTC()
+	back := (int(t.Weekday()) + 6) % 7
+	d := time.Date(t.Year(), t.Month(), t.Day()-back, 0, 0, 0, 0, time.UTC)
+	return d.Unix()
+}
+
+// placeOf is the moment that places a deploy in a week.
+func placeOf(created, finished time.Time) time.Time {
+	if !finished.IsZero() {
+		return finished
+	}
+	return created
 }
 
 // repoInfo is what the report says about one repository.
@@ -46,7 +88,8 @@ type repoInfo struct {
 type Line struct {
 	obs    map[string][]obs
 	stays  map[string][]stay
-	seen   map[string][]int64 // record kind -> creation times, unix seconds
+	seen   map[string][]seenRec // record kind -> the records counted
+	figs   map[figKey]*figs
 	items  []item
 	names  []string // repositories and ticket projects, by key.repo
 	agents []string
@@ -59,12 +102,21 @@ type Line struct {
 	flowRuns []flowRun
 	// tickets holds the ticket systems that are not repositories.
 	tickets []ticketSource
-	// humanReviewsOnly counts only reviews by people at the review station.
-	// Agent reviews still feed the shares of who reviewed.
+	// humanReviewsOnly is the review mode the line is read in: only reviews by
+	// people count at the review station. Agent reviews still feed the shares
+	// of who reviewed. Both modes are in the line, see WithReviews.
 	humanReviewsOnly bool
 
 	obsPart  map[string]*parts[obs]
 	stayPart map[string]*parts[stay]
+
+	// digest is the content digest of the registry that told agents from
+	// people when the line was built, and engine the version of the engine.
+	digest string
+	engine int
+
+	// cuts says which parts belong to which repository and week, see Segment.
+	cuts *cutCache
 }
 
 // ticketSource is what the report says about a ticket system that is not a
@@ -106,12 +158,19 @@ type flowRun struct {
 }
 
 // saw counts a record for the coverage of a report.
-func (l *Line) saw(kind, source string, at time.Time) {
-	l.seen[kind] = append(l.seen[kind], at.Unix())
-	if l.sources[kind] == nil {
-		l.sources[kind] = map[string]bool{}
+func (l *Line) saw(kind, source string, at time.Time, repo int32) {
+	l.seen[kind] = append(l.seen[kind], seenRec{at: at.Unix(), repo: repo, src: source})
+}
+
+// fig is the figures of a repository in the week of t.
+func (l *Line) fig(repo int32, t time.Time) *figs {
+	k := figKey{repo, weekOf(t)}
+	f := l.figs[k]
+	if f == nil {
+		f = &figs{}
+		l.figs[k] = f
 	}
-	l.sources[kind][source] = true
+	return f
 }
 
 func (l *Line) add(stream string, at time.Time, v float64, k key, it int32) {
@@ -128,8 +187,8 @@ func (l *Line) hit(stream string, at time.Time, yes bool, k key, it int32) {
 
 // deployItem adds a production deploy to the items, so a number drawn from
 // deploys can name them.
-func (l *Line) deployItem(d *record.Deploy) int32 {
-	it := item{kind: record.KindDeploy, class: classNone}
+func (l *Line) deployItem(d *record.Deploy, repo int32) int32 {
+	it := item{kind: record.KindDeploy, class: classNone, repo: repo, at: placeOf(d.CreatedAt, val(d.FinishedAt))}
 	short := d.SHA
 	if len(short) > 7 {
 		short = short[:7]
@@ -180,7 +239,7 @@ func (b *Builder) HumanReviewsOnly() { b.l.humanReviewsOnly = true }
 func NewBuilder(reg *signature.Registry) *Builder {
 	return &Builder{
 		reg: reg,
-		l: &Line{obs: map[string][]obs{}, stays: map[string][]stay{}, seen: map[string][]int64{},
+		l: &Line{digest: reg.Digest(), engine: EngineVersion, obs: map[string][]obs{}, stays: map[string][]stay{}, seen: map[string][]seenRec{}, figs: map[figKey]*figs{},
 			sources: map[string]map[string]bool{}},
 		nameIdx: map[string]int32{}, agentIdx: map[string]int16{}, linked: map[string]firstLink{},
 		flowIdx: map[flow]int32{},
@@ -219,16 +278,11 @@ func (b *Builder) agent(id string) int16 {
 	return i
 }
 
-// Line finishes the build.
+// Line finishes the build. Every order that only the order of the records
+// decided is replaced by a total one (see canonical).
 func (b *Builder) Line() *Line {
 	l := b.l
-	for _, list := range l.obs {
-		sort.SliceStable(list, func(i, j int) bool { return list[i].at.Before(list[j].at) })
-	}
-	for _, list := range l.seen {
-		sort.Slice(list, func(i, j int) bool { return list[i] < list[j] })
-	}
-	sort.SliceStable(l.flowRuns, func(i, j int) bool { return l.flowRuns[i].at.Before(l.flowRuns[j].at) })
+	b.canonical()
 	l.obsPart, l.stayPart = map[string]*parts[obs]{}, map[string]*parts[stay]{}
 	return l
 }
@@ -283,6 +337,7 @@ type vdep struct {
 
 // chg is a change, cut down to what the stations read.
 type chg struct {
+	num     int
 	item    int32
 	k       key
 	created time.Time
@@ -304,6 +359,8 @@ type shaRef struct{ chg, commit int32 }
 type prodDeploy struct {
 	created, finished time.Time
 	outcome, via, sha string
+	env               string
+	itemKey           string
 	// item is the deploy in Line.items.
 	item int32
 	// cut and base are set on a deploy of the commit a merge left: when that
@@ -327,7 +384,6 @@ type RepoBuilder struct {
 	merges  map[string]int32
 	reverts []int
 	prod    []prodDeploy
-	envs    map[string]bool
 	// firstRuns counts the first attempts of CI runs, and waitedRuns the ones
 	// that started later than they were created.
 	firstRuns, waitedRuns int
@@ -339,7 +395,7 @@ func (b *Builder) Repo(sc RepoScope) *RepoBuilder {
 		b: b, sc: sc, idx: b.name(sc.Name),
 		info: repoInfo{name: sc.Name, private: sc.Private, from: sc.From, synced: sc.SyncedAt, notes: sc.Notes,
 			unfinished: sc.SyncedAt.IsZero()},
-		sha: map[string]shaRef{}, byNumber: map[int]int32{}, merges: map[string]int32{}, envs: map[string]bool{},
+		sha: map[string]shaRef{}, byNumber: map[int]int32{}, merges: map[string]int32{},
 	}
 }
 
@@ -429,12 +485,12 @@ func (r *RepoBuilder) Change(c *record.Change) {
 		k.class = classAutomation
 	}
 	x := chg{
-		base: c.BaseRef,
+		base: c.BaseRef, num: c.Number,
 		item: int32(len(b.l.items)), k: k, created: c.CreatedAt,
 		ready: val(c.ReadyAt), merged: val(c.MergedAt), closed: val(c.ClosedAt),
 		start: c.CreatedAt, size: c.Additions + c.Deletions,
 	}
-	b.l.items = append(b.l.items, item{kind: record.KindChange, key: c.Repo + "#" + strconv.Itoa(c.Number), url: c.URL, title: c.Title, class: k.class})
+	b.l.items = append(b.l.items, item{kind: record.KindChange, key: c.Repo + "#" + strconv.Itoa(c.Number), url: c.URL, title: c.Title, class: k.class, at: c.CreatedAt, repo: r.idx})
 	if c.State != record.ChangeMerged {
 		x.merged = time.Time{}
 	}
@@ -450,8 +506,12 @@ func (r *RepoBuilder) Change(c *record.Change) {
 			!k.AuthoredAt.Before(c.CreatedAt.Add(-line.EarlyCommitDays*24*time.Hour)) {
 			x.start = k.AuthoredAt
 		}
-		if _, taken := r.sha[k.SHA]; !taken && k.SHA != "" {
-			r.sha[k.SHA] = shaRef{chg: n, commit: int32(i)}
+		if k.SHA != "" {
+			// A commit in two changes belongs to the older one, whatever order
+			// they were read in.
+			if old, taken := r.sha[k.SHA]; !taken || r.before(c.CreatedAt, c.Number, old.chg) {
+				r.sha[k.SHA] = shaRef{chg: n, commit: int32(i)}
+			}
 		}
 	}
 	for i := range c.Reviews {
@@ -473,7 +533,16 @@ func (r *RepoBuilder) Change(c *record.Change) {
 		}
 		x.reviews = append(x.reviews, revLite{at: v.SubmittedAt, state: st, agent: who == signature.ReviewAgent})
 	}
-	sort.SliceStable(x.reviews, func(i, j int) bool { return x.reviews[i].at.Before(x.reviews[j].at) })
+	sort.SliceStable(x.reviews, func(i, j int) bool {
+		a, b := x.reviews[i], x.reviews[j]
+		if !a.at.Equal(b.at) {
+			return a.at.Before(b.at)
+		}
+		if a.state != b.state {
+			return a.state < b.state
+		}
+		return !a.agent && b.agent
+	})
 	if !x.merged.IsZero() {
 		for _, m := range reverts.FindAllStringSubmatch(c.Body, -1) {
 			if m[1] != "" && !strings.EqualFold(m[1], c.Repo) {
@@ -483,18 +552,45 @@ func (r *RepoBuilder) Change(c *record.Change) {
 				r.reverts = append(r.reverts, num)
 			}
 		}
-		r.info.merged++
+		b.l.fig(r.idx, c.CreatedAt).merged++
 	}
+	f := b.l.fig(r.idx, c.CreatedAt)
 	if c.CommitCount > len(c.Commits) {
-		r.info.cut++
+		f.cut++
 	}
-	if c.MergeSHA != "" && !x.merged.IsZero() {
-		r.merges[c.MergeSHA] = n
-	}
-	r.info.changes++
-	r.byNumber[c.Number] = n
+	f.changes++
 	r.chgs = append(r.chgs, x)
-	b.l.saw(record.KindChange, c.Source, c.CreatedAt)
+	if c.MergeSHA != "" && !x.merged.IsZero() {
+		// The latest merge of a commit wins, whatever order they were read in.
+		if old, ok := r.merges[c.MergeSHA]; !ok || r.laterMerge(x.merged, c.Number, old) {
+			r.merges[c.MergeSHA] = n
+		}
+	}
+	// A number read twice is the later of the two creations.
+	if old, ok := r.byNumber[c.Number]; !ok || r.chgs[old].created.Before(c.CreatedAt) {
+		r.byNumber[c.Number] = n
+	}
+	b.l.saw(record.KindChange, c.Source, c.CreatedAt, r.idx)
+}
+
+// before says a change created at created with number num sorts before the
+// change at index old.
+func (r *RepoBuilder) before(created time.Time, num int, old int32) bool {
+	o := &r.chgs[old]
+	if !created.Equal(o.created) {
+		return created.Before(o.created)
+	}
+	return num < o.num
+}
+
+// laterMerge says a merge at merged of change num is later than the merge of
+// the change at index old.
+func (r *RepoBuilder) laterMerge(merged time.Time, num int, old int32) bool {
+	o := &r.chgs[old]
+	if !merged.Equal(o.merged) {
+		return merged.After(o.merged)
+	}
+	return num > o.num
 }
 
 // skipped holds the conclusions of runs that never ran the checks.
@@ -527,8 +623,9 @@ func queuedFor(branch string) (int, bool) {
 // A run of a merge queue is on a commit the queue made, so it is tied to its
 // change by the name of its branch, and it is a round of its own.
 func (r *RepoBuilder) CIRun(x *record.CIRun) {
-	r.info.ciRuns++
-	r.b.l.saw(record.KindCIRun, x.Source, x.CreatedAt)
+	f := r.b.l.fig(r.idx, x.CreatedAt)
+	f.ciRuns++
+	r.b.l.saw(record.KindCIRun, x.Source, x.CreatedAt, r.idx)
 	var at int32
 	if ref, ok := r.sha[x.SHA]; ok {
 		at = ref.chg
@@ -541,7 +638,7 @@ func (r *RepoBuilder) CIRun(x *record.CIRun) {
 			return
 		}
 	}
-	r.info.ciJoined++
+	f.ciJoined++
 	c := &r.chgs[at]
 	if c.rounds == nil {
 		c.rounds = map[string]*round{}
@@ -574,12 +671,13 @@ func (r *RepoBuilder) CIRun(x *record.CIRun) {
 
 // Deploy adds a deployment or a release.
 func (r *RepoBuilder) Deploy(d *record.Deploy) {
-	r.b.l.saw(record.KindDeploy, d.Source, d.CreatedAt)
+	r.b.l.saw(record.KindDeploy, d.Source, d.CreatedAt, r.idx)
 	if d.Production {
+		it := r.b.l.deployItem(d, r.idx)
 		r.prod = append(r.prod, prodDeploy{created: d.CreatedAt, finished: val(d.FinishedAt), outcome: d.Outcome, via: d.Via, sha: d.SHA,
-			item: r.b.l.deployItem(d)})
+			item: it, itemKey: r.b.l.items[it].key})
 		if d.Via == "deployment" && d.Environment != "" {
-			r.envs[d.Environment] = true
+			r.prod[len(r.prod)-1].env = d.Environment
 		}
 		return
 	}
@@ -595,7 +693,7 @@ func (r *RepoBuilder) Deploy(d *record.Deploy) {
 	if (!c.merged.IsZero() && !d.CreatedAt.Before(c.merged)) || (d.Ref != "" && d.Ref == c.base) || strings.EqualFold(d.Environment, "github-pages") {
 		return
 	}
-	r.info.verifyJoined++
+	r.b.l.fig(r.idx, placeOf(d.CreatedAt, val(d.FinishedAt))).verif++
 	c.vdeps = append(c.vdeps, vdep{committed: c.commits[ref.commit].committed, created: d.CreatedAt, finished: val(d.FinishedAt), outcome: d.Outcome})
 }
 
@@ -653,12 +751,33 @@ func (r *RepoBuilder) Done() {
 			prod = append(prod, d)
 		}
 	}
-	sort.SliceStable(prod, func(i, j int) bool { return prod[i].created.Before(prod[j].created) })
-	r.info.prodDeploys, r.info.viaRelease = len(prod), len(prod) > 0 && !deployments
-	for e := range r.envs {
-		r.info.environments = append(r.info.environments, e)
+	sort.SliceStable(prod, func(i, j int) bool {
+		a, b := prod[i], prod[j]
+		switch {
+		case !a.created.Equal(b.created):
+			return a.created.Before(b.created)
+		case !a.finished.Equal(b.finished):
+			return a.finished.Before(b.finished)
+		case a.outcome != b.outcome:
+			return a.outcome < b.outcome
+		case a.via != b.via:
+			return a.via < b.via
+		case a.sha != b.sha:
+			return a.sha < b.sha
+		}
+		return a.itemKey < b.itemKey
+	})
+	r.info.viaRelease = len(prod) > 0 && !deployments
+	for _, d := range prod {
+		f := l.fig(r.idx, placeOf(d.created, d.finished))
+		f.prodDeploys++
+		if d.env != "" {
+			if f.envs == nil {
+				f.envs = map[string]bool{}
+			}
+			f.envs[d.env] = true
+		}
 	}
-	sort.Strings(r.info.environments)
 
 	repoKey := key{class: classNone, agent: -1, repo: r.idx}
 	// The deploys that can have shipped a change. A deploy of the commit a
@@ -671,7 +790,7 @@ func (r *RepoBuilder) Done() {
 			if i, ok := r.merges[d.sha]; ok && d.sha != "" {
 				d.cut, d.base = r.chgs[i].merged, r.chgs[i].base
 				sh.bases[d.base] = true
-				r.info.shipsByCommit++
+				l.fig(r.idx, placeOf(d.created, d.finished)).shipsByCommit++
 			}
 			sh.list = append(sh.list, d)
 		}
@@ -687,7 +806,9 @@ func (r *RepoBuilder) Done() {
 		}
 	}
 
-	r.info.ships = len(sh.list)
+	for _, d := range sh.list {
+		l.fig(r.idx, placeOf(d.created, d.finished)).ships++
+	}
 	for i := range r.chgs {
 		r.emit(&r.chgs[i], sh)
 	}
@@ -746,7 +867,7 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 			from := x.started
 			if x.attempt == 1 {
 				from = x.created
-				if first == nil || x.created.Before(first.created) {
+				if first == nil || x.created.Before(first.created) || (x.created.Equal(first.created) && x.started.Before(first.started)) {
 					first = x
 				}
 			}
@@ -782,7 +903,18 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 	// A change is verified once, at its first deployment that passed. A
 	// change that failed a round and was fixed passes on a later one, and
 	// the failed rounds count as rework.
-	sort.SliceStable(c.vdeps, func(i, j int) bool { return c.vdeps[i].created.Before(c.vdeps[j].created) })
+	sort.SliceStable(c.vdeps, func(i, j int) bool {
+		a, b := c.vdeps[i], c.vdeps[j]
+		switch {
+		case !a.created.Equal(b.created):
+			return a.created.Before(b.created)
+		case !a.finished.Equal(b.finished):
+			return a.finished.Before(b.finished)
+		case a.outcome != b.outcome:
+			return a.outcome < b.outcome
+		}
+		return a.committed.Before(b.committed)
+	})
 	var passed time.Time
 	for _, d := range c.vdeps {
 		l.add("verify.wait", d.created, hours(d.created.Sub(d.committed)), k, c.item)
@@ -822,30 +954,13 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 
 	// Review. A review counts whoever wrote it, a person or an agent
 	// (signature.ClassifyReview). With human reviews only, agent reviews do
-	// not make a change reviewed; they still feed who reviewed it.
-	end := c.closed // zero while the change is open
-	counted := c.reviews
-	if l.humanReviewsOnly {
-		counted = make([]revLite, 0, len(c.reviews))
-		for _, v := range c.reviews {
-			if !v.agent {
-				counted = append(counted, v)
-			}
-		}
-	}
-	reviewed := len(counted) > 0
+	// not make a change reviewed; they still feed who reviewed it. What
+	// depends on which reviews count is written once for each mode when a
+	// change has a review by an agent, and the report reads the mode it asks
+	// for.
 	arrive := c.ready
 	if arrive.IsZero() {
 		arrive = c.created
-	}
-	var first, leave time.Time
-	if reviewed {
-		first = counted[0].at
-		wait := 0.0
-		if !c.ready.IsZero() {
-			wait = hours(first.Sub(c.ready))
-		}
-		l.add("review.wait", first, wait, k, c.item)
 	}
 	// The first review by an agent and by a person, apart, whatever counts.
 	for _, agent := range []bool{true, false} {
@@ -865,78 +980,36 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 			break
 		}
 	}
-	if !c.ready.IsZero() {
-		until := end
-		if reviewed {
-			until = first
-		}
-		l.stand("review.queue", c.ready, until, k, c.item)
+	human, agent := false, false
+	for _, v := range c.reviews {
+		human = human || !v.agent
+		agent = agent || v.agent
 	}
 	if !c.merged.IsZero() {
-		if reviewed {
-			leave = c.merged
-			sentBack := false
-			for _, v := range counted {
-				if v.state == revApproved {
-					leave = v.at
-				}
-				sentBack = sentBack || v.state == revChanges
-			}
-			for _, m := range c.commits {
-				sentBack = sentBack || (!m.merge && m.committed.After(first))
-			}
-			l.add("review.work", leave, hours(leave.Sub(first)), k, c.item)
-			l.hit("review.rework", leave, sentBack, k, c.item)
-			l.add("review.rounds", leave, float64(rounds(counted, c.commits)), k, c.item)
-		} else {
-			// No review seen: review may have happened where the code host
-			// cannot see it. The time from ready to the merge is review time,
-			// and merge gets none of it. review.skipped says how much of the
-			// station this is.
-			leave = c.merged
-		}
-		l.add("review.flow", leave, 1, k, c.item)
-		l.add("review.held", leave, stood(arrive, leave), k, c.item)
-		human, agent := false, false
-		for _, v := range c.reviews {
-			human = human || !v.agent
-			agent = agent || v.agent
-		}
 		l.hit("review.by_human", c.merged, human, k, c.item)
 		l.hit("review.by_agent", c.merged, agent, k, c.item)
 		l.hit("review.by_both", c.merged, human && agent, k, c.item)
-	}
-
-	// Merge. Every approval opens a stay in the queue that lasts until the
-	// next approval, a request for changes or the end of the change.
-	for i, v := range counted {
-		if v.state != revApproved {
-			continue
-		}
-		until := end
-		for _, w := range counted[i+1:] {
-			if w.state != revCommented {
-				until = w.at
-				break
-			}
-		}
-		l.stand("merge.queue", v.at, until, k, c.item)
-	}
-	if !c.merged.IsZero() {
-		at := leave
-		if at.After(c.merged) {
-			at = c.merged
-		}
 		l.add("merge.flow", c.merged, 1, k, c.item)
-		l.add("merge.wait", c.merged, hours(c.merged.Sub(at)), k, c.item)
 		l.hit("merge.rework", c.merged, c.reverted, k, c.item)
-		l.add("merge.held", c.merged, stood(at, c.merged), k, c.item)
-		l.hit("review.skipped", c.merged, !reviewed, k, c.item)
 
 		l.add("line.flow", c.merged, 1, k, c.item)
 		l.add("line.lead", c.merged, hours(c.merged.Sub(c.created)), k, c.item)
 		l.add("line.size", c.merged, float64(c.size), k, c.item)
 		l.hit("line.agent_share", c.merged, k.class == classAgent, k, c.item)
+	}
+	var all, people reviewOut
+	r.reviewStations(c, &all, c.reviews, arrive, stood)
+	if agent {
+		var only []revLite
+		for _, v := range c.reviews {
+			if !v.agent {
+				only = append(only, v)
+			}
+		}
+		r.reviewStations(c, &people, only, arrive, stood)
+		l.flushReviews(&all, &people)
+	} else {
+		l.flushReviews(&all, nil)
 	}
 
 	// Release. A change merged before the store's deploys begin cannot be
@@ -966,6 +1039,170 @@ func (r *RepoBuilder) emit(c *chg, sh shipping) {
 	l.add("release.held", reach, hours(reach.Sub(c.merged)), k, c.item)
 	l.add("line.delivery", reach, hours(reach.Sub(c.start)), k, c.item)
 	l.stand("release.queue", c.merged, reach, k, c.item)
+}
+
+// reviewOut holds what the stations that depend on which reviews count wrote
+// for one change.
+type reviewOut struct {
+	obs   []namedObs
+	stays []namedStay
+}
+
+type namedObs struct {
+	stream string
+	o      obs
+}
+
+type namedStay struct {
+	queue string
+	s     stay
+}
+
+func (w *reviewOut) add(stream string, at time.Time, v float64, k key, it int32) {
+	w.obs = append(w.obs, namedObs{stream, obs{at: at, v: v, k: k, item: it}})
+}
+
+func (w *reviewOut) hit(stream string, at time.Time, yes bool, k key, it int32) {
+	v := 0.0
+	if yes {
+		v = 1
+	}
+	w.add(stream, at, v, k, it)
+}
+
+// stand is Line.stand for a reviewOut.
+func (w *reviewOut) stand(queue string, from, to time.Time, k key, it int32) {
+	if from.IsZero() || (!to.IsZero() && !to.After(from)) {
+		return
+	}
+	w.stays = append(w.stays, namedStay{queue, stay{from: from, to: to, k: k, item: it}})
+}
+
+// flushReviews writes what a change did at the review and merge stations. With
+// one mode given the change reads the same either way. With two, what is the
+// same in both is written once, and the rest only for its mode.
+func (l *Line) flushReviews(all, people *reviewOut) {
+	if people == nil {
+		for _, x := range all.obs {
+			l.obs[x.stream] = append(l.obs[x.stream], x.o)
+		}
+		for _, x := range all.stays {
+			l.stays[x.queue] = append(l.stays[x.queue], x.s)
+		}
+		return
+	}
+	taken := make([]bool, len(people.obs))
+	for _, x := range all.obs {
+		x.o.mode = modeAll
+		for j, y := range people.obs {
+			if !taken[j] && x.stream == y.stream && x.o.at.Equal(y.o.at) && x.o.v == y.o.v && x.o.k == y.o.k && x.o.item == y.o.item {
+				taken[j], x.o.mode = true, modeBoth
+				break
+			}
+		}
+		l.obs[x.stream] = append(l.obs[x.stream], x.o)
+	}
+	for j, y := range people.obs {
+		if !taken[j] {
+			y.o.mode = modeHuman
+			l.obs[y.stream] = append(l.obs[y.stream], y.o)
+		}
+	}
+	tookStay := make([]bool, len(people.stays))
+	same := func(a, b stay) bool {
+		return a.from.Equal(b.from) && a.to.Equal(b.to) && a.k == b.k && a.item == b.item
+	}
+	for _, x := range all.stays {
+		x.s.mode = modeAll
+		for j, y := range people.stays {
+			if !tookStay[j] && x.queue == y.queue && same(x.s, y.s) {
+				tookStay[j], x.s.mode = true, modeBoth
+				break
+			}
+		}
+		l.stays[x.queue] = append(l.stays[x.queue], x.s)
+	}
+	for j, y := range people.stays {
+		if !tookStay[j] {
+			y.s.mode = modeHuman
+			l.stays[y.queue] = append(l.stays[y.queue], y.s)
+		}
+	}
+}
+
+// reviewStations writes the stations that depend on which reviews count, for
+// the reviews given, oldest first.
+func (r *RepoBuilder) reviewStations(c *chg, w *reviewOut, counted []revLite, arrive time.Time, stood func(from, to time.Time) float64) {
+	k := c.k
+	end := c.closed // zero while the change is open
+	reviewed := len(counted) > 0
+	var first, leave time.Time
+	if reviewed {
+		first = counted[0].at
+		wait := 0.0
+		if !c.ready.IsZero() {
+			wait = hours(first.Sub(c.ready))
+		}
+		w.add("review.wait", first, wait, k, c.item)
+	}
+	if !c.ready.IsZero() {
+		until := end
+		if reviewed {
+			until = first
+		}
+		w.stand("review.queue", c.ready, until, k, c.item)
+	}
+	if !c.merged.IsZero() {
+		if reviewed {
+			leave = c.merged
+			sentBack := false
+			for _, v := range counted {
+				if v.state == revApproved {
+					leave = v.at
+				}
+				sentBack = sentBack || v.state == revChanges
+			}
+			for _, m := range c.commits {
+				sentBack = sentBack || (!m.merge && m.committed.After(first))
+			}
+			w.add("review.work", leave, hours(leave.Sub(first)), k, c.item)
+			w.hit("review.rework", leave, sentBack, k, c.item)
+			w.add("review.rounds", leave, float64(rounds(counted, c.commits)), k, c.item)
+		} else {
+			// No review seen: review may have happened where the code host
+			// cannot see it. The time from ready to the merge is review time,
+			// and merge gets none of it. review.skipped says how much of the
+			// station this is.
+			leave = c.merged
+		}
+		w.add("review.flow", leave, 1, k, c.item)
+		w.add("review.held", leave, stood(arrive, leave), k, c.item)
+	}
+
+	// Merge. Every approval opens a stay in the queue that lasts until the
+	// next approval, a request for changes or the end of the change.
+	for i, v := range counted {
+		if v.state != revApproved {
+			continue
+		}
+		until := end
+		for _, x := range counted[i+1:] {
+			if x.state != revCommented {
+				until = x.at
+				break
+			}
+		}
+		w.stand("merge.queue", v.at, until, k, c.item)
+	}
+	if !c.merged.IsZero() {
+		at := leave
+		if at.After(c.merged) {
+			at = c.merged
+		}
+		w.add("merge.wait", c.merged, hours(c.merged.Sub(at)), k, c.item)
+		w.add("merge.held", c.merged, stood(at, c.merged), k, c.item)
+		w.hit("review.skipped", c.merged, !reviewed, k, c.item)
+	}
 }
 
 // SourceScope is what the store knows about a ticket system that is not a
@@ -1032,7 +1269,7 @@ func (b *Builder) TicketSource(sc SourceScope) func(*record.Ticket) {
 // none while no change is.
 func (b *Builder) Ticket(t *record.Ticket) {
 	l := b.l
-	l.saw(record.KindTicket, t.Source, t.CreatedAt)
+	l.saw(record.KindTicket, t.Source, t.CreatedAt, -1)
 	first, linked := b.linked[t.ID]
 	k := key{class: classNone, agent: -1, repo: -1}
 	switch {
@@ -1042,7 +1279,7 @@ func (b *Builder) Ticket(t *record.Ticket) {
 		k.repo = first.repo
 	}
 	it := int32(len(l.items))
-	l.items = append(l.items, item{kind: record.KindTicket, key: t.Key, url: t.URL, title: t.Title, class: classNone})
+	l.items = append(l.items, item{kind: record.KindTicket, key: t.Key, url: t.URL, title: t.Title, class: classNone, at: t.CreatedAt, repo: k.repo})
 
 	var firstAt time.Time
 	if linked {
