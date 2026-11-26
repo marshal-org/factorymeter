@@ -483,7 +483,7 @@ jobs:
   report:
     runs-on: ubuntu-latest
     steps:
-      - uses: marshal-org/factorymeter@v0.13.0   # or pin a commit SHA
+      - uses: marshal-org/factorymeter@v0.14.0   # or pin a commit SHA
         with:
           since: 13w
 ```
@@ -534,7 +534,7 @@ To read Linear as well, give the key from a secret:
 
 <!-- x-release-please-start-version -->
 ```yaml
-      - uses: marshal-org/factorymeter@v0.13.0
+      - uses: marshal-org/factorymeter@v0.14.0
         with:
           linear-api-key: ${{ secrets.LINEAR_API_KEY }}
           linear-teams: ENG, OPS      # leave out to read every team
@@ -548,7 +548,7 @@ To read Jira as well, give the site, and the account from secrets:
 
 <!-- x-release-please-start-version -->
 ```yaml
-      - uses: marshal-org/factorymeter@v0.13.0
+      - uses: marshal-org/factorymeter@v0.14.0
         with:
           jira-site: acme.atlassian.net
           jira-email: ${{ secrets.JIRA_EMAIL }}
@@ -567,7 +567,7 @@ secrets:
 <!-- x-release-please-start-version -->
 ```yaml
       - uses: actions/checkout@v7
-      - uses: marshal-org/factorymeter@v0.13.0
+      - uses: marshal-org/factorymeter@v0.14.0
         with:
           linear-api-key: ${{ secrets.LINEAR_API_KEY }}
           jira-email: ${{ secrets.JIRA_EMAIL }}
